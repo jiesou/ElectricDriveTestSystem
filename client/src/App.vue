@@ -1,30 +1,48 @@
-<script setup lang="ts">
-import HelloWorld from './components/HelloWorld.vue'
-</script>
-
 <template>
-  <div>
-    <a href="https://vite.dev" target="_blank">
-      <img src="/vite.svg" class="logo" alt="Vite logo" />
-    </a>
-    <a href="https://vuejs.org/" target="_blank">
-      <img src="./assets/vue.svg" class="logo vue" alt="Vue logo" />
-    </a>
+  <div id="app">
+    <a-layout style="min-height: 100vh">
+      <a-layout-header>
+        <div class="logo">
+          <h2 style="color: white; margin: 0;">电力拖动测试系统</h2>
+        </div>
+      </a-layout-header>
+      
+      <a-layout-content style="padding: 20px;">
+        <a-tabs v-model:activeKey="activeTab" type="card">
+          <a-tab-pane key="questions" tab="出题管理">
+            <QuestionManager />
+          </a-tab-pane>
+          
+          <a-tab-pane key="clients" tab="客户端管理">
+            <ClientManager />
+          </a-tab-pane>
+          
+          <a-tab-pane key="test" tab="测试管理">
+            <TestManager />
+          </a-tab-pane>
+        </a-tabs>
+      </a-layout-content>
+    </a-layout>
   </div>
-  <HelloWorld msg="Vite + Vue" />
 </template>
 
-<style scoped>
+<script setup lang="ts">
+import { ref } from 'vue'
+import QuestionManager from './components/QuestionManager.vue'
+import ClientManager from './components/ClientManager.vue'
+import TestManager from './components/TestManager.vue'
+
+const activeTab = ref('questions')
+</script>
+
+<style>
+#app {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
 .logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #42b883aa);
+  display: flex;
+  align-items: center;
+  height: 64px;
 }
 </style>
