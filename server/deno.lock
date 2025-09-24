@@ -90,7 +90,8 @@
   "workspace": {
     "dependencies": [
       "jsr:@oak/oak@^17.1.6",
-      "jsr:@std/assert@1"
+      "jsr:@std/assert@1",
+      "jsr:@std/path@^1.0.8"
     ]
   }
 }
