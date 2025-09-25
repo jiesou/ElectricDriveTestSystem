@@ -10,8 +10,12 @@ interface Question {
 interface Client {
   id: string
   ip: string
-  hasSession: boolean
-  lastActivity: number
+  session?: {
+    currentQuestion: number
+    totalQuestions: number
+    remainingTroubles: number[]
+    startTime: number
+  } | null
 }
 
 interface TestSession {
@@ -31,7 +35,7 @@ const modalVisible = ref(false)
 const formState = reactive({
   clientIds: [] as string[],
   questionIds: [] as number[],
-  startTime: null as any
+  startTime: '' as string
 })
 
 async function fetchData() {
@@ -67,7 +71,7 @@ async function fetchData() {
 function openCreateTestModal() {
   formState.clientIds = []
   formState.questionIds = []
-  formState.startTime = null
+  formState.startTime = ''
   modalVisible.value = true
 }
 
@@ -84,7 +88,7 @@ async function handleCreateTest() {
 
   try {
     const startTime = formState.startTime 
-      ? Math.floor(formState.startTime.getTime() / 1000)
+      ? Math.floor(new Date(formState.startTime).getTime() / 1000)
       : Math.floor(Date.now() / 1000)
 
     const response = await fetch('/api/test-sessions', {
@@ -132,26 +136,10 @@ const clientColumns = [
     key: 'ip' 
   },
   { 
-    title: '连接状态', 
-    key: 'status',
-    customRender: ({ record }: { record: Client }) => {
-      const isRecent = (Date.now() / 1000 - record.lastActivity) < 30
-      return isRecent ? '在线' : '离线'
-    }
-  },
-  { 
     title: '测验状态', 
     key: 'testStatus',
     customRender: ({ record }: { record: Client }) => {
-      return record.hasSession ? '进行中' : '空闲'
-    }
-  },
-  { 
-    title: '最后活动', 
-    dataIndex: 'lastActivity',
-    key: 'lastActivity',
-    customRender: ({ text }: { text: number }) => {
-      return new Date(text * 1000).toLocaleTimeString()
+      return record.session ? '进行中' : '空闲'
     }
   }
 ]
@@ -218,14 +206,9 @@ onMounted(() => {
         :pagination="false"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
-            <Tag :color="(Date.now() / 1000 - record.lastActivity) < 30 ? 'green' : 'red'">
-              {{ (Date.now() / 1000 - record.lastActivity) < 30 ? '在线' : '离线' }}
-            </Tag>
-          </template>
           <template v-if="column.key === 'testStatus'">
-            <Tag :color="record.hasSession ? 'blue' : 'default'">
-              {{ record.hasSession ? '进行中' : '空闲' }}
+            <Tag :color="record.session ? 'blue' : 'default'">
+              {{ record.session ? '进行中' : '空闲' }}
             </Tag>
           </template>
         </template>
@@ -260,10 +243,10 @@ onMounted(() => {
               v-for="client in clients" 
               :key="client.id" 
               :value="client.id"
-              :disabled="client.hasSession"
+              :disabled="!!client.session"
             >
               {{ client.ip }} 
-              <Tag v-if="client.hasSession" color="blue" size="small">进行中</Tag>
+              <Tag v-if="client.session" color="blue" size="small">进行中</Tag>
             </Select.Option>
           </Select>
         </Form.Item>

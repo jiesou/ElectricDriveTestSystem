@@ -5,14 +5,12 @@ import { Table, Card, Tag, Progress, Timeline } from 'ant-design-vue'
 interface ClientInfo {
   id: string
   ip: string
-  hasSession: boolean
-  lastActivity: number
-  sessionInfo?: {
+  session?: {
     currentQuestion: number
     totalQuestions: number
     remainingTroubles: number[]
     startTime: number
-  }
+  } | null
 }
 
 const clients = ref<ClientInfo[]>([])
@@ -26,33 +24,17 @@ const columns = [
     key: 'ip' 
   },
   { 
-    title: '连接状态', 
-    key: 'status',
-    customRender: ({ record }: { record: ClientInfo }) => {
-      const isOnline = (Date.now() / 1000 - record.lastActivity) < 30
-      return { isOnline, record }
-    }
-  },
-  { 
     title: '测验状态', 
     key: 'testStatus',
     customRender: ({ record }: { record: ClientInfo }) => ({
-      hasSession: record.hasSession,
-      sessionInfo: record.sessionInfo
+      hasSession: !!record.session,
+      session: record.session
     })
   },
   { 
     title: '答题进度', 
     key: 'progress',
     customRender: ({ record }: { record: ClientInfo }) => ({ record })
-  },
-  { 
-    title: '最后活动', 
-    dataIndex: 'lastActivity',
-    key: 'lastActivity',
-    customRender: ({ text }: { text: number }) => {
-      return new Date(text * 1000).toLocaleTimeString()
-    }
   }
 ]
 
@@ -109,32 +91,26 @@ onUnmounted(() => {
         size="middle"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
-            <Tag :color="(Date.now() / 1000 - record.lastActivity) < 30 ? 'green' : 'red'">
-              {{ (Date.now() / 1000 - record.lastActivity) < 30 ? '在线' : '离线' }}
-            </Tag>
-          </template>
-          
           <template v-if="column.key === 'testStatus'">
             <div>
-              <Tag :color="record.hasSession ? 'blue' : 'default'">
-                {{ record.hasSession ? '进行中' : '空闲' }}
+              <Tag :color="record.session ? 'blue' : 'default'">
+                {{ record.session ? '进行中' : '空闲' }}
               </Tag>
-              <div v-if="record.sessionInfo" style="margin-top: 4px; font-size: 12px; color: #666;">
-                第 {{ record.sessionInfo.currentQuestion }}/{{ record.sessionInfo.totalQuestions }} 题
+              <div v-if="record.session" style="margin-top: 4px; font-size: 12px; color: #666;">
+                第 {{ record.session.currentQuestion }}/{{ record.session.totalQuestions }} 题
               </div>
             </div>
           </template>
           
           <template v-if="column.key === 'progress'">
-            <div v-if="record.sessionInfo">
+            <div v-if="record.session">
               <Progress 
-                :percent="Math.round((record.sessionInfo.currentQuestion / record.sessionInfo.totalQuestions) * 100)"
+                :percent="Math.round((record.session.currentQuestion / record.session.totalQuestions) * 100)"
                 size="small"
-                :status="record.sessionInfo.remainingTroubles.length === 0 ? 'success' : 'active'"
+                :status="record.session.remainingTroubles.length === 0 ? 'success' : 'active'"
               />
               <div style="font-size: 12px; color: #666; margin-top: 4px;">
-                当前题目剩余故障: {{ record.sessionInfo.remainingTroubles.length }}
+                当前题目剩余故障: {{ record.session.remainingTroubles.length }}
               </div>
             </div>
             <span v-else style="color: #999;">-</span>
@@ -143,18 +119,18 @@ onUnmounted(() => {
       </Table>
     </Card>
 
-    <div style="margin-top: 20px;" v-if="clients.filter(c => c.hasSession).length > 0">
+    <div style="margin-top: 20px;" v-if="clients.filter(c => c.session).length > 0">
       <Card title="活跃测验详情">
-        <div v-for="client in clients.filter(c => c.hasSession)" :key="client.id" style="margin-bottom: 20px;">
+        <div v-for="client in clients.filter(c => c.session)" :key="client.id" style="margin-bottom: 20px;">
           <h4>{{ client.ip }}</h4>
-          <div v-if="client.sessionInfo" style="padding-left: 20px;">
-            <p><strong>开始时间:</strong> {{ new Date(client.sessionInfo.startTime * 1000).toLocaleString() }}</p>
-            <p><strong>当前进度:</strong> 第 {{ client.sessionInfo.currentQuestion }}/{{ client.sessionInfo.totalQuestions }} 题</p>
+          <div v-if="client.session" style="padding-left: 20px;">
+            <p><strong>开始时间:</strong> {{ new Date(client.session.startTime * 1000).toLocaleString() }}</p>
+            <p><strong>当前进度:</strong> 第 {{ client.session.currentQuestion }}/{{ client.session.totalQuestions }} 题</p>
             <p><strong>当前题目剩余故障:</strong> 
-              <Tag v-for="troubleId in client.sessionInfo.remainingTroubles" :key="troubleId" color="orange">
+              <Tag v-for="troubleId in client.session.remainingTroubles" :key="troubleId" color="orange">
                 故障 {{ troubleId }}
               </Tag>
-              <span v-if="client.sessionInfo.remainingTroubles.length === 0" style="color: #52c41a;">
+              <span v-if="client.session.remainingTroubles.length === 0" style="color: #52c41a;">
                 当前题目已完成
               </span>
             </p>

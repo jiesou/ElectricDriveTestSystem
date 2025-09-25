@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { Layout, message } from 'ant-design-vue'
-import WebSocketStatus from './components/WebSocketStatus.vue'
+import { ref } from 'vue'
+import { Layout } from 'ant-design-vue'
 import TroubleManagement from './components/TroubleManagement.vue'
 import TestManagement from './components/TestManagement.vue'
 import ClientMonitoring from './components/ClientMonitoring.vue'
@@ -20,9 +19,8 @@ const menuItems = [
 
 <template>
   <Layout style="min-height: 100vh;">
-    <Header style="background: #fff; padding: 0 20px; display: flex; justify-content: space-between; align-items: center;">
+    <Header style="background: #fff; padding: 0 20px; display: flex; justify-content: center; align-items: center;">
       <h1 style="margin: 0; color: #001529;">电力拖动测试系统</h1>
-      <WebSocketStatus />
     </Header>
     
     <Layout>

@@ -23,7 +23,6 @@ export interface ClientConnection {
   ip: string;
   socket: WebSocket;
   session?: TestSession;
-  lastActivity: number;
 }
 
 // WebSocket message types
@@ -82,7 +81,6 @@ export class TestSystemManager {
       id: clientId,
       ip,
       socket,
-      lastActivity: Date.now() / 1000,
     };
     this.clients.set(clientId, client);
     console.log(`Client ${clientId} (${ip}) connected`);
