@@ -142,6 +142,9 @@ apiRouter.get("/clients", (ctx) => {
       totalQuestions: client.session.questions.length,
       remainingTroubles: client.session.remainingTroubles,
       startTime: client.session.startTime,
+      endTime: client.session.endTime,
+      durationTime: client.session.durationTime,
+      logs: client.session.logs
     } : null,
   }));
 
@@ -203,29 +206,13 @@ apiRouter.get("/test-sessions", (ctx) => {
     endTime: client.session!.endTime,
     currentQuestionIndex: client.session!.currentQuestionIndex,
     totalQuestions: client.session!.questions.length,
-    remainingTroubles: client.session!.remainingTroubles
+    remainingTroubles: client.session!.remainingTroubles,
+    logs: client.session!.logs
   }));
 
   ctx.response.body = {
     success: true,
     data: sessions,
-  };
-});
-
-// Get client test logs
-apiRouter.get("/clients/:id/logs", (ctx) => {
-  const clientId = ctx.params.id!;
-  const client = manager.getConnectedClients().find(c => c.id === clientId);
-  
-  if (!client?.session) {
-    ctx.response.status = 404;
-    ctx.response.body = { success: false, error: "Client not found or no active session" };
-    return;
-  }
-
-  ctx.response.body = {
-    success: true,
-    data: client.session.logs,
   };
 });
 

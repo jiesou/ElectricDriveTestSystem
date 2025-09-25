@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, h } from 'vue'
-import { Table, Button, Modal, Form, Select, DatePicker, message, Card, Tag, Space, InputNumber } from 'ant-design-vue'
+import { Table, Button, Modal, Form, Select, DatePicker, message, Card, Tag, InputNumber } from 'ant-design-vue'
 
 interface Question {
   id: number
@@ -29,6 +29,19 @@ interface TestSession {
   currentQuestionIndex: number
   totalQuestions: number
   remainingTroubles: number[]
+  logs?: TestLog[]
+}
+
+interface TestLog {
+  timestamp: number
+  action: 'start' | 'answer' | 'navigation' | 'finish'
+  details: {
+    questionNumber?: number
+    troubleId?: number
+    result?: boolean
+    direction?: 'next' | 'prev'
+    timeDiff?: number
+  }
 }
 
 const questions = ref<Question[]>([])
@@ -166,47 +179,19 @@ const sessionColumns = [
     }
   },
   {
-    title: '持续时间',
-    key: 'duration',
-    customRender: ({ record }: { record: TestSession }) => {
-      if (!record.durationTime) return '无限制'
-      const minutes = Math.floor(record.durationTime / 60)
-      const seconds = record.durationTime % 60
-      return `${minutes}分${seconds}秒`
-    }
-  },
-  {
-    title: '状态',
-    key: 'status',
-    customRender: ({ record }: { record: TestSession }) => {
-      const now = Date.now() / 1000
-      if (record.endTime) {
-        return h(Tag, { color: 'red' }, () => '已结束')
-      }
-      if (now < record.startTime) {
-        return h(Tag, { color: 'blue' }, () => '等待开始')
-      }
-      return h(Tag, { color: 'green' }, () => '进行中')
-    }
-  },
-  {
-    title: '题目内容',
+    title: '所含题目',
+    dataIndex: 'questionIds',
     key: 'questions',
     customRender: ({ record }: { record: TestSession }) => {
-      const questionTexts = record.questionIds.map(id => {
-        const question = questions.value.find(q => q.id === id)
-        return question ? `题目${id}(${question.troubles.length}个troubles)` : `题目${id}`
-      })
-      return h(Space, { direction: 'vertical', size: 'small' }, 
-        () => questionTexts.map((text, index) => h(Tag, { key: index, color: 'cyan' }, () => text))
+      return record.questionIds.map((questionId, index) => 
+        h(Tag, { key: questionId, style: index > 0 ? 'margin-left: 4px' : '', color: 'blue' }, () => `【题目${questionId}】`)
       )
     }
   },
   {
-    title: '当前进度',
+    title: '进度',
     key: 'progress',
     customRender: ({ record }: { record: TestSession }) => {
-      if (record.endTime) return '已完成'
       return `${record.currentQuestionIndex + 1}/${record.totalQuestions}`
     }
   }
@@ -260,7 +245,7 @@ onMounted(() => {
         <Form.Item label="选择题目" required>
           <Select v-model:value="formState.questionIds" mode="multiple" placeholder="请选择测验题目" style="width: 100%">
             <Select.Option v-for="question in questions" :key="question.id" :value="question.id">
-              题目 {{ question.id }} ({{ question.troubles.length }} 个troubles)
+              题目 {{ question.id }} ({{ question.troubles.length }} 个故障)
             </Select.Option>
           </Select>
         </Form.Item>
