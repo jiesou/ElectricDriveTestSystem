@@ -1,48 +1,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, h } from 'vue'
 import { Table, Button, Modal, Form, Select, DatePicker, message, Card, Tag, InputNumber } from 'ant-design-vue'
-
-interface Question {
-  id: number
-  troubles: number[]
-}
-
-interface Client {
-  id: string
-  ip: string
-  session?: {
-    currentQuestion: number
-    totalQuestions: number
-    remainingTroubles: number[]
-    startTime: number
-  } | null
-}
-
-interface TestSession {
-  sessionId: string
-  clientId: string
-  clientIp: string
-  questionIds: number[]
-  startTime: number
-  durationTime?: number | null
-  endTime?: number
-  currentQuestionIndex: number
-  totalQuestions: number
-  remainingTroubles: number[]
-  logs?: TestLog[]
-}
-
-interface TestLog {
-  timestamp: number
-  action: 'start' | 'answer' | 'navigation' | 'finish'
-  details: {
-    questionNumber?: number
-    troubleId?: number
-    result?: boolean
-    direction?: 'next' | 'prev'
-    timeDiff?: number
-  }
-}
+import type { Question, Client, TestSession } from '../types'
+import { getSecondTimestamp } from '../types'
 
 const questions = ref<Question[]>([])
 const clients = ref<Client[]>([])
@@ -116,7 +76,7 @@ async function handleCreateTest() {
   try {
     const startTime = formState.startTime
       ? Math.floor(new Date(formState.startTime).getTime() / 1000)
-      : Math.floor(Date.now() / 1000)
+      : getSecondTimestamp()
 
     const response = await fetch('/api/test-sessions', {
       method: 'POST',

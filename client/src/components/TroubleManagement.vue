@@ -1,16 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { Table, Button, Modal, Form, Select, message, Space, Popconfirm } from 'ant-design-vue'
-
-interface Trouble {
-  id: number
-  description: string
-}
-
-interface Question {
-  id: number
-  troubles: number[]
-}
+import type { Trouble, Question } from '../types'
 
 const troubles = ref<Trouble[]>([])
 const questions = ref<Question[]>([])

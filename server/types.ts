@@ -1,3 +1,8 @@
+// Utility function to get integer second timestamp
+export function getSecondTimestamp(): number {
+  return Math.floor(Date.now() / 1000);
+}
+
 // Types and interfaces
 export interface Trouble {
   id: number;
@@ -155,7 +160,7 @@ export class TestSystemManager {
     }
 
     // Log the answer
-    const timestamp = Date.now() / 1000;
+    const timestamp = getSecondTimestamp();
     const lastLog = session.logs[session.logs.length - 1];
     session.logs.push({
       timestamp,
@@ -164,7 +169,7 @@ export class TestSystemManager {
         questionNumber: session.currentQuestionIndex + 1,
         troubleId,
         result: isCorrect,
-        timeDiff: Math.round(timestamp - lastLog.timestamp)
+        timeDiff: timestamp - lastLog.timestamp
       }
     });
 
@@ -186,7 +191,7 @@ export class TestSystemManager {
       session.remainingTroubles = [...session.questions[newIndex].troubles];
       
       // Log the navigation
-      const timestamp = Date.now() / 1000;
+      const timestamp = getSecondTimestamp();
       const lastLog = session.logs[session.logs.length - 1];
       session.logs.push({
         timestamp,
@@ -194,7 +199,7 @@ export class TestSystemManager {
         details: {
           questionNumber: newIndex + 1,
           direction,
-          timeDiff: Math.round(timestamp - lastLog.timestamp)
+          timeDiff: timestamp - lastLog.timestamp
         }
       });
       
@@ -209,7 +214,7 @@ export class TestSystemManager {
     if (!client?.session) return false;
 
     const session = client.session;
-    const finishTime = timestamp || Date.now() / 1000;
+    const finishTime = timestamp || getSecondTimestamp();
     session.endTime = finishTime;
 
     // Log the finish
@@ -218,7 +223,7 @@ export class TestSystemManager {
       timestamp: finishTime,
       action: 'finish',
       details: {
-        timeDiff: Math.round(finishTime - lastLog.timestamp)
+        timeDiff: finishTime - lastLog.timestamp
       }
     });
 
@@ -235,7 +240,7 @@ export class TestSystemManager {
     for (const client of this.clients.values()) {
       if (client.session && client.socket.readyState === WebSocket.OPEN) {
         const session = client.session;
-        const currentTime = Date.now() / 1000;
+        const currentTime = getSecondTimestamp();
         
         // Check if session has timed out
         if (session.durationTime && !session.endTime && 
@@ -246,7 +251,7 @@ export class TestSystemManager {
             timestamp: session.endTime,
             action: 'finish',
             details: {
-              timeDiff: Math.round(session.endTime - lastLog.timestamp)
+              timeDiff: session.endTime - lastLog.timestamp
             }
           });
           console.log(`Session timeout for client ${client.id}`);
