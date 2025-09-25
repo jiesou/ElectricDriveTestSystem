@@ -111,6 +111,11 @@ function formatTime(timestamp: number): string {
 
 const clientColumns = [
   {
+    title: '客户机名称',
+    dataIndex: 'name',
+    key: 'name'
+  },
+  {
     title: 'IP地址',
     dataIndex: 'ip',
     key: 'ip'
@@ -119,7 +124,7 @@ const clientColumns = [
     title: '测验状态',
     key: 'testStatus',
     customRender: ({ record }: { record: Client }) => {
-      return record.session ? '进行中' : '空闲'
+      return record.testSession ? '进行中' : '空闲'
     }
   }
 ]
@@ -142,8 +147,8 @@ const sessionColumns = [
     title: '所含题目',
     dataIndex: 'questionIds',
     key: 'questions',
-    customRender: ({ record }: { record: TestSession }) => {
-      return record.questionIds.map((questionId, index) => 
+    customRender: ({ record }: { record: any }) => {
+      return record.questionIds.map((questionId: number, index: number) => 
         h(Tag, { key: questionId, style: index > 0 ? 'margin-left: 4px' : '', color: 'blue' }, () => `题目${questionId}`)
       )
     }
@@ -151,7 +156,7 @@ const sessionColumns = [
   {
     title: '进度',
     key: 'progress',
-    customRender: ({ record }: { record: TestSession }) => {
+    customRender: ({ record }: { record: any }) => {
       return `${record.currentQuestionIndex + 1}/${record.totalQuestions}`
     }
   }
@@ -179,8 +184,8 @@ onMounted(() => {
         :pagination="false">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'testStatus'">
-            <Tag :color="record.session ? 'blue' : 'default'">
-              {{ record.session ? '进行中' : '空闲' }}
+            <Tag :color="record.testSession ? 'blue' : 'default'">
+              {{ record.testSession ? '进行中' : '空闲' }}
             </Tag>
           </template>
         </template>
@@ -195,9 +200,9 @@ onMounted(() => {
       <Form layout="vertical">
         <Form.Item label="选择客户机" required>
           <Select v-model:value="formState.clientIds" mode="multiple" placeholder="请选择目标客户机" style="width: 100%">
-            <Select.Option v-for="client in clients" :key="client.id" :value="client.id" :disabled="!!client.session">
-              {{ client.ip }}
-              <Tag v-if="client.session" color="blue" size="small">进行中</Tag>
+            <Select.Option v-for="client in clients" :key="client.id" :value="client.id" :disabled="!!client.testSession">
+              {{ client.name }} ({{ client.ip }})
+              <Tag v-if="client.testSession" color="blue" size="small">进行中</Tag>
             </Select.Option>
           </Select>
         </Form.Item>

@@ -27,9 +27,8 @@ const questionColumns = [
     dataIndex: 'troubles', 
     key: 'troubles',
     customRender: ({ record }: { record: Question }) => {
-      const troubleDescs = record.troubles.map(troubleId => {
-        const trouble = troubles.value.find(t => t.id === troubleId)
-        return trouble ? `${trouble.id}:${trouble.description}` : `${troubleId}`
+      const troubleDescs = record.troubles.map(trouble => {
+        return `${trouble.id}:${trouble.description}`
       })
       return troubleDescs.join(', ')
     }
@@ -80,7 +79,7 @@ function openAddModal() {
 
 function openEditModal(question: Question) {
   editingQuestion.value = question
-  formState.troubles = [...question.troubles]
+  formState.troubles = question.troubles.map(t => t.id)
   modalVisible.value = true
 }
 
@@ -95,10 +94,15 @@ async function handleSubmit() {
     const url = isEdit ? `/api/questions/${editingQuestion.value!.id}` : '/api/questions'
     const method = isEdit ? 'PUT' : 'POST'
     
+    // Convert trouble IDs to trouble objects
+    const troubleObjects = formState.troubles.map(troubleId => {
+      return troubles.value.find(t => t.id === troubleId)!
+    })
+    
     const response = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ troubles: formState.troubles })
+      body: JSON.stringify({ troubles: troubleObjects })
     })
 
     const result = await response.json()

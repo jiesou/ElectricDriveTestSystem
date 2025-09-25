@@ -17,8 +17,8 @@ const columns = [
     title: '测验状态', 
     key: 'testStatus',
     customRender: ({ record }: { record: Client }) => ({
-      hasSession: !!record.session,
-      session: record.session
+      hasSession: !!record.testSession,
+      session: record.testSession
     })
   },
   { 
@@ -90,24 +90,24 @@ onUnmounted(() => {
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'testStatus'">
             <div>
-              <Tag :color="record.session ? (record.session.endTime ? 'red' : 'blue') : 'default'">
-                {{ record.session ? (record.session.endTime ? '已结束' : '进行中') : '空闲' }}
+              <Tag :color="record.testSession ? (record.testSession.finishTime ? 'red' : 'blue') : 'default'">
+                {{ record.testSession ? (record.testSession.finishTime ? '已结束' : '进行中') : '空闲' }}
               </Tag>
-              <div v-if="record.session" style="margin-top: 4px; font-size: 12px; color: #666;">
-                第 {{ record.session.currentQuestion }}/{{ record.session.totalQuestions }} 题
-                <span v-if="record.session.durationTime">
-                  (限时{{ Math.floor(record.session.durationTime / 60) }}分钟)
+              <div v-if="record.testSession" style="margin-top: 4px; font-size: 12px; color: #666;">
+                第 {{ record.testSession.currentQuestionIndex + 1 }}/{{ record.testSession.test.questions.length }} 题
+                <span v-if="record.testSession.test.durationTime">
+                  (限时{{ Math.floor(record.testSession.test.durationTime / 60) }}分钟)
                 </span>
               </div>
             </div>
           </template>
 
           <template v-if="column.key === 'progress'">
-            <div v-if="record.session">
-              <Progress :percent="Math.round((record.session.currentQuestion / record.session.totalQuestions) * 100)"
-                size="small" :status="record.session.remainingTroubles.length === 0 ? 'success' : 'active'" />
+            <div v-if="record.testSession">
+              <Progress :percent="Math.round(((record.testSession.currentQuestionIndex + 1) / record.testSession.test.questions.length) * 100)"
+                size="small" :status="'active'" />
               <div style="font-size: 12px; color: #666; margin-top: 4px;">
-                当前题目剩余故障: {{ record.session.remainingTroubles.length }}
+                测验进度状态
               </div>
             </div>
             <span v-else style="color: #999;">-</span>
@@ -116,18 +116,17 @@ onUnmounted(() => {
       </Table>
     </Card>
 
-    <div style="margin-top: 20px;" v-if="clients.filter(c => c.session).length > 0">
-      <div v-for="client in clients.filter(c => c.session)" :key="client.id" style="margin-bottom: 20px;">
-        <Card :title="`活跃测验详情 - ${client.ip}`">
-          <div v-if="client.session">
+    <div style="margin-top: 20px;" v-if="clients.filter(c => c.testSession).length > 0">
+      <div v-for="client in clients.filter(c => c.testSession)" :key="client.id" style="margin-bottom: 20px;">
+        <Card :title="`活跃测验详情 - ${client.name} (${client.ip})`">
+          <div v-if="client.testSession">
             <div style="margin-bottom: 16px;">
-              <p><strong>开始时间:</strong> {{ formatTime(client.session.startTime) }}</p>
-              <p><strong>当前进度:</strong> 第 {{ client.session.currentQuestion }}/{{ client.session.totalQuestions }} 题</p>
-              <p><strong>当前题目剩余故障:</strong> {{ client.session.remainingTroubles.length }} 题</p>
-              <div v-if="client.session.logs && client.session.logs.length > 0">
+              <p><strong>开始时间:</strong> {{ formatTime(client.testSession.test.startTime) }}</p>
+              <p><strong>当前进度:</strong> 第 {{ client.testSession.currentQuestionIndex + 1 }}/{{ client.testSession.test.questions.length }} 题</p>
+              <div v-if="client.testSession.logs && client.testSession.logs.length > 0">
                 <strong>测验日志</strong>
                 <Timeline style="margin-top: 12px;">
-                  <Timeline.Item v-for="(log, index) in client.session.logs" :key="index"
+                  <Timeline.Item v-for="(log, index) in client.testSession.logs" :key="index"
                     :color="getLogColor(log.action)">
                     <div>
                       <Tag :color="getLogColor(log.action)" size="small">
@@ -137,7 +136,7 @@ onUnmounted(() => {
                         <strong v-if="log.action == 'start'">开始测验</strong>
                         <strong v-else-if="log.action == 'finish'">完成测验</strong>
                         <strong v-else-if="log.action == 'answer'">
-                          选择了 <Tag>故障{{ log.details.troubleId }}</Tag> - {{log.details.result ? '正确' : '错误' }}
+                          选择了 <Tag v-if="log.details.trouble">故障{{ log.details.trouble.id }} ({{ log.details.trouble.description }})</Tag> - {{log.details.result ? '正确' : '错误' }}
                         </strong>
                         <strong v-else-if="log.action == 'navigation'">
                           切换到{{ log.details.direction === 'next' ? '下一题' :'上一题' }}
@@ -146,8 +145,8 @@ onUnmounted(() => {
                       </div>
                       <div style="font-size: 12px; color: #666;">
                         {{ formatTime(log.timestamp) }}
-                        <span v-if="index > 0 && client.session?.logs && client.session.logs[index - 1]">
-                          (经过 {{ (log.timestamp - client.session.logs[index - 1]!.timestamp) }} 秒)
+                        <span v-if="index > 0 && client.testSession?.logs && client.testSession.logs[index - 1]">
+                          (经过 {{ (log.timestamp - client.testSession.logs[index - 1]!.timestamp) }} 秒)
                         </span>
                       </div>
                     </div>
