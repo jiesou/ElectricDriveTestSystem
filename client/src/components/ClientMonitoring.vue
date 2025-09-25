@@ -1,33 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { Table, Card, Tag, Progress, Timeline } from 'ant-design-vue'
+import type { Client } from '../types'
 
-interface ClientInfo {
-  id: string
-  ip: string
-  session?: {
-    currentQuestion: number
-    totalQuestions: number
-    remainingTroubles: number[]
-    startTime: number
-    endTime?: number
-    durationTime?: number | null
-    logs?: TestLog[]
-  } | null
-}
-
-interface TestLog {
-  timestamp: number
-  action: 'start' | 'answer' | 'navigation' | 'finish'
-  details: {
-    questionNumber?: number
-    troubleId?: number
-    result?: boolean
-    direction?: 'next' | 'prev'
-  }
-}
-
-const clients = ref<ClientInfo[]>([])
+const clients = ref<Client[]>([])
 const loading = ref(false)
 const refreshTimer = ref<number | null>(null)
 
@@ -40,7 +16,7 @@ const columns = [
   { 
     title: '测验状态', 
     key: 'testStatus',
-    customRender: ({ record }: { record: ClientInfo }) => ({
+    customRender: ({ record }: { record: Client }) => ({
       hasSession: !!record.session,
       session: record.session
     })
@@ -48,7 +24,7 @@ const columns = [
   { 
     title: '答题进度', 
     key: 'progress',
-    customRender: ({ record }: { record: ClientInfo }) => ({ record })
+    customRender: ({ record }: { record: Client }) => ({ record })
   }
 ]
 
@@ -170,8 +146,8 @@ onUnmounted(() => {
                       </div>
                       <div style="font-size: 12px; color: #666;">
                         {{ formatTime(log.timestamp) }}
-                        <span v-if="index > 0">
-                          (经过 {{ (log.timestamp - client.session.logs[index - 1]!!.timestamp) }} 秒)
+                        <span v-if="index > 0 && client.session?.logs && client.session.logs[index - 1]">
+                          (经过 {{ (log.timestamp - client.session.logs[index - 1]!.timestamp) }} 秒)
                         </span>
                       </div>
                     </div>

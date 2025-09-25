@@ -1,5 +1,5 @@
 import { Application, Router } from "@oak/oak";
-import { TestSystemManager } from "./types.ts";
+import { TestSystemManager, getSecondTimestamp } from "./types.ts";
 
 const app = new Application();
 const manager = new TestSystemManager();
@@ -179,7 +179,7 @@ apiRouter.post("/test-sessions", async (ctx) => {
 
     // 对每个客户机创建测试会话
     for (const clientId of clientIds) {
-      const success = manager.createTestSession(clientId, selectedQuestions, startTime || Date.now() / 1000, durationTime || null);
+      const success = manager.createTestSession(clientId, selectedQuestions, startTime || getSecondTimestamp(), durationTime || null);
       results.push({ clientId, success });
     }
 
@@ -222,7 +222,7 @@ apiRouter.get("/status", (ctx) => {
   ctx.response.body = {
     success: true,
     data: {
-      timestamp: Date.now() / 1000,
+      timestamp: getSecondTimestamp(),
       connectedClients: clients.length,
       activeTests: clients.filter(c => c.session).length,
       totalQuestions: manager.getQuestions().length,
@@ -234,7 +234,7 @@ apiRouter.get("/status", (ctx) => {
 // Health check
 const healthRouter = new Router();
 healthRouter.get("/health", (ctx) => {
-  ctx.response.body = { status: "ok", timestamp: Date.now() / 1000 };
+  ctx.response.body = { status: "ok", timestamp: getSecondTimestamp() };
 });
 
 // Register routes
@@ -269,7 +269,7 @@ function handleWebSocketMessage(
         type: "answer_result",
         result: isCorrect,
         trouble_id: message.trouble_id,
-        timestamp: Date.now() / 1000,
+        timestamp: getSecondTimestamp(),
       });
       break;
     }
@@ -282,7 +282,7 @@ function handleWebSocketMessage(
         type: "navigation_result",
         success,
         direction: message.type === "next_question" ? "next_question" : "last_question",
-        timestamp: Date.now() / 1000,
+        timestamp: getSecondTimestamp(),
       });
       break;
     }
@@ -292,13 +292,13 @@ function handleWebSocketMessage(
       safeSend(socket, {
         type: "finish_result",
         success,
-        timestamp: Date.now() / 1000,
+        timestamp: getSecondTimestamp(),
       });
       break;
     }
     
     case "ping": {
-      safeSend(socket, { type: "pong", timestamp: Date.now() / 1000 });
+      safeSend(socket, { type: "pong", timestamp: getSecondTimestamp() });
       break;
     }
   }

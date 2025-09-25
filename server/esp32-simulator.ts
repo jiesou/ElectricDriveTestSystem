@@ -1,4 +1,6 @@
 // ESP32 Client Simulator for testing WebSocket functionality
+import { getSecondTimestamp } from "./types.ts";
+
 const WS_URL = "ws://localhost:8000/ws";
 
 class ESP32Simulator {
@@ -126,7 +128,7 @@ class ESP32Simulator {
     
     const message = { 
       type: "finish", 
-      timestamp: Math.floor(Date.now() / 1000)
+      timestamp: getSecondTimestamp()
     };
     console.log("📤 SENDING: Finishing test early");
     this.socket?.send(JSON.stringify(message));
