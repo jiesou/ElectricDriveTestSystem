@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import zhCN from 'ant-design-vue/es/locale/zh_CN';
 import { Layout, ConfigProvider } from 'ant-design-vue'
 import TroubleManagement from './components/TroubleManagement.vue'
@@ -12,10 +12,38 @@ type TabKey = 'troubles' | 'tests' | 'clients'
 const activeTab = ref<TabKey>('troubles')
 
 const menuItems = [
-  { key: 'troubles', label: '题库管理' },
-  { key: 'tests', label: '测验管理' },
-  { key: 'clients', label: '客户机监控' }
+  { key: 'troubles', label: '题库管理', path: '#/troubles' },
+  { key: 'tests', label: '测验管理', path: '#/tests' },
+  { key: 'clients', label: '客户机监控', path: '#/clients' }
 ]
+
+function updateActiveTab() {
+  const hash = window.location.hash
+  if (hash === '#/troubles') {
+    activeTab.value = 'troubles'
+  } else if (hash === '#/tests') {
+    activeTab.value = 'tests'
+  } else if (hash === '#/clients') {
+    activeTab.value = 'clients'
+  } else {
+    activeTab.value = 'troubles'
+    window.location.hash = '#/troubles'
+  }
+}
+
+function handleMenuClick(key: TabKey) {
+  activeTab.value = key
+  window.location.hash = `#/${key}`
+}
+
+onMounted(() => {
+  updateActiveTab()
+  window.addEventListener('hashchange', updateActiveTab)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('hashchange', updateActiveTab)
+})
 </script>
 
 <template>
@@ -32,7 +60,7 @@ const menuItems = [
             v-for="item in menuItems" 
             :key="item.key"
             :class="['menu-item', { active: activeTab === item.key }]"
-            @click="activeTab = item.key as TabKey"
+            @click="handleMenuClick(item.key as TabKey)"
           >
             {{ item.label }}
           </div>
