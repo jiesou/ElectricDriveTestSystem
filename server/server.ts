@@ -142,6 +142,9 @@ apiRouter.get("/clients", (ctx) => {
       totalQuestions: client.session.questions.length,
       remainingTroubles: client.session.remainingTroubles,
       startTime: client.session.startTime,
+      endTime: client.session.endTime,
+      durationTime: client.session.durationTime,
+      logs: client.session.logs
     } : null,
   }));
 
@@ -155,7 +158,7 @@ apiRouter.get("/clients", (ctx) => {
 apiRouter.post("/test-sessions", async (ctx) => {
   try {
     const body = await ctx.request.body.json();
-    const { clientIds, questionIds, startTime } = body;
+    const { clientIds, questionIds, startTime, durationTime } = body;
 
     if (!Array.isArray(clientIds) || !Array.isArray(questionIds)) {
       ctx.response.status = 400;
@@ -176,7 +179,7 @@ apiRouter.post("/test-sessions", async (ctx) => {
 
     // 对每个客户机创建测试会话
     for (const clientId of clientIds) {
-      const success = manager.createTestSession(clientId, selectedQuestions, startTime || Date.now() / 1000);
+      const success = manager.createTestSession(clientId, selectedQuestions, startTime || Date.now() / 1000, durationTime || null);
       results.push({ clientId, success });
     }
 
@@ -188,6 +191,29 @@ apiRouter.post("/test-sessions", async (ctx) => {
     ctx.response.status = 400;
     ctx.response.body = { success: false, error: "Invalid request body" };
   }
+});
+
+// Get test sessions
+apiRouter.get("/test-sessions", (ctx) => {
+  const clients = manager.getConnectedClients();
+  const sessions = clients.filter(c => c.session).map(client => ({
+    sessionId: client.session!.id,
+    clientId: client.id,
+    clientIp: client.ip,
+    questionIds: client.session!.questions.map(q => q.id),
+    startTime: client.session!.startTime,
+    durationTime: client.session!.durationTime,
+    endTime: client.session!.endTime,
+    currentQuestionIndex: client.session!.currentQuestionIndex,
+    totalQuestions: client.session!.questions.length,
+    remainingTroubles: client.session!.remainingTroubles,
+    logs: client.session!.logs
+  }));
+
+  ctx.response.body = {
+    success: true,
+    data: sessions,
+  };
 });
 
 apiRouter.get("/status", (ctx) => {
@@ -256,6 +282,16 @@ function handleWebSocketMessage(
         type: "navigation_result",
         success,
         direction: message.type === "next_question" ? "next_question" : "last_question",
+        timestamp: Date.now() / 1000,
+      });
+      break;
+    }
+    
+    case "finish": {
+      const success = manager.finishTest(clientId, message.timestamp);
+      safeSend(socket, {
+        type: "finish_result",
+        success,
         timestamp: Date.now() / 1000,
       });
       break;

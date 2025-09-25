@@ -38,34 +38,59 @@ class ESP32Simulator {
   }
 
   private handleMessage(message: any) {
-    console.log("Received message:", message);
+    console.log("\n=== RECEIVED MESSAGE ===");
+    console.log("Type:", message.type);
+    console.log("Full message:", JSON.stringify(message, null, 2));
     
     switch (message.type) {
       case "connected":
         this.clientId = message.clientId;
-        console.log(`Assigned client ID: ${this.clientId}`);
+        console.log(`✅ Successfully connected! Assigned client ID: ${this.clientId}`);
         break;
       
       case "exist_troubles":
-        console.log(`Current troubles: ${message.troubles.join(", ")}`);
-        console.log(`Question ${message.current_question}/${message.total_questions}`);
+        console.log(`🔥 Current troubles: [${message.troubles.join(", ")}]`);
+        console.log(`📋 Question ${message.current_question}/${message.total_questions}`);
         
         // Auto-answer the first trouble after 2 seconds
         if (message.troubles.length > 0) {
+          console.log(`⏰ Will auto-answer trouble ${message.troubles[0]} in 2 seconds...`);
           setTimeout(() => {
             this.sendAnswer(message.troubles[0]);
           }, 2000);
+        } else {
+          console.log("✅ All troubles in current question solved!");
         }
         break;
       
       case "answer_result":
-        console.log(`Answer for trouble ${message.trouble_id}: ${message.result ? "CORRECT" : "WRONG"}`);
+        const resultIcon = message.result ? "✅" : "❌";
+        const resultText = message.result ? "CORRECT" : "WRONG";
+        console.log(`${resultIcon} Answer for trouble ${message.trouble_id}: ${resultText}`);
+        if (message.timestamp) {
+          console.log(`⏰ Server timestamp: ${message.timestamp}`);
+        }
         break;
       
       case "navigation_result":
-        console.log(`Navigation ${message.direction}: ${message.success ? "SUCCESS" : "FAILED"}`);
+        const navIcon = message.success ? "✅" : "❌";
+        const navText = message.success ? "SUCCESS" : "FAILED";
+        console.log(`${navIcon} Navigation ${message.direction}: ${navText}`);
         break;
+      
+      case "finish_result":
+        const finishIcon = message.success ? "✅" : "❌";
+        console.log(`${finishIcon} Test finish: ${message.success ? "SUCCESS" : "FAILED"}`);
+        break;
+
+      case "pong":
+        console.log("🏓 Pong received from server");
+        break;
+
+      default:
+        console.log(`❓ Unknown message type: ${message.type}`);
     }
+    console.log("========================\n");
   }
 
   sendAnswer(troubleId: number) {
@@ -76,7 +101,7 @@ class ESP32Simulator {
       trouble_id: troubleId
     };
     
-    console.log("Sending answer:", message);
+    console.log("📤 SENDING ANSWER:", JSON.stringify(message, null, 2));
     this.socket?.send(JSON.stringify(message));
   }
 
@@ -84,7 +109,7 @@ class ESP32Simulator {
     if (!this.isConnected) return;
     
     const message = { type: "next_question" };
-    console.log("Moving to next question");
+    console.log("📤 SENDING: Moving to next question");
     this.socket?.send(JSON.stringify(message));
   }
 
@@ -92,7 +117,18 @@ class ESP32Simulator {
     if (!this.isConnected) return;
     
     const message = { type: "last_question" };
-    console.log("Moving to previous question");
+    console.log("📤 SENDING: Moving to previous question");
+    this.socket?.send(JSON.stringify(message));
+  }
+
+  finishTest() {
+    if (!this.isConnected) return;
+    
+    const message = { 
+      type: "finish", 
+      timestamp: Math.floor(Date.now() / 1000)
+    };
+    console.log("📤 SENDING: Finishing test early");
     this.socket?.send(JSON.stringify(message));
   }
 
@@ -100,6 +136,7 @@ class ESP32Simulator {
     if (!this.isConnected) return;
     
     const message = { type: "ping" };
+    console.log("📤 SENDING: Ping");
     this.socket?.send(JSON.stringify(message));
   }
 
@@ -116,32 +153,38 @@ async function runSimulation() {
   const simulator = new ESP32Simulator();
   
   try {
+    console.log("🚀 Starting ESP32 WebSocket Simulator...");
     await simulator.connect();
     
-    // Send ping every 5 seconds
+    // Send ping every 10 seconds
     const pingInterval = setInterval(() => {
       simulator.ping();
-    }, 5000);
+    }, 10000);
     
     // Simulate some interactions
     setTimeout(() => {
-      console.log("\n=== Testing navigation ===");
+      console.log("\n🧪 === Testing navigation ===");
       simulator.nextQuestion();
-    }, 10000);
+    }, 15000);
     
     setTimeout(() => {
       simulator.previousQuestion();
-    }, 15000);
+    }, 20000);
+
+    setTimeout(() => {
+      console.log("\n🏁 === Testing early finish ===");
+      simulator.finishTest();
+    }, 25000);
     
-    // Cleanup after 30 seconds
+    // Keep running (comment out to run indefinitely)
     // setTimeout(() => {
     //   clearInterval(pingInterval);
     //   simulator.disconnect();
-    //   console.log("Simulation ended");
-    // }, 30000);
+    //   console.log("🔚 Simulation ended");
+    // }, 40000);
     
   } catch (error) {
-    console.error("Failed to start simulation:", error);
+    console.error("💥 Failed to start simulation:", error);
   }
 }
 

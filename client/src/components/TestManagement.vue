@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { Table, Button, Modal, Form, Select, DatePicker, message, Card, Tag, Space } from 'ant-design-vue'
+import { ref, reactive, onMounted, h } from 'vue'
+import { Table, Button, Modal, Form, Select, DatePicker, message, Card, Tag, InputNumber } from 'ant-design-vue'
 
 interface Question {
   id: number
@@ -19,10 +19,29 @@ interface Client {
 }
 
 interface TestSession {
-  clientIds: string[]
+  sessionId: string
+  clientId: string
+  clientIp: string
   questionIds: number[]
   startTime: number
-  createdAt: number
+  durationTime?: number | null
+  endTime?: number
+  currentQuestionIndex: number
+  totalQuestions: number
+  remainingTroubles: number[]
+  logs?: TestLog[]
+}
+
+interface TestLog {
+  timestamp: number
+  action: 'start' | 'answer' | 'navigation' | 'finish'
+  details: {
+    questionNumber?: number
+    troubleId?: number
+    result?: boolean
+    direction?: 'next' | 'prev'
+    timeDiff?: number
+  }
 }
 
 const questions = ref<Question[]>([])
@@ -35,22 +54,25 @@ const modalVisible = ref(false)
 const formState = reactive({
   clientIds: [] as string[],
   questionIds: [] as number[],
-  startTime: '' as string
+  startTime: '' as string,
+  durationTime: undefined as number | undefined
 })
 
 async function fetchData() {
   try {
     loading.value = true
 
-    // Fetch questions and clients in parallel
-    const [questionsRes, clientsRes] = await Promise.all([
+    // Fetch questions, clients, and test sessions in parallel
+    const [questionsRes, clientsRes, sessionsRes] = await Promise.all([
       fetch('/api/questions'),
-      fetch('/api/clients')
+      fetch('/api/clients'),
+      fetch('/api/test-sessions')
     ])
 
-    const [questionsResult, clientsResult] = await Promise.all([
+    const [questionsResult, clientsResult, sessionsResult] = await Promise.all([
       questionsRes.json(),
-      clientsRes.json()
+      clientsRes.json(),
+      sessionsRes.json()
     ])
 
     if (questionsResult.success) {
@@ -59,6 +81,10 @@ async function fetchData() {
 
     if (clientsResult.success) {
       clients.value = clientsResult.data
+    }
+
+    if (sessionsResult.success) {
+      testSessions.value = sessionsResult.data
     }
   } catch (error) {
     console.error('Failed to fetch data:', error)
@@ -72,6 +98,7 @@ function openCreateTestModal() {
   formState.clientIds = []
   formState.questionIds = []
   formState.startTime = ''
+  formState.durationTime = undefined
   modalVisible.value = true
 }
 
@@ -97,7 +124,8 @@ async function handleCreateTest() {
       body: JSON.stringify({
         clientIds: formState.clientIds,
         questionIds: formState.questionIds,
-        startTime
+        startTime,
+        durationTime: formState.durationTime ? formState.durationTime * 60 : null
       })
     })
 
@@ -107,15 +135,7 @@ async function handleCreateTest() {
       message.success(`测验创建成功，${successCount}/${result.data.length} 个客户机已分配测验`)
       modalVisible.value = false
 
-      // Add to local sessions list
-      testSessions.value.push({
-        clientIds: formState.clientIds,
-        questionIds: formState.questionIds,
-        startTime,
-        createdAt: Date.now() / 1000
-      })
-
-      await fetchData() // Refresh client data
+      await fetchData() // Refresh all data
     } else {
       message.error(result.error || '测验创建失败')
     }
@@ -146,12 +166,9 @@ const clientColumns = [
 
 const sessionColumns = [
   {
-    title: '创建时间',
-    dataIndex: 'createdAt',
-    key: 'createdAt',
-    customRender: ({ text }: { text: number }) => {
-      return formatTime(text)
-    }
+    title: '客户机IP',
+    dataIndex: 'clientIp',
+    key: 'clientIp'
   },
   {
     title: '开始时间',
@@ -162,21 +179,20 @@ const sessionColumns = [
     }
   },
   {
-    title: '所含客户机',
-    dataIndex: 'clientIds',
-    key: 'clients',
-    customRender: ({ record }: { record: TestSession }) => {
-      // TODO: 拼接客户机列表
-      
-    }
-  },
-  {
     title: '所含题目',
     dataIndex: 'questionIds',
     key: 'questions',
     customRender: ({ record }: { record: TestSession }) => {
-      // TODO: 拼接题目列表
-
+      return record.questionIds.map((questionId, index) => 
+        h(Tag, { key: questionId, style: index > 0 ? 'margin-left: 4px' : '', color: 'blue' }, () => `题目${questionId}`)
+      )
+    }
+  },
+  {
+    title: '进度',
+    key: 'progress',
+    customRender: ({ record }: { record: TestSession }) => {
+      return `${record.currentQuestionIndex + 1}/${record.totalQuestions}`
     }
   }
 ]
@@ -212,8 +228,7 @@ onMounted(() => {
     </Card>
 
     <Card title="已安排的测验">
-      <!-- TODO: 已安排的测验 testSessions 似乎还没有从服务器获取数据 -->
-      <Table :dataSource="testSessions" :columns="sessionColumns" size="small" rowKey="createdAt" :pagination="false" />
+      <Table :dataSource="testSessions" :columns="sessionColumns" size="small" rowKey="sessionId" :pagination="false" />
     </Card>
 
     <Modal v-model:open="modalVisible" title="创建测验" @ok="handleCreateTest" width="600px">
@@ -257,6 +272,10 @@ onMounted(() => {
               }
             }" />
           <!-- 不能设置过去的时间 -->
+        </Form.Item>
+
+        <Form.Item label="测验持续时间（分钟）">
+          <InputNumber v-model:value="formState.durationTime" :min="1" :max="300" placeholder="留空表示无时间限制" style="width: 100%" />
         </Form.Item>
       </Form>
     </Modal>

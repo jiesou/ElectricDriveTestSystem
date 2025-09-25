@@ -26,13 +26,13 @@ const formState = reactive({
 
 const troubleColumns = [
   { title: 'ID', dataIndex: 'id', key: 'id' },
-  { title: '故障描述', dataIndex: 'description', key: 'description' }
+  { title: 'Trouble描述', dataIndex: 'description', key: 'description' }
 ]
 
 const questionColumns = [
   { title: 'ID', dataIndex: 'id', key: 'id' },
   { 
-    title: '包含故障', 
+    title: '包含troubles', 
     dataIndex: 'troubles', 
     key: 'troubles',
     customRender: ({ record }: { record: Question }) => {
@@ -95,7 +95,7 @@ function openEditModal(question: Question) {
 
 async function handleSubmit() {
   if (formState.troubles.length === 0) {
-    message.error('请至少选择一个故障')
+    message.error('请至少选择一个trouble')
     return
   }
 
@@ -152,7 +152,7 @@ onMounted(async () => {
     <h2>题库管理</h2>
     
     <div style="margin-bottom: 20px;">
-      <h3>可用故障列表</h3>
+      <h3>可用trouble列表</h3>
       <Table 
         :dataSource="troubles" 
         :columns="troubleColumns" 
@@ -178,7 +178,7 @@ onMounted(async () => {
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'action'">
           <Space>
-            <Button type="link" size="small" @click="openEditModal(record)">
+            <Button type="link" size="small" @click="openEditModal(record as Question)">
               编辑
             </Button>
             <Popconfirm 
@@ -200,11 +200,11 @@ onMounted(async () => {
       @ok="handleSubmit"
     >
       <Form layout="vertical">
-        <Form.Item label="选择故障" required>
+        <Form.Item label="选择troubles" required>
           <Select
             v-model:value="formState.troubles"
             mode="multiple"
-            placeholder="请选择包含的故障"
+            placeholder="请选择包含的troubles"
             style="width: 100%"
           >
             <Select.Option 
