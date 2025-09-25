@@ -94,9 +94,9 @@ onUnmounted(() => {
                 {{ record.testSession ? (record.testSession.finishTime ? '已结束' : '进行中') : '空闲' }}
               </Tag>
               <div v-if="record.testSession" style="margin-top: 4px; font-size: 12px; color: #666;">
-                第 {{ record.testSession.currentQuestion }}/{{ record.testSession.totalQuestions }} 题
-                <span v-if="record.testSession.durationTime">
-                  (限时{{ Math.floor(record.testSession.durationTime / 60) }}分钟)
+                第 {{ record.testSession.currentQuestionIndex + 1 }}/{{ record.testSession.test.questions.length }} 题
+                <span v-if="record.testSession.test.durationTime">
+                  (限时{{ Math.floor(record.testSession.test.durationTime / 60) }}分钟)
                 </span>
               </div>
             </div>
@@ -104,7 +104,7 @@ onUnmounted(() => {
 
           <template v-if="column.key === 'progress'">
             <div v-if="record.testSession">
-              <Progress :percent="Math.round((record.testSession.currentQuestion / record.testSession.totalQuestions) * 100)"
+              <Progress :percent="Math.round(((record.testSession.currentQuestionIndex + 1) / record.testSession.test.questions.length) * 100)"
                 size="small" :status="'active'" />
               <div style="font-size: 12px; color: #666; margin-top: 4px;">
                 测验进度状态
@@ -121,8 +121,8 @@ onUnmounted(() => {
         <Card :title="`活跃测验详情 - ${client.name} (${client.ip})`">
           <div v-if="client.testSession">
             <div style="margin-bottom: 16px;">
-              <p><strong>开始时间:</strong> {{ formatTime(client.testSession.startTime) }}</p>
-              <p><strong>当前进度:</strong> 第 {{ client.testSession.currentQuestion }}/{{ client.testSession.totalQuestions }} 题</p>
+              <p><strong>开始时间:</strong> {{ formatTime(client.testSession.test.startTime) }}</p>
+              <p><strong>当前进度:</strong> 第 {{ client.testSession.currentQuestionIndex + 1 }}/{{ client.testSession.test.questions.length }} 题</p>
               <div v-if="client.testSession.logs && client.testSession.logs.length > 0">
                 <strong>测验日志</strong>
                 <Timeline style="margin-top: 12px;">

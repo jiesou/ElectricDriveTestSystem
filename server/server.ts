@@ -81,23 +81,64 @@ apiRouter.get("/questions", (ctx) => {
   };
 });
 
-// Remove question management endpoints as per requirements
-// Direct access to manager.questions property should be used instead
+apiRouter.post("/questions", async (ctx) => {
+  try {
+    const body = await ctx.request.body.json();
+    const { troubles } = body;
+
+    if (!Array.isArray(troubles) || troubles.length === 0) {
+      ctx.response.status = 400;
+      ctx.response.body = { success: false, error: "Invalid troubles array" };
+      return;
+    }
+
+    const newQuestion = manager.addQuestion({ troubles });
+    ctx.response.body = {
+      success: true,
+      data: newQuestion,
+    };
+  } catch (error) {
+    ctx.response.status = 400;
+    ctx.response.body = { success: false, error: "Invalid request body" };
+  }
+});
+
+apiRouter.put("/questions/:id", async (ctx) => {
+  try {
+    const id = parseInt(ctx.params.id!);
+    const body = await ctx.request.body.json();
+    const success = manager.updateQuestion(id, body);
+
+    if (success) {
+      ctx.response.body = { success: true };
+    } else {
+      ctx.response.status = 404;
+      ctx.response.body = { success: false, error: "Question not found" };
+    }
+  } catch (error) {
+    ctx.response.status = 400;
+    ctx.response.body = { success: false, error: "Invalid request" };
+  }
+});
+
+apiRouter.delete("/questions/:id", (ctx) => {
+  const id = parseInt(ctx.params.id!);
+  const success = manager.deleteQuestion(id);
+
+  if (success) {
+    ctx.response.body = { success: true };
+  } else {
+    ctx.response.status = 404;
+    ctx.response.body = { success: false, error: "Question not found" };
+  }
+});
 
 apiRouter.get("/clients", (ctx) => {
   const clients = manager.getClients().map(client => ({
     id: client.id,
     name: client.name,
     ip: client.ip,
-    testSession: client.testSession ? {
-      id: client.testSession.id,
-      currentQuestion: client.testSession.currentQuestionIndex + 1,
-      totalQuestions: client.testSession.test.questions.length,
-      startTime: client.testSession.test.startTime,
-      finishTime: client.testSession.finishTime,
-      durationTime: client.testSession.test.durationTime,
-      logs: client.testSession.logs
-    } : null,
+    testSession: client.testSession || null,
   }));
 
   ctx.response.body = {

@@ -34,11 +34,10 @@ export interface TestLog {
   timestamp: number;
   action: 'start' | 'answer' | 'navigation' | 'finish';
   details: {
-    questionIndex?: number;
+    question?: Question;
     trouble?: Trouble;
     result?: boolean;
     direction?: 'next' | 'prev';
-    timeDiff?: number; // time since last action
   };
 }
 
@@ -100,31 +99,31 @@ export class TestSystemManager {
     { 
       id: 1, 
       troubles: [
-        { id: 1, description: "101 和 102 断路" },
-        { id: 2, description: "102 和 103 断路" }
+        TROUBLES[0], // 101 和 102 断路
+        TROUBLES[1]  // 102 和 103 断路
       ]
     },
     { 
       id: 2, 
       troubles: [
-        { id: 3, description: "103 和 104 断路" },
-        { id: 4, description: "104 和 105 断路" }
+        TROUBLES[2], // 103 和 104 断路
+        TROUBLES[3]  // 104 和 105 断路
       ]
     },
     { 
       id: 3, 
       troubles: [
-        { id: 1, description: "101 和 102 断路" },
-        { id: 3, description: "103 和 104 断路" },
-        { id: 5, description: "201 和 202 断路" }
+        TROUBLES[0], // 101 和 102 断路
+        TROUBLES[2], // 103 和 104 断路
+        TROUBLES[4]  // 201 和 202 断路
       ]
     },
     { 
       id: 4, 
       troubles: [
-        { id: 2, description: "102 和 103 断路" },
-        { id: 4, description: "104 和 105 断路" },
-        { id: 6, description: "202 和 203 断路" }
+        TROUBLES[1], // 102 和 103 断路
+        TROUBLES[3], // 104 和 105 断路
+        TROUBLES[5]  // 202 和 203 断路
       ]
     },
   ];
@@ -166,7 +165,7 @@ export class TestSystemManager {
       logs: [{
         timestamp: getSecondTimestamp(),
         action: 'start',
-        details: { questionIndex: 0 }
+        details: { question: test.questions[0] }
       }]
     };
 
@@ -181,11 +180,10 @@ export class TestSystemManager {
     const session = client.testSession;
     const currentQuestion = session.test.questions[session.currentQuestionIndex];
     
-    // Check if the trouble is part of current question and not yet solved
+    // Check if the trouble is part of current question
     const isCorrect = currentQuestion.troubles.some(t => t.id === trouble.id);
-    const alreadySolved = this.isTroubleSolved(session, session.currentQuestionIndex, trouble);
     
-    if (isCorrect && !alreadySolved) {
+    if (isCorrect) {
       // Add to solved troubles for current question
       const existingEntry = session.solvedTroubles.find(([index]) => index === session.currentQuestionIndex);
       if (existingEntry) {
@@ -197,24 +195,46 @@ export class TestSystemManager {
 
     // Log the answer
     const timestamp = getSecondTimestamp();
-    const lastLog = session.logs[session.logs.length - 1];
     session.logs.push({
       timestamp,
       action: 'answer',
       details: {
-        questionIndex: session.currentQuestionIndex,
+        question: currentQuestion,
         trouble,
-        result: isCorrect && !alreadySolved,
-        timeDiff: timestamp - lastLog.timestamp
+        result: isCorrect
       }
     });
 
-    return isCorrect && !alreadySolved;
+    return isCorrect;
   }
 
-  private isTroubleSolved(session: TestSession, questionIndex: number, trouble: Trouble): boolean {
-    const entry = session.solvedTroubles.find(([index]) => index === questionIndex);
-    return entry ? entry[1].some(t => t.id === trouble.id) : false;
+  get questions(): Question[] {
+    return [...this.questionBank];
+  }
+
+  addQuestion(question: Omit<Question, "id">): Question {
+    const newQuestion: Question = {
+      id: Math.max(...this.questionBank.map(q => q.id), 0) + 1,
+      ...question,
+    };
+    this.questionBank.push(newQuestion);
+    return newQuestion;
+  }
+
+  updateQuestion(id: number, updates: Partial<Question>): boolean {
+    const index = this.questionBank.findIndex(q => q.id === id);
+    if (index === -1) return false;
+    
+    this.questionBank[index] = { ...this.questionBank[index], ...updates };
+    return true;
+  }
+
+  deleteQuestion(id: number): boolean {
+    const index = this.questionBank.findIndex(q => q.id === id);
+    if (index === -1) return false;
+    
+    this.questionBank.splice(index, 1);
+    return true;
   }
 
   private getRemainingTroubles(session: TestSession): Trouble[] {
@@ -239,14 +259,12 @@ export class TestSystemManager {
       
       // Log the navigation
       const timestamp = getSecondTimestamp();
-      const lastLog = session.logs[session.logs.length - 1];
       session.logs.push({
         timestamp,
         action: 'navigation',
         details: {
-          questionIndex: newIndex,
-          direction,
-          timeDiff: timestamp - lastLog.timestamp
+          question: session.test.questions[newIndex],
+          direction
         }
       });
       
@@ -265,13 +283,10 @@ export class TestSystemManager {
     session.finishTime = finishTime;
 
     // Log the finish
-    const lastLog = session.logs[session.logs.length - 1];
     session.logs.push({
       timestamp: finishTime,
       action: 'finish',
-      details: {
-        timeDiff: finishTime - lastLog.timestamp
-      }
+      details: {}
     });
 
     return true;
@@ -293,13 +308,10 @@ export class TestSystemManager {
         if (session.test.durationTime && !session.finishTime && 
             currentTime >= session.test.startTime + session.test.durationTime) {
           session.finishTime = session.test.startTime + session.test.durationTime;
-          const lastLog = session.logs[session.logs.length - 1];
           session.logs.push({
             timestamp: session.finishTime,
             action: 'finish',
-            details: {
-              timeDiff: session.finishTime - lastLog.timestamp
-            }
+            details: {}
           });
           console.log(`Session timeout for client ${client.id}`);
         }
@@ -326,10 +338,6 @@ export class TestSystemManager {
 
   getTroubles(): Trouble[] {
     return [...TROUBLES];
-  }
-
-  get questions(): Question[] {
-    return [...this.questionBank];
   }
 
   getTests(): Test[] {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { Table, Button, Modal, Form, Select, message, Space } from 'ant-design-vue'
+import { Table, Button, Modal, Form, Select, message, Space, Popconfirm } from 'ant-design-vue'
 import type { Trouble, Question } from '../types'
 
 const troubles = ref<Trouble[]>([])
@@ -84,9 +84,56 @@ function openEditModal(question: Question) {
 }
 
 async function handleSubmit() {
-  // Note: Question management methods were removed from TestSystemManager
-  // Questions should now be managed directly via the manager.questions property
-  message.info('题目管理已移至服务端直接操作，前端暂时为只读模式')
+  if (formState.troubles.length === 0) {
+    message.error('请至少选择一个trouble')
+    return
+  }
+
+  try {
+    const isEdit = !!editingQuestion.value
+    const url = isEdit ? `/api/questions/${editingQuestion.value!.id}` : '/api/questions'
+    const method = isEdit ? 'PUT' : 'POST'
+    
+    // Convert trouble IDs to trouble objects
+    const troubleObjects = formState.troubles.map(troubleId => {
+      return troubles.value.find(t => t.id === troubleId)!
+    })
+    
+    const response = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ troubles: troubleObjects })
+    })
+
+    const result = await response.json()
+    if (result.success) {
+      message.success(isEdit ? '题目更新成功' : '题目创建成功')
+      modalVisible.value = false
+      await fetchQuestions()
+    } else {
+      message.error(result.error || '操作失败')
+    }
+  } catch (error) {
+    console.error('Failed to save question:', error)
+    message.error('保存失败')
+  }
+}
+
+async function handleDelete(id: number) {
+  try {
+    const response = await fetch(`/api/questions/${id}`, { method: 'DELETE' })
+    const result = await response.json()
+    
+    if (result.success) {
+      message.success('题目删除成功')
+      await fetchQuestions()
+    } else {
+      message.error(result.error || '删除失败')
+    }
+  } catch (error) {
+    console.error('Failed to delete question:', error)
+    message.error('删除失败')
+  }
 }
 
 onMounted(async () => {
@@ -111,9 +158,9 @@ onMounted(async () => {
     </div>
 
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-      <h3>题目列表 (只读模式)</h3>
-      <Button type="primary" disabled @click="openAddModal">
-        + 添加题目 (已禁用)
+      <h3>题目列表</h3>
+      <Button type="primary" @click="openAddModal">
+        + 添加题目
       </Button>
     </div>
 
@@ -126,12 +173,17 @@ onMounted(async () => {
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'action'">
           <Space>
-            <Button type="link" size="small" disabled @click="openEditModal(record as Question)">
-              编辑 (禁用)
+            <Button type="link" size="small" @click="openEditModal(record as Question)">
+              编辑
             </Button>
-            <Button type="link" size="small" disabled danger>
-              删除 (禁用)
-            </Button>
+            <Popconfirm 
+              title="确定要删除这个题目吗？"
+              @confirm="handleDelete(record.id)"
+            >
+              <Button type="link" size="small" danger>
+                删除
+              </Button>
+            </Popconfirm>
           </Space>
         </template>
       </template>

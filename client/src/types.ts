@@ -31,11 +31,10 @@ export interface TestLog {
   timestamp: number; // seconds timestamp
   action: 'start' | 'answer' | 'navigation' | 'finish';
   details: {
-    questionIndex?: number;
+    question?: Question;
     trouble?: Trouble;
     result?: boolean;
     direction?: 'next' | 'prev';
-    timeDiff?: number; // time since last action in seconds
   };
 }
 
@@ -43,15 +42,7 @@ export interface Client {
   id: string;
   name: string; // Default to client IP
   ip: string;
-  testSession?: {
-    id: string;
-    currentQuestion: number;
-    totalQuestions: number;
-    startTime: number;
-    finishTime?: number;
-    durationTime?: number | null;
-    logs?: TestLog[];
-  } | null;
+  testSession?: TestSession;
 }
 
 // Utility function to get integer second timestamp
