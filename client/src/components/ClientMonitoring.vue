@@ -14,6 +14,11 @@ const columns = [
     key: 'ip' 
   },
   { 
+    title: '在线状态', 
+    key: 'online',
+    customRender: ({ record }: { record: Client }) => ({ record })
+  },
+  { 
     title: '测验状态', 
     key: 'testStatus',
     customRender: ({ record }: { record: Client }) => ({
@@ -63,6 +68,8 @@ function getLogColor(action: string): string {
     case 'answer': return 'green'
     case 'navigation': return 'orange'
     case 'finish': return 'red'
+    case 'connect': return 'gray'
+    case 'disconnect': return 'gray'
     default: return 'default'
   }
 }
@@ -86,8 +93,14 @@ onUnmounted(() => {
     <h2>客户机监控</h2>
 
     <Card title="实时客户机状态">
-      <Table :dataSource="clients" :columns="columns" :loading="loading" rowKey="id" :pagination="false" size="middle">
+            <Table :dataSource="clients" :columns="columns" :loading="loading" rowKey="id" :pagination="false" size="middle">
         <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'online'">
+            <Tag :color="record.online ? 'green' : 'red'">
+              {{ record.online ? '在线' : '离线' }}
+            </Tag>
+          </template>
+
           <template v-if="column.key === 'testStatus'">
             <div>
               <Tag :color="record.testSession ? (record.testSession.finishTime ? 'red' : 'blue') : 'default'">
@@ -118,10 +131,15 @@ onUnmounted(() => {
 
     <div style="margin-top: 20px;" v-if="clients.filter(c => c.testSession).length > 0">
       <div v-for="client in clients.filter(c => c.testSession)" :key="client.id" style="margin-bottom: 20px;">
-        <Card :title="`活跃测验详情 - ${client.name} (${client.ip})`">
+        <Card :title="`活跃测验详情 - ${client.name} (${client.ip})'}`">
           <div v-if="client.testSession">
             <div style="margin-bottom: 16px;">
               <p><strong>开始时间:</strong> {{ formatTime(client.testSession.test.startTime) }}</p>
+              <p><strong>连接状态:</strong> 
+                <Tag :color="client.online ? 'green' : 'red'">
+                  {{ client.online ? '在线' : '离线' }}
+                </Tag>
+              </p>
               <p><strong>当前进度:</strong> 第 {{ client.testSession.currentQuestionIndex + 1 }}/{{ client.testSession.test.questions.length }} 题</p>
               <div v-if="client.testSession.logs && client.testSession.logs.length > 0">
                 <strong>测验日志</strong>
@@ -135,6 +153,8 @@ onUnmounted(() => {
                       <div style="margin-top: 4px;">
                         <strong v-if="log.action == 'start'">开始测验</strong>
                         <strong v-else-if="log.action == 'finish'">完成测验</strong>
+                        <strong v-else-if="log.action == 'connect'">连接上服务器</strong>
+                        <strong v-else-if="log.action == 'disconnect'">断开了连接</strong>
                         <strong v-else-if="log.action == 'answer'">
                           选择了 <Tag v-if="log.details.trouble">故障{{ log.details.trouble.id }} ({{ log.details.trouble.description }})</Tag> - {{log.details.result ? '正确' : '错误' }}
                         </strong>
@@ -158,6 +178,31 @@ onUnmounted(() => {
           </div>
         </Card>
       </div>
+    </div>
+
+    <!-- 显示已完成的测验 -->
+    <div style="margin-top: 20px;" v-if="clients.filter(c => c.testSession && c.testSession.finishTime).length > 0">
+      <Card title="已完成测验">
+        <div v-for="client in clients.filter(c => c.testSession && c.testSession.finishTime)" :key="`finished-${client.id}`" style="margin-bottom: 16px; padding: 12px; border: 1px solid #f0f0f0; border-radius: 6px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong>{{ client.name }} ({{ client.ip }})</strong>
+              <Tag :color="client.online ? 'green' : 'gray'" size="small" style="margin-left: 8px;">
+                {{ client.online ? '在线' : '离线' }}
+              </Tag>
+            </div>
+            <div style="text-align: right; font-size: 12px; color: #666;">
+              完成时间: {{ formatTime(client.testSession!.finishTime!) }}
+              <br>
+              用时: {{ Math.floor((client.testSession!.finishTime! - client.testSession!.test.startTime) / 60) }}分钟
+            </div>
+          </div>
+          <div style="margin-top: 8px; font-size: 12px; color: #666;">
+            题目进度: {{ client.testSession!.currentQuestionIndex + 1 }}/{{ client.testSession!.test.questions.length }}
+            | 日志条数: {{ client.testSession!.logs.length }}
+          </div>
+        </div>
+      </Card>
     </div>
   </div>
 </template>

@@ -32,7 +32,7 @@ export interface TestSession {
 
 export interface TestLog {
   timestamp: number;
-  action: "start" | "answer" | "navigation" | "finish";
+  action: "start" | "answer" | "navigation" | "finish" | "connect" | "disconnect";
   details: {
     question?: Question;
     trouble?: Trouble;
@@ -45,14 +45,15 @@ export interface Client {
   id: string;
   name: string; // Default to client IP
   ip: string;
-  socket: WebSocket;
+  online: boolean;
+  socket?: WebSocket; // Optional since offline clients don't have socket
   testSession?: TestSession;
 }
 
 // WebSocket message types
 export interface WSMessage {
   type: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface ExistTroublesMessage extends WSMessage {
@@ -93,7 +94,7 @@ export const TROUBLES: Trouble[] = [
 ];
 
 export class TestSystemManager {
-  private clients = new Map<string, Client>();
+  public clients: Record<string, Client> = {}; // Changed from Map to Record for persistence
   private tests: Test[] = [];
   private questionBank: Question[] = [
     {
@@ -131,55 +132,126 @@ export class TestSystemManager {
 
   constructor() {
     /* 野鸡持久存储方案 */
-    // Object.assign(this, JSON.parse(Deno.readTextFileSync("data.json")), {
-    //   clients: new Map(),
-    // });
+    try {
+      const data = JSON.parse(Deno.readTextFileSync("data.json"));
+      Object.assign(this, data);
+      // 恢复后将所有客户端设为离线（因为重启后WebSocket连接都断了）
+      for (const clientId in this.clients) {
+        this.clients[clientId].online = false;
+        delete this.clients[clientId].socket;
+      }
+    } catch {
+      // 文件不存在或解析失败，使用默认值
+      console.log("No existing data.json, starting fresh");
+    }
+    
     this.startBroadcast();
     // 自动保存
     setInterval(
-      () =>
-        Deno.writeTextFileSync(
-          "data.json",
-          JSON.stringify(this),
-        ),
+      () => {
+        // 保存前移除 socket 对象（不能序列化）
+        const dataToSave = {
+          ...this,
+          clients: Object.fromEntries(
+            Object.entries(this.clients).map(([id, client]) => [
+              id,
+              {
+                ...client,
+                socket: undefined, // 移除 socket 引用
+              },
+            ])
+          ),
+        };
+        Deno.writeTextFileSync("data.json", JSON.stringify(dataToSave));
+      },
       5000,
     );
   }
 
-  addClient(clientId: string, ip: string, socket: WebSocket) {
-    const client: Client = {
-      id: clientId,
-      name: ip, // Default name is IP address
-      ip,
-      socket,
-    };
-    this.clients.set(clientId, client);
-    console.log(`Client ${clientId} (${ip}) connected`);
+  // 连接或重连客户端
+  connectClient(ip: string, socket: WebSocket): string {
+    // 先查找是否有相同IP的客户机
+    const existingClient = Object.values(this.clients).find(
+      (client) => client.ip === ip
+    );
+
+    const timestamp = getSecondTimestamp();
+
+    if (existingClient) {
+      // 重连现有客户端
+      existingClient.online = true;
+      existingClient.socket = socket;
+      
+      // 如果有测试会话，记录重连日志
+      if (existingClient.testSession) {
+        existingClient.testSession.logs.push({
+          timestamp,
+          action: "connect",
+          details: {},
+        });
+      }
+      
+      console.log(`Client ${existingClient.id} (${ip}) reconnected`);
+      return existingClient.id;
+    } else {
+      // 创建新客户端
+      const clientId = crypto.randomUUID();
+      const client: Client = {
+        id: clientId,
+        name: ip, // Default name is IP address
+        ip,
+        online: true,
+        socket,
+      };
+      this.clients[clientId] = client;
+      console.log(`New client ${clientId} (${ip}) connected`);
+      return clientId;
+    }
   }
 
-  removeClient(clientId: string) {
-    this.clients.delete(clientId);
-    console.log(`Client ${clientId} disconnected`);
-  }
-
-  getClients(): Client[] {
-    return Array.from(this.clients.values());
+  // 断开客户端连接
+  disconnectClient(clientId: string) {
+    const client = this.clients[clientId];
+    if (client) {
+      const timestamp = getSecondTimestamp();
+      
+      // 如果有测试会话，记录断开连接日志
+      if (client.testSession) {
+        client.testSession.logs.push({
+          timestamp,
+          action: "disconnect",
+          details: {},
+        });
+      }
+      
+      client.online = false;
+      delete client.socket;
+      console.log(`Client ${clientId} disconnected`);
+    }
   }
 
   createTestSession(clientId: string, test: Test): boolean {
-    const client = this.clients.get(clientId);
+    const client = this.clients[clientId];
     if (!client) return false;
 
+    const timestamp = getSecondTimestamp();
     const session: TestSession = {
       id: `${clientId}_${Date.now()}`,
       test,
       currentQuestionIndex: 0,
       solvedTroubles: [],
-      logs: [{
-        timestamp: getSecondTimestamp(),
-        action: "start",
-        details: { question: test.questions[0] },
-      }],
+      logs: [
+        {
+          timestamp,
+          action: "connect",
+          details: {},
+        },
+        {
+          timestamp,
+          action: "start",
+          details: { question: test.questions[0] },
+        }
+      ],
     };
 
     client.testSession = session;
@@ -187,19 +259,22 @@ export class TestSystemManager {
   }
 
   handleAnswer(clientId: string, trouble: Trouble): boolean {
-    const client = this.clients.get(clientId);
+    const client = this.clients[clientId];
     if (!client?.testSession) return false;
 
     const session = client.testSession;
     const currentQuestion =
       session.test.questions[session.currentQuestionIndex];
 
+    const haveBeenSolved = session.solvedTroubles.find(([index, troubles]) =>
+      index === session.currentQuestionIndex && troubles.some(t => t.id === trouble.id)
+    );
     // Check if the trouble is part of current question
-    const isCorrect = currentQuestion.troubles.some((t) => t.id === trouble.id);
+    const isCorrect =  !haveBeenSolved && currentQuestion.troubles.some((t: Trouble) => t.id === trouble.id);
 
     if (isCorrect) {
       // Add to solved troubles for current question
-      const existingEntry = session.solvedTroubles.find(([index]) =>
+      const existingEntry = session.solvedTroubles.find(([index]: [number, Trouble[]]) =>
         index === session.currentQuestionIndex
       );
       if (existingEntry) {
@@ -257,16 +332,16 @@ export class TestSystemManager {
     const currentQuestion =
       session.test.questions[session.currentQuestionIndex];
     const solvedTroubles =
-      session.solvedTroubles.find(([index]) =>
+      session.solvedTroubles.find(([index]: [number, Trouble[]]) =>
         index === session.currentQuestionIndex
       )?.[1] || [];
-    return currentQuestion.troubles.filter((trouble) =>
-      !solvedTroubles.some((solved) => solved.id === trouble.id)
+    return currentQuestion.troubles.filter((trouble: Trouble) =>
+      !solvedTroubles.some((solved: Trouble) => solved.id === trouble.id)
     );
   }
 
   navigateQuestion(clientId: string, direction: "next" | "prev"): boolean {
-    const client = this.clients.get(clientId);
+    const client = this.clients[clientId];
     if (!client?.testSession) return false;
 
     const session = client.testSession;
@@ -295,7 +370,7 @@ export class TestSystemManager {
   }
 
   finishTest(clientId: string, timestamp?: number): boolean {
-    const client = this.clients.get(clientId);
+    const client = this.clients[clientId];
     if (!client?.testSession) return false;
 
     const session = client.testSession;
@@ -319,8 +394,9 @@ export class TestSystemManager {
   }
 
   private broadcastTroubleStatus() {
-    for (const client of this.clients.values()) {
-      if (client.testSession && client.socket.readyState === WebSocket.OPEN) {
+    for (const [_clientId, client] of Object.entries(this.clients)) {
+      if (!client.online) continue;
+      if (client.testSession && client.socket && client.socket.readyState === WebSocket.OPEN) {
         const session = client.testSession;
         const currentTime = getSecondTimestamp();
 

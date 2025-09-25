@@ -38,10 +38,9 @@ wsRouter.get("/ws", async (ctx) => {
   }
 
   const socket = await ctx.upgrade();
-  const clientId = crypto.randomUUID();
   const clientIp = ctx.request.ip;
 
-  manager.addClient(clientId, clientIp, socket);
+  const clientId = manager.connectClient(clientIp, socket);
 
   socket.onmessage = (event) => {
     try {
@@ -52,13 +51,13 @@ wsRouter.get("/ws", async (ctx) => {
     }
   };
 
-  socket.onclose = () => {
-    manager.removeClient(clientId);
-  };
+  // socket.onclose = () => {
+  //   manager.disconnectClient(clientId);
+  // };
 
   socket.onerror = (error) => {
     console.error(`WebSocket error for ${clientId}:`, error);
-    manager.removeClient(clientId);
+    manager.disconnectClient(clientId);
   };
 
   console.log(`WebSocket connection established for client ${clientId}`);
@@ -97,7 +96,7 @@ apiRouter.post("/questions", async (ctx) => {
       success: true,
       data: newQuestion,
     };
-  } catch (error) {
+  } catch (_error) {
     ctx.response.status = 400;
     ctx.response.body = { success: false, error: "Invalid request body" };
   }
@@ -115,7 +114,7 @@ apiRouter.put("/questions/:id", async (ctx) => {
       ctx.response.status = 404;
       ctx.response.body = { success: false, error: "Question not found" };
     }
-  } catch (error) {
+  } catch (_error) {
     ctx.response.status = 400;
     ctx.response.body = { success: false, error: "Invalid request" };
   }
@@ -134,10 +133,11 @@ apiRouter.delete("/questions/:id", (ctx) => {
 });
 
 apiRouter.get("/clients", (ctx) => {
-  const clients = manager.getClients().map(client => ({
+  const clients = Object.values(manager.clients).map((client) => ({
     id: client.id,
     name: client.name,
     ip: client.ip,
+    online: client.online,
     testSession: client.testSession || null,
   }));
 
@@ -147,7 +147,14 @@ apiRouter.get("/clients", (ctx) => {
   };
 });
 
-// Create Test session - updated for new architecture
+apiRouter.get("/tests", (ctx) => {
+  ctx.response.body = {
+    success: true,
+    data: manager.getTests(),
+  };
+});
+
+// Create Test session
 apiRouter.post("/test-sessions", async (ctx) => {
   try {
     const body = await ctx.request.body.json();
@@ -183,7 +190,7 @@ apiRouter.post("/test-sessions", async (ctx) => {
       success: true,
       data: results,
     };
-  } catch (error) {
+  } catch (_error) {
     ctx.response.status = 400;
     ctx.response.body = { success: false, error: "Invalid request body" };
   }
@@ -191,12 +198,12 @@ apiRouter.post("/test-sessions", async (ctx) => {
 
 // Get test sessions - updated for new architecture
 apiRouter.get("/test-sessions", (ctx) => {
-  const clients = manager.getClients();
-  const sessions = clients.filter(c => c.testSession).map(client => ({
+  const clients = Object.values(manager.clients);
+  const sessions = clients.filter((c) => c.testSession).map((client) => ({
     sessionId: client.testSession!.id,
     clientId: client.id,
     clientIp: client.ip,
-    questionIds: client.testSession!.test.questions.map(q => q.id),
+    questionIds: client.testSession!.test.questions.map((q) => q.id),
     startTime: client.testSession!.test.startTime,
     durationTime: client.testSession!.test.durationTime,
     finishTime: client.testSession!.finishTime,
@@ -212,14 +219,14 @@ apiRouter.get("/test-sessions", (ctx) => {
 });
 
 apiRouter.get("/status", (ctx) => {
-  const clients = manager.getClients();
+  const clients = Object.values(manager.clients);
   
   ctx.response.body = {
     success: true,
     data: {
       timestamp: getSecondTimestamp(),
-      connectedClients: clients.length,
-      activeTests: clients.filter(c => c.testSession).length,
+      connectedClients: clients.filter((c) => c.online).length,
+      activeTests: clients.filter((c) => c.testSession).length,
       totalQuestions: manager.questions.length,
       totalTroubles: manager.getTroubles().length,
     },
@@ -251,7 +258,7 @@ app.use(apiRouter.allowedMethods());
 app.use(healthRouter.routes());
 
 // Helper function to safely send WebSocket messages
-function safeSend(socket: WebSocket, message: any) {
+function safeSend(socket: WebSocket, message: Record<string, unknown>) {
   if (socket.readyState === WebSocket.OPEN) {
     try {
       socket.send(JSON.stringify(message));
@@ -265,15 +272,25 @@ function handleWebSocketMessage(
   manager: TestSystemManager, 
   clientId: string, 
   socket: WebSocket, 
-  message: any
+  message: Record<string, unknown>
 ) {
   console.log(`Message from ${clientId}:`, message);
 
   switch (message.type) {
     case "answer": {
-      // Extract trouble from message - expect trouble object now, not just ID
-      const trouble = message.trouble || { id: message.trouble_id, description: "" };
-      
+      // find the trouble object in the current question by id
+      const troubleId = message.trouble_id as number;
+      const client = manager.clients[clientId];
+      if (!client.testSession) {
+        safeSend(socket, { type: "error", message: "No active test session", timestamp: getSecondTimestamp() });
+        return;
+      }
+      const currentQuestion = client.testSession.test.questions[client.testSession.currentQuestionIndex];
+      const trouble = currentQuestion.troubles.find(t => t.id === troubleId);
+      if (!trouble) {
+        safeSend(socket, { type: "error", message: "Trouble not found", timestamp: getSecondTimestamp() });
+        return;
+      }
       const isCorrect = manager.handleAnswer(clientId, trouble);
       safeSend(socket, {
         type: "answer_result",
@@ -298,17 +315,13 @@ function handleWebSocketMessage(
     }
     
     case "finish": {
-      const success = manager.finishTest(clientId, message.timestamp);
+      const timestamp = typeof message.timestamp === 'number' ? message.timestamp : undefined;
+      const success = manager.finishTest(clientId, timestamp);
       safeSend(socket, {
         type: "finish_result",
         success,
         timestamp: getSecondTimestamp(),
       });
-      break;
-    }
-    
-    case "ping": {
-      safeSend(socket, { type: "pong", timestamp: getSecondTimestamp() });
       break;
     }
   }

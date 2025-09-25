@@ -29,7 +29,7 @@ export interface TestSession {
 
 export interface TestLog {
   timestamp: number; // seconds timestamp
-  action: 'start' | 'answer' | 'navigation' | 'finish';
+  action: 'start' | 'answer' | 'navigation' | 'finish' | 'connect' | 'disconnect';
   details: {
     question?: Question;
     trouble?: Trouble;
@@ -40,8 +40,9 @@ export interface TestLog {
 
 export interface Client {
   id: string;
-  name: string; // Default to client IP
+  name: string;
   ip: string;
+  online: boolean;
   testSession?: TestSession;
 }
 

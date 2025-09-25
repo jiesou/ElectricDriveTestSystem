@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, h } from 'vue'
 import { Table, Button, Modal, Form, Select, DatePicker, message, Card, Tag, InputNumber } from 'ant-design-vue'
-import type { Question, Client, TestSession } from '../types'
+import type { Question, Client, Test } from '../types'
 import { getSecondTimestamp } from '../types'
 
 const questions = ref<Question[]>([])
 const clients = ref<Client[]>([])
-const testSessions = ref<TestSession[]>([])
+const tests = ref<Test[]>([])
 const loading = ref(false)
 
 // Modal state
@@ -22,17 +22,17 @@ async function fetchData() {
   try {
     loading.value = true
 
-    // Fetch questions, clients, and test sessions in parallel
-    const [questionsRes, clientsRes, sessionsRes] = await Promise.all([
+    // Fetch questions, clients, and tests in parallel
+    const [questionsRes, clientsRes, testsRes] = await Promise.all([
       fetch('/api/questions'),
       fetch('/api/clients'),
-      fetch('/api/test-sessions')
+      fetch('/api/tests')
     ])
 
-    const [questionsResult, clientsResult, sessionsResult] = await Promise.all([
+    const [questionsResult, clientsResult, testsResult] = await Promise.all([
       questionsRes.json(),
       clientsRes.json(),
-      sessionsRes.json()
+      testsRes.json()
     ])
 
     if (questionsResult.success) {
@@ -43,8 +43,8 @@ async function fetchData() {
       clients.value = clientsResult.data
     }
 
-    if (sessionsResult.success) {
-      testSessions.value = sessionsResult.data
+    if (testsResult.success) {
+      tests.value = testsResult.data
     }
   } catch (error) {
     console.error('Failed to fetch data:', error)
@@ -121,6 +121,13 @@ const clientColumns = [
     key: 'ip'
   },
   {
+    title: '在线状态',
+    key: 'onlineStatus',
+    customRender: ({ record }: { record: Client }) => {
+      return record.online ? h(Tag, { color: 'green' }, () => '在线') : h(Tag, { color: 'red' }, () => '离线')
+    }
+  },
+  {
     title: '测验状态',
     key: 'testStatus',
     customRender: ({ record }: { record: Client }) => {
@@ -129,11 +136,20 @@ const clientColumns = [
   }
 ]
 
-const sessionColumns = [
+const testColumns = [
   {
-    title: '客户机IP',
-    dataIndex: 'clientIp',
-    key: 'clientIp'
+    title: '测验ID',
+    dataIndex: 'id',
+    key: 'id'
+  },
+  {
+    title: '所含题目',
+    key: 'questions',
+    customRender: ({ record }: { record: Test }) => {
+      return record.questions.map((question: Question, index: number) => 
+        h(Tag, { key: question.id, style: index > 0 ? 'margin-left: 4px' : '', color: 'blue' }, () => `题目${question.id}`)
+      )
+    }
   },
   {
     title: '开始时间',
@@ -144,20 +160,11 @@ const sessionColumns = [
     }
   },
   {
-    title: '所含题目',
-    dataIndex: 'questionIds',
-    key: 'questions',
-    customRender: ({ record }: { record: any }) => {
-      return record.questionIds.map((questionId: number, index: number) => 
-        h(Tag, { key: questionId, style: index > 0 ? 'margin-left: 4px' : '', color: 'blue' }, () => `题目${questionId}`)
-      )
-    }
-  },
-  {
-    title: '进度',
-    key: 'progress',
-    customRender: ({ record }: { record: any }) => {
-      return `${record.currentQuestionIndex + 1}/${record.totalQuestions}`
+    title: '持续时间',
+    dataIndex: 'durationTime',
+    key: 'durationTime',
+    customRender: ({ text }: { text: number | null }) => {
+      return text ? `${Math.floor(text / 60)} 分钟` : '无限制'
     }
   }
 ]
@@ -193,16 +200,18 @@ onMounted(() => {
     </Card>
 
     <Card title="已安排的测验">
-      <Table :dataSource="testSessions" :columns="sessionColumns" size="small" rowKey="sessionId" :pagination="false" />
+      <Table :dataSource="tests" :columns="testColumns" size="small" rowKey="id" :pagination="false" />
     </Card>
 
     <Modal v-model:open="modalVisible" title="创建测验" @ok="handleCreateTest" width="600px">
       <Form layout="vertical">
         <Form.Item label="选择客户机" required>
           <Select v-model:value="formState.clientIds" mode="multiple" placeholder="请选择目标客户机" style="width: 100%">
-            <Select.Option v-for="client in clients" :key="client.id" :value="client.id" :disabled="!!client.testSession">
+            <Select.Option v-for="client in clients" :key="client.id" :value="client.id" :disabled="!!client.testSession || !client.online">
               {{ client.name }} ({{ client.ip }})
-              <Tag v-if="client.testSession" color="blue" size="small">进行中</Tag>
+              <Tag v-if="!client.online" color="red" size="small">离线</Tag>
+              <Tag v-else-if="client.testSession" color="blue" size="small">进行中</Tag>
+              <Tag v-else color="green" size="small">可用</Tag>
             </Select.Option>
           </Select>
         </Form.Item>
