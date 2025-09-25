@@ -131,12 +131,12 @@ onUnmounted(() => {
 
     <div style="margin-top: 20px;" v-if="clients.filter(c => c.testSession).length > 0">
       <div v-for="client in clients.filter(c => c.testSession)" :key="client.id" style="margin-bottom: 20px;">
-        <Card :title="`活跃测验详情 - ${client.name} (${client.ip})'}`">
+        <Card :title="`活跃测验详情 - ${client.name} (${client.ip})`">
           <div v-if="client.testSession">
             <div style="margin-bottom: 16px;">
               <p><strong>开始时间:</strong> {{ formatTime(client.testSession.test.startTime) }}</p>
               <p><strong>连接状态:</strong> 
-                <Tag :color="client.online ? 'green' : 'red'">
+                <Tag style="margin-left: 4px;" :color="client.online ? 'green' : 'red'">
                   {{ client.online ? '在线' : '离线' }}
                 </Tag>
               </p>
