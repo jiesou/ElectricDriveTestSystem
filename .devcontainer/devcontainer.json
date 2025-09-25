@@ -31,6 +31,11 @@
 	// 	"--userns=keep-id",
 	// 	"--security-opt=label=disable"
 	// ],
+	"runArgs": [
+		"--network",
+		"host" // for API get ip to communicate with the esp32
+		// dont use port-forwarding
+	],
 	// "containerUser": "node",
 	// "updateRemoteUserUID": true
 	"privileged": true

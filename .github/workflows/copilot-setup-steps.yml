@@ -39,4 +39,4 @@ jobs:
           cd client
           deno install
           cd ../server
-          deno install
+          deno install --allow-scripts=npm:core-js
