@@ -124,7 +124,7 @@ function getLogText(log: TestLog): string {
       return `开始测验 - 第${log.details.questionNumber}题`
     case 'answer':
       const result = log.details.result ? '正确' : '错误'
-      return `回答故障${log.details.troubleId} - ${result} (第${log.details.questionNumber}题)`
+      return `回答trouble${log.details.troubleId} - ${result} (第${log.details.questionNumber}题)`
     case 'navigation':
       const direction = log.details.direction === 'next' ? '下一题' : '上一题'
       return `切换到${direction} - 第${log.details.questionNumber}题`
@@ -185,7 +185,7 @@ onUnmounted(() => {
                 :status="record.session.remainingTroubles.length === 0 ? 'success' : 'active'"
               />
               <div style="font-size: 12px; color: #666; margin-top: 4px;">
-                当前题目剩余故障: {{ record.session.remainingTroubles.length }}
+                当前题目剩余troubles: {{ record.session.remainingTroubles.length }}
               </div>
             </div>
             <span v-else style="color: #999;">-</span>
@@ -212,9 +212,9 @@ onUnmounted(() => {
           <div v-if="client.session" style="padding-left: 20px;">
             <p><strong>开始时间:</strong> {{ new Date(client.session.startTime * 1000).toLocaleString() }}</p>
             <p><strong>当前进度:</strong> 第 {{ client.session.currentQuestion }}/{{ client.session.totalQuestions }} 题</p>
-            <p><strong>当前题目剩余故障:</strong> 
+            <p><strong>当前题目剩余troubles:</strong> 
               <Tag v-for="troubleId in client.session.remainingTroubles" :key="troubleId" color="orange">
-                故障 {{ troubleId }}
+                trouble {{ troubleId }}
               </Tag>
               <span v-if="client.session.remainingTroubles.length === 0" style="color: #52c41a;">
                 当前题目已完成

@@ -195,7 +195,7 @@ const sessionColumns = [
     customRender: ({ record }: { record: TestSession }) => {
       const questionTexts = record.questionIds.map(id => {
         const question = questions.value.find(q => q.id === id)
-        return question ? `题目${id}(${question.troubles.length}个故障)` : `题目${id}`
+        return question ? `题目${id}(${question.troubles.length}个troubles)` : `题目${id}`
       })
       return h(Space, { direction: 'vertical', size: 'small' }, 
         () => questionTexts.map((text, index) => h(Tag, { key: index, color: 'cyan' }, () => text))
@@ -260,7 +260,7 @@ onMounted(() => {
         <Form.Item label="选择题目" required>
           <Select v-model:value="formState.questionIds" mode="multiple" placeholder="请选择测验题目" style="width: 100%">
             <Select.Option v-for="question in questions" :key="question.id" :value="question.id">
-              题目 {{ question.id }} ({{ question.troubles.length }} 个故障)
+              题目 {{ question.id }} ({{ question.troubles.length }} 个troubles)
             </Select.Option>
           </Select>
         </Form.Item>
