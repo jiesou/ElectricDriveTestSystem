@@ -68,7 +68,7 @@ onUnmounted(() => {
     <h2>客户机监控</h2>
 
     <Card title="实时客户机状态">
-      <ClientTable :table-size="'middle'" :refresh-interval="2000" />
+      <ClientTable />
     </Card>
 
     <div style="margin-top: 20px;" v-if="clients.filter(c => c.testSession).length > 0">

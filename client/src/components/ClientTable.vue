@@ -1,59 +1,37 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { Table, Tag } from 'ant-design-vue'
 import type { Client } from '../types'
-
-interface Props {
-  refreshInterval?: number // refresh interval in milliseconds, defaults to 2000
-  tableSize?: 'small' | 'middle' | 'large'
-  showClientName?: boolean // whether to show client name column, defaults to false
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  refreshInterval: 2000,
-  tableSize: 'middle',
-  showClientName: false
-})
 
 const clients = ref<Client[]>([])
 const loading = ref(false)
 const refreshTimer = ref<number | null>(null)
 
-// Define columns based on props
-const columns = computed(() => {
-  const baseColumns = []
-  
-  if (props.showClientName) {
-    baseColumns.push({
-      title: '客户机名称',
-      dataIndex: 'name',
-      key: 'name'
+const columns = [
+  {
+    title: '客户机名称',
+    dataIndex: 'name',
+    key: 'name'
+  },
+  {
+    title: 'IP地址',
+    dataIndex: 'ip',
+    key: 'ip'
+  },
+  {
+    title: '在线状态',
+    key: 'online',
+    customRender: ({ record }: { record: Client }) => ({ record })
+  },
+  {
+    title: '测验状态',
+    key: 'testStatus',
+    customRender: ({ record }: { record: Client }) => ({
+      hasSession: !!record.testSession,
+      session: record.testSession
     })
   }
-  
-  baseColumns.push(
-    {
-      title: 'IP地址',
-      dataIndex: 'ip',
-      key: 'ip'
-    },
-    {
-      title: '在线状态',
-      key: 'online',
-      customRender: ({ record }: { record: Client }) => ({ record })
-    },
-    {
-      title: '测验状态',
-      key: 'testStatus',
-      customRender: ({ record }: { record: Client }) => ({
-        hasSession: !!record.testSession,
-        session: record.testSession
-      })
-    }
-  )
-  
-  return baseColumns
-})
+]
 
 async function fetchClients() {
   try {
@@ -74,7 +52,7 @@ async function fetchClients() {
 function startAutoRefresh() {
   refreshTimer.value = window.setInterval(() => {
     fetchClients()
-  }, props.refreshInterval)
+  }, 1000) // Fixed to 1000ms as requested
 }
 
 function stopAutoRefresh() {
@@ -99,7 +77,7 @@ onUnmounted(() => {
     :dataSource="clients" 
     :columns="columns" 
     :loading="loading" 
-    :size="tableSize"
+    size="middle"
     rowKey="id" 
     :pagination="false"
   >

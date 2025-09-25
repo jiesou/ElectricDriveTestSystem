@@ -161,7 +161,7 @@ onMounted(() => {
     </Card>
 
     <Card title="连接的客户机" style="margin-bottom: 20px;">
-      <ClientTable :table-size="'small'" :show-client-name="true" :refresh-interval="5000" />
+      <ClientTable />
     </Card>
 
     <Card title="已安排的测验">
