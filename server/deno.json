@@ -1,7 +1,8 @@
 {
   "tasks": {
     "dev": "deno run --allow-net --allow-read --watch main.ts",
-    "start": "deno run --allow-net --allow-read main.ts"
+    "start": "deno run --allow-net --allow-read main.ts",
+    "build": "deno compile -A --target x86_64-pc-windows-msvc main.ts"
   },
   "imports": {
     "@oak/oak": "jsr:@oak/oak@^17.1.6",

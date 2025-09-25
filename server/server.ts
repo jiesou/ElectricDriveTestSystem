@@ -233,6 +233,18 @@ healthRouter.get("/health", (ctx) => {
 });
 
 // Register routes
+app.use(async (ctx, next) => {
+  const pathname = ctx.request.url.pathname;
+  if (!pathname.startsWith("/api") && !pathname.startsWith("/ws")) {
+    await ctx.send({
+      root: "./public",
+      path: pathname,
+      index: "index.html",
+    });
+  } else {
+    await next();
+  }
+});
 app.use(wsRouter.routes());
 app.use(apiRouter.routes());
 app.use(apiRouter.allowedMethods());
