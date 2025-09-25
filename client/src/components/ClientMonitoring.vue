@@ -1,37 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { Table, Card, Tag, Progress, Timeline } from 'ant-design-vue'
+import { Card, Tag, Timeline } from 'ant-design-vue'
 import type { Client } from '../types'
+import ClientTable from './ClientTable.vue'
 
 const clients = ref<Client[]>([])
 const loading = ref(false)
 const refreshTimer = ref<number | null>(null)
-
-const columns = [
-  { 
-    title: 'IP地址', 
-    dataIndex: 'ip', 
-    key: 'ip' 
-  },
-  { 
-    title: '在线状态', 
-    key: 'online',
-    customRender: ({ record }: { record: Client }) => ({ record })
-  },
-  { 
-    title: '测验状态', 
-    key: 'testStatus',
-    customRender: ({ record }: { record: Client }) => ({
-      hasSession: !!record.testSession,
-      session: record.testSession
-    })
-  },
-  { 
-    title: '答题进度', 
-    key: 'progress',
-    customRender: ({ record }: { record: Client }) => ({ record })
-  }
-]
 
 async function fetchClients() {
   try {
@@ -93,40 +68,7 @@ onUnmounted(() => {
     <h2>客户机监控</h2>
 
     <Card title="实时客户机状态">
-            <Table :dataSource="clients" :columns="columns" :loading="loading" rowKey="id" :pagination="false" size="middle">
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'online'">
-            <Tag :color="record.online ? 'green' : 'red'">
-              {{ record.online ? '在线' : '离线' }}
-            </Tag>
-          </template>
-
-          <template v-if="column.key === 'testStatus'">
-            <div>
-              <Tag :color="record.testSession ? (record.testSession.finishTime ? 'red' : 'blue') : 'default'">
-                {{ record.testSession ? (record.testSession.finishTime ? '已结束' : '进行中') : '空闲' }}
-              </Tag>
-              <div v-if="record.testSession" style="margin-top: 4px; font-size: 12px; color: #666;">
-                第 {{ record.testSession.currentQuestionIndex + 1 }}/{{ record.testSession.test.questions.length }} 题
-                <span v-if="record.testSession.test.durationTime">
-                  (限时{{ Math.floor(record.testSession.test.durationTime / 60) }}分钟)
-                </span>
-              </div>
-            </div>
-          </template>
-
-          <template v-if="column.key === 'progress'">
-            <div v-if="record.testSession">
-              <Progress :percent="Math.round(((record.testSession.currentQuestionIndex + 1) / record.testSession.test.questions.length) * 100)"
-                size="small" :status="'active'" />
-              <div style="font-size: 12px; color: #666; margin-top: 4px;">
-                测验进度状态
-              </div>
-            </div>
-            <span v-else style="color: #999;">-</span>
-          </template>
-        </template>
-      </Table>
+      <ClientTable :table-size="'middle'" :refresh-interval="2000" />
     </Card>
 
     <div style="margin-top: 20px;" v-if="clients.filter(c => c.testSession).length > 0">

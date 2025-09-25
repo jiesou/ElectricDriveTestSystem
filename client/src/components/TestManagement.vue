@@ -3,10 +3,11 @@ import { ref, reactive, onMounted, h } from 'vue'
 import { Table, Button, Modal, Form, Select, DatePicker, message, Card, Tag, InputNumber } from 'ant-design-vue'
 import type { Question, Client, Test } from '../types'
 import { getSecondTimestamp } from '../types'
+import ClientTable from './ClientTable.vue'
 
 const questions = ref<Question[]>([])
-const clients = ref<Client[]>([])
 const tests = ref<Test[]>([])
+const clients = ref<Client[]>([]) // Only used for modal selection
 const loading = ref(false)
 
 // Modal state
@@ -109,33 +110,6 @@ function formatTime(timestamp: number): string {
   return new Date(timestamp * 1000).toLocaleString()
 }
 
-const clientColumns = [
-  {
-    title: '客户机名称',
-    dataIndex: 'name',
-    key: 'name'
-  },
-  {
-    title: 'IP地址',
-    dataIndex: 'ip',
-    key: 'ip'
-  },
-  {
-    title: '在线状态',
-    key: 'onlineStatus',
-    customRender: ({ record }: { record: Client }) => {
-      return record.online ? h(Tag, { color: 'green' }, () => '在线') : h(Tag, { color: 'red' }, () => '离线')
-    }
-  },
-  {
-    title: '测验状态',
-    key: 'testStatus',
-    customRender: ({ record }: { record: Client }) => {
-      return record.testSession ? '进行中' : '空闲'
-    }
-  }
-]
-
 const testColumns = [
   {
     title: '测验ID',
@@ -187,16 +161,7 @@ onMounted(() => {
     </Card>
 
     <Card title="连接的客户机" style="margin-bottom: 20px;">
-      <Table :dataSource="clients" :columns="clientColumns" :loading="loading" size="small" rowKey="id"
-        :pagination="false">
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'testStatus'">
-            <Tag :color="record.testSession ? 'blue' : 'default'">
-              {{ record.testSession ? '进行中' : '空闲' }}
-            </Tag>
-          </template>
-        </template>
-      </Table>
+      <ClientTable :table-size="'small'" :show-client-name="true" :refresh-interval="5000" />
     </Card>
 
     <Card title="已安排的测验">
