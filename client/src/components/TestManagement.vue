@@ -184,7 +184,7 @@ const sessionColumns = [
     key: 'questions',
     customRender: ({ record }: { record: TestSession }) => {
       return record.questionIds.map((questionId, index) => 
-        h(Tag, { key: questionId, style: index > 0 ? 'margin-left: 4px' : '', color: 'blue' }, () => `【题目${questionId}】`)
+        h(Tag, { key: questionId, style: index > 0 ? 'margin-left: 4px' : '', color: 'blue' }, () => `题目${questionId}`)
       )
     }
   },

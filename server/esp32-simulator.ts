@@ -52,11 +52,14 @@ class ESP32Simulator {
         console.log(`🔥 Current troubles: [${message.troubles.join(", ")}]`);
         console.log(`📋 Question ${message.current_question}/${message.total_questions}`);
         
-        if (message.troubles.length === 0) {
-          console.log("✅ All troubles in current question solved!");
+        // Auto-answer the first trouble after 2 seconds
+        if (message.troubles.length > 0) {
+          console.log(`⏰ Will auto-answer trouble ${message.troubles[0]} in 2 seconds...`);
+          setTimeout(() => {
+            this.sendAnswer(message.troubles[0]);
+          }, 2000);
         } else {
-          console.log("🎯 Available troubles to answer:", message.troubles.join(", "));
-          console.log("💡 Use sendAnswer(troubleId) to answer a specific trouble");
+          console.log("✅ All troubles in current question solved!");
         }
         break;
       
@@ -153,23 +156,32 @@ async function runSimulation() {
     console.log("🚀 Starting ESP32 WebSocket Simulator...");
     await simulator.connect();
     
-    // Send ping every 30 seconds to keep connection alive
+    // Send ping every 10 seconds
     const pingInterval = setInterval(() => {
       simulator.ping();
-    }, 30000);
+    }, 10000);
     
-    console.log("\n🎮 Simulator is ready! Available commands:");
-    console.log("   simulator.sendAnswer(troubleId) - Answer a specific trouble");
-    console.log("   simulator.nextQuestion() - Move to next question");
-    console.log("   simulator.previousQuestion() - Move to previous question");
-    console.log("   simulator.finishTest() - Finish test early");
-    console.log("   simulator.ping() - Send ping to server");
-    console.log("   simulator.disconnect() - Disconnect from server");
+    // Simulate some interactions
+    setTimeout(() => {
+      console.log("\n🧪 === Testing navigation ===");
+      simulator.nextQuestion();
+    }, 15000);
     
-    // Make the simulator available globally for manual control
-    globalThis.simulator = simulator;
+    setTimeout(() => {
+      simulator.previousQuestion();
+    }, 20000);
+
+    setTimeout(() => {
+      console.log("\n🏁 === Testing early finish ===");
+      simulator.finishTest();
+    }, 25000);
     
-    // Keep running indefinitely for manual control
+    // Keep running (comment out to run indefinitely)
+    // setTimeout(() => {
+    //   clearInterval(pingInterval);
+    //   simulator.disconnect();
+    //   console.log("🔚 Simulation ended");
+    // }, 40000);
     
   } catch (error) {
     console.error("💥 Failed to start simulation:", error);
