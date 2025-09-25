@@ -39,7 +39,7 @@ wsRouter.get("/ws", async (ctx) => {
 
   const socket = await ctx.upgrade();
   const clientId = crypto.randomUUID();
-  const clientIp = "127.0.0.1"; // Simplified for testing
+  const clientIp = ctx.request.ip;
 
   manager.addClient(clientId, clientIp, socket);
 
@@ -151,7 +151,7 @@ apiRouter.get("/clients", (ctx) => {
   };
 });
 
-// Test sessions endpoint
+// 新建 Test session
 apiRouter.post("/test-sessions", async (ctx) => {
   try {
     const body = await ctx.request.body.json();
@@ -174,6 +174,7 @@ apiRouter.post("/test-sessions", async (ctx) => {
 
     const results: { clientId: string; success: boolean }[] = [];
 
+    // 对每个客户机创建测试会话
     for (const clientId of clientIds) {
       const success = manager.createTestSession(clientId, selectedQuestions, startTime || Date.now() / 1000);
       results.push({ clientId, success });
@@ -236,7 +237,7 @@ function handleWebSocketMessage(
   console.log(`Message from ${clientId}:`, message);
 
   switch (message.type) {
-    case "answer":
+    case "answer": {
       const isCorrect = manager.handleAnswer(clientId, message.trouble_id);
       safeSend(socket, {
         type: "answer_result",
@@ -245,9 +246,10 @@ function handleWebSocketMessage(
         timestamp: Date.now() / 1000,
       });
       break;
+    }
     
     case "next_question":
-    case "last_question":
+    case "last_question": {
       const direction = message.type === "next_question" ? "next" : "prev";
       const success = manager.navigateQuestion(clientId, direction);
       safeSend(socket, {
@@ -257,11 +259,12 @@ function handleWebSocketMessage(
         timestamp: Date.now() / 1000,
       });
       break;
+    }
     
-    case "ping":
+    case "ping": {
       safeSend(socket, { type: "pong", timestamp: Date.now() / 1000 });
       break;
-      break;
+    }
   }
 }
 

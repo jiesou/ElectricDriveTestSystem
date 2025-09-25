@@ -134,11 +134,11 @@ async function runSimulation() {
     }, 15000);
     
     // Cleanup after 30 seconds
-    setTimeout(() => {
-      clearInterval(pingInterval);
-      simulator.disconnect();
-      console.log("Simulation ended");
-    }, 30000);
+    // setTimeout(() => {
+    //   clearInterval(pingInterval);
+    //   simulator.disconnect();
+    //   console.log("Simulation ended");
+    // }, 30000);
     
   } catch (error) {
     console.error("Failed to start simulation:", error);

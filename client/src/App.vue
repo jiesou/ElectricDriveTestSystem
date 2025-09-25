@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Layout } from 'ant-design-vue'
+import zhCN from 'ant-design-vue/es/locale/zh_CN';
+import { Layout, ConfigProvider } from 'ant-design-vue'
 import TroubleManagement from './components/TroubleManagement.vue'
 import TestManagement from './components/TestManagement.vue'
 import ClientMonitoring from './components/ClientMonitoring.vue'
@@ -11,13 +12,14 @@ type TabKey = 'troubles' | 'tests' | 'clients'
 const activeTab = ref<TabKey>('troubles')
 
 const menuItems = [
-  { key: 'troubles', label: '故障管理' },
+  { key: 'troubles', label: '题库管理' },
   { key: 'tests', label: '测验管理' },
   { key: 'clients', label: '客户机监控' }
 ]
 </script>
 
 <template>
+  <ConfigProvider :locale="zhCN">
   <Layout style="min-height: 100vh;">
     <Header style="background: #fff; padding: 0 20px; display: flex; justify-content: center; align-items: center;">
       <h1 style="margin: 0; color: #001529;">电力拖动测试系统</h1>
@@ -44,6 +46,7 @@ const menuItems = [
       </Content>
     </Layout>
   </Layout>
+  </ConfigProvider>
 </template>
 
 <style scoped>
