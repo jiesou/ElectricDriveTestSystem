@@ -77,74 +77,26 @@ apiRouter.get("/troubles", (ctx) => {
 apiRouter.get("/questions", (ctx) => {
   ctx.response.body = {
     success: true,
-    data: manager.getQuestions(),
+    data: manager.questions,
   };
 });
 
-apiRouter.post("/questions", async (ctx) => {
-  try {
-    const body = await ctx.request.body.json();
-    const { troubles } = body;
-
-    if (!Array.isArray(troubles) || troubles.length === 0) {
-      ctx.response.status = 400;
-      ctx.response.body = { success: false, error: "Invalid troubles array" };
-      return;
-    }
-
-    const newQuestion = manager.addQuestion({ troubles });
-    ctx.response.body = {
-      success: true,
-      data: newQuestion,
-    };
-  } catch (error) {
-    ctx.response.status = 400;
-    ctx.response.body = { success: false, error: "Invalid request body" };
-  }
-});
-
-apiRouter.put("/questions/:id", async (ctx) => {
-  try {
-    const id = parseInt(ctx.params.id!);
-    const body = await ctx.request.body.json();
-    const success = manager.updateQuestion(id, body);
-
-    if (success) {
-      ctx.response.body = { success: true };
-    } else {
-      ctx.response.status = 404;
-      ctx.response.body = { success: false, error: "Question not found" };
-    }
-  } catch (error) {
-    ctx.response.status = 400;
-    ctx.response.body = { success: false, error: "Invalid request" };
-  }
-});
-
-apiRouter.delete("/questions/:id", (ctx) => {
-  const id = parseInt(ctx.params.id!);
-  const success = manager.deleteQuestion(id);
-
-  if (success) {
-    ctx.response.body = { success: true };
-  } else {
-    ctx.response.status = 404;
-    ctx.response.body = { success: false, error: "Question not found" };
-  }
-});
+// Remove question management endpoints as per requirements
+// Direct access to manager.questions property should be used instead
 
 apiRouter.get("/clients", (ctx) => {
-  const clients = manager.getConnectedClients().map(client => ({
+  const clients = manager.getClients().map(client => ({
     id: client.id,
+    name: client.name,
     ip: client.ip,
-    session: client.session ? {
-      currentQuestion: client.session.currentQuestionIndex + 1,
-      totalQuestions: client.session.questions.length,
-      remainingTroubles: client.session.remainingTroubles,
-      startTime: client.session.startTime,
-      endTime: client.session.endTime,
-      durationTime: client.session.durationTime,
-      logs: client.session.logs
+    testSession: client.testSession ? {
+      id: client.testSession.id,
+      currentQuestion: client.testSession.currentQuestionIndex + 1,
+      totalQuestions: client.testSession.test.questions.length,
+      startTime: client.testSession.test.startTime,
+      finishTime: client.testSession.finishTime,
+      durationTime: client.testSession.test.durationTime,
+      logs: client.testSession.logs
     } : null,
   }));
 
@@ -154,7 +106,7 @@ apiRouter.get("/clients", (ctx) => {
   };
 });
 
-// 新建 Test session
+// Create Test session - updated for new architecture
 apiRouter.post("/test-sessions", async (ctx) => {
   try {
     const body = await ctx.request.body.json();
@@ -166,7 +118,7 @@ apiRouter.post("/test-sessions", async (ctx) => {
       return;
     }
 
-    const allQuestions = manager.getQuestions();
+    const allQuestions = manager.questions;
     const selectedQuestions = allQuestions.filter(q => questionIds.includes(q.id));
 
     if (selectedQuestions.length !== questionIds.length) {
@@ -175,11 +127,14 @@ apiRouter.post("/test-sessions", async (ctx) => {
       return;
     }
 
+    // Create a test first
+    const test = manager.createTest(selectedQuestions, startTime || getSecondTimestamp(), durationTime || null);
+    
     const results: { clientId: string; success: boolean }[] = [];
 
-    // 对每个客户机创建测试会话
+    // Create test sessions for each client
     for (const clientId of clientIds) {
-      const success = manager.createTestSession(clientId, selectedQuestions, startTime || getSecondTimestamp(), durationTime || null);
+      const success = manager.createTestSession(clientId, test);
       results.push({ clientId, success });
     }
 
@@ -193,21 +148,20 @@ apiRouter.post("/test-sessions", async (ctx) => {
   }
 });
 
-// Get test sessions
+// Get test sessions - updated for new architecture
 apiRouter.get("/test-sessions", (ctx) => {
-  const clients = manager.getConnectedClients();
-  const sessions = clients.filter(c => c.session).map(client => ({
-    sessionId: client.session!.id,
+  const clients = manager.getClients();
+  const sessions = clients.filter(c => c.testSession).map(client => ({
+    sessionId: client.testSession!.id,
     clientId: client.id,
     clientIp: client.ip,
-    questionIds: client.session!.questions.map(q => q.id),
-    startTime: client.session!.startTime,
-    durationTime: client.session!.durationTime,
-    endTime: client.session!.endTime,
-    currentQuestionIndex: client.session!.currentQuestionIndex,
-    totalQuestions: client.session!.questions.length,
-    remainingTroubles: client.session!.remainingTroubles,
-    logs: client.session!.logs
+    questionIds: client.testSession!.test.questions.map(q => q.id),
+    startTime: client.testSession!.test.startTime,
+    durationTime: client.testSession!.test.durationTime,
+    finishTime: client.testSession!.finishTime,
+    currentQuestionIndex: client.testSession!.currentQuestionIndex,
+    totalQuestions: client.testSession!.test.questions.length,
+    logs: client.testSession!.logs
   }));
 
   ctx.response.body = {
@@ -217,15 +171,15 @@ apiRouter.get("/test-sessions", (ctx) => {
 });
 
 apiRouter.get("/status", (ctx) => {
-  const clients = manager.getConnectedClients();
+  const clients = manager.getClients();
   
   ctx.response.body = {
     success: true,
     data: {
       timestamp: getSecondTimestamp(),
       connectedClients: clients.length,
-      activeTests: clients.filter(c => c.session).length,
-      totalQuestions: manager.getQuestions().length,
+      activeTests: clients.filter(c => c.testSession).length,
+      totalQuestions: manager.questions.length,
       totalTroubles: manager.getTroubles().length,
     },
   };
@@ -264,11 +218,14 @@ function handleWebSocketMessage(
 
   switch (message.type) {
     case "answer": {
-      const isCorrect = manager.handleAnswer(clientId, message.trouble_id);
+      // Extract trouble from message - expect trouble object now, not just ID
+      const trouble = message.trouble || { id: message.trouble_id, description: "" };
+      
+      const isCorrect = manager.handleAnswer(clientId, trouble);
       safeSend(socket, {
         type: "answer_result",
         result: isCorrect,
-        trouble_id: message.trouble_id,
+        trouble: trouble,
         timestamp: getSecondTimestamp(),
       });
       break;

@@ -8,31 +8,31 @@ export interface Trouble {
 
 export interface Question {
   id: number;
-  troubles: number[]; // trouble IDs
+  troubles: Trouble[]; // Direct trouble objects instead of IDs
+}
+
+export interface Test {
+  id: number;
+  questions: Question[];
+  startTime: number; // timestamp in seconds
+  durationTime: number | null; // duration in seconds, null means no time limit
 }
 
 export interface TestSession {
-  sessionId?: string; // For API compatibility
-  id?: string; // Server-side compatibility
-  clientId: string;
-  clientIp: string;
-  questionIds: number[];
-  questions?: Question[]; // Server-side field
-  startTime: number; // timestamp in seconds
-  durationTime?: number | null; // duration in seconds, null means no time limit
-  endTime?: number; // timestamp when session ended (early finish or timeout)
+  id: string;
+  test: Test; // Reference to the scheduled test
   currentQuestionIndex: number;
-  totalQuestions: number;
-  remainingTroubles: number[]; // troubles not yet solved for current question
-  logs?: TestLog[]; // activity logs
+  finishTime?: number; // timestamp when session finished (early finish or timeout)
+  solvedTroubles: [number, Trouble[]][]; // Array of [questionIndex, solvedTroubles[]] pairs
+  logs: TestLog[]; // activity logs
 }
 
 export interface TestLog {
   timestamp: number; // seconds timestamp
   action: 'start' | 'answer' | 'navigation' | 'finish';
   details: {
-    questionNumber?: number;
-    troubleId?: number;
+    questionIndex?: number;
+    trouble?: Trouble;
     result?: boolean;
     direction?: 'next' | 'prev';
     timeDiff?: number; // time since last action in seconds
@@ -41,13 +41,14 @@ export interface TestLog {
 
 export interface Client {
   id: string;
+  name: string; // Default to client IP
   ip: string;
-  session?: {
+  testSession?: {
+    id: string;
     currentQuestion: number;
     totalQuestions: number;
-    remainingTroubles: number[];
     startTime: number;
-    endTime?: number;
+    finishTime?: number;
     durationTime?: number | null;
     logs?: TestLog[];
   } | null;

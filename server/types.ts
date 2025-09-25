@@ -11,18 +11,22 @@ export interface Trouble {
 
 export interface Question {
   id: number;
-  troubles: number[]; // trouble IDs
+  troubles: Trouble[]; // Direct trouble objects instead of IDs
+}
+
+export interface Test {
+  id: number;
+  questions: Question[];
+  startTime: number; // timestamp in seconds
+  durationTime: number | null; // duration in seconds, null means no time limit
 }
 
 export interface TestSession {
   id: string;
-  questions: Question[];
+  test: Test; // Reference to the scheduled test
   currentQuestionIndex: number;
-  startTime: number; // timestamp
-  durationTime: number | null; // duration in seconds, null means no time limit
-  endTime?: number; // timestamp when session ended (early finish or timeout)
-  clientId: string;
-  remainingTroubles: number[]; // troubles not yet solved for current question
+  finishTime?: number; // timestamp when session finished (early finish or timeout)
+  solvedTroubles: [number, Trouble[]][]; // Array of [questionIndex, solvedTroubles[]] pairs
   logs: TestLog[]; // activity logs
 }
 
@@ -30,19 +34,20 @@ export interface TestLog {
   timestamp: number;
   action: 'start' | 'answer' | 'navigation' | 'finish';
   details: {
-    questionNumber?: number;
-    troubleId?: number;
+    questionIndex?: number;
+    trouble?: Trouble;
     result?: boolean;
     direction?: 'next' | 'prev';
     timeDiff?: number; // time since last action
   };
 }
 
-export interface ClientConnection {
+export interface Client {
   id: string;
+  name: string; // Default to client IP
   ip: string;
   socket: WebSocket;
-  session?: TestSession;
+  testSession?: TestSession;
 }
 
 // WebSocket message types
@@ -53,19 +58,20 @@ export interface WSMessage {
 
 export interface ExistTroublesMessage extends WSMessage {
   type: "exist_troubles";
-  troubles: number[];
+  troubles: Trouble[];
   current_question: number;
   total_questions: number;
 }
 
 export interface AnswerMessage extends WSMessage {
   type: "answer";
-  trouble_id: number;
+  trouble: Trouble;
 }
 
 export interface AnswerResultMessage extends WSMessage {
   type: "answer_result";
   result: boolean;
+  trouble: Trouble;
 }
 
 export interface QuestionNavigationMessage extends WSMessage {
@@ -88,12 +94,39 @@ export const TROUBLES: Trouble[] = [
 ];
 
 export class TestSystemManager {
-  private clients = new Map<string, ClientConnection>();
+  private clients = new Map<string, Client>();
+  private tests: Test[] = []; // Store scheduled tests
   private questionBank: Question[] = [
-    { id: 1, troubles: [1, 2] },
-    { id: 2, troubles: [3, 4] },
-    { id: 3, troubles: [1, 3, 5] },
-    { id: 4, troubles: [2, 4, 6] },
+    { 
+      id: 1, 
+      troubles: [
+        { id: 1, description: "101 和 102 断路" },
+        { id: 2, description: "102 和 103 断路" }
+      ]
+    },
+    { 
+      id: 2, 
+      troubles: [
+        { id: 3, description: "103 和 104 断路" },
+        { id: 4, description: "104 和 105 断路" }
+      ]
+    },
+    { 
+      id: 3, 
+      troubles: [
+        { id: 1, description: "101 和 102 断路" },
+        { id: 3, description: "103 和 104 断路" },
+        { id: 5, description: "201 和 202 断路" }
+      ]
+    },
+    { 
+      id: 4, 
+      troubles: [
+        { id: 2, description: "102 和 103 断路" },
+        { id: 4, description: "104 和 105 断路" },
+        { id: 6, description: "202 和 203 断路" }
+      ]
+    },
   ];
   private broadcastInterval?: number;
 
@@ -102,8 +135,9 @@ export class TestSystemManager {
   }
 
   addClient(clientId: string, ip: string, socket: WebSocket) {
-    const client: ClientConnection = {
+    const client: Client = {
       id: clientId,
+      name: ip, // Default name is IP address
       ip,
       socket,
     };
@@ -116,47 +150,49 @@ export class TestSystemManager {
     console.log(`Client ${clientId} disconnected`);
   }
 
-  getConnectedClients(): ClientConnection[] {
+  getClients(): Client[] {
     return Array.from(this.clients.values());
   }
 
-  createTestSession(clientId: string, questions: Question[], startTime: number, durationTime: number | null = null): boolean {
+  createTestSession(clientId: string, test: Test): boolean {
     const client = this.clients.get(clientId);
     if (!client) return false;
 
     const session: TestSession = {
       id: `${clientId}_${Date.now()}`,
-      questions,
+      test,
       currentQuestionIndex: 0,
-      startTime,
-      durationTime,
-      clientId,
-      remainingTroubles: [...questions[0].troubles],
+      solvedTroubles: [],
       logs: [{
-        timestamp: startTime,
+        timestamp: getSecondTimestamp(),
         action: 'start',
-        details: { questionNumber: 1 }
+        details: { questionIndex: 0 }
       }]
     };
 
-    client.session = session;
+    client.testSession = session;
     return true;
   }
 
-  handleAnswer(clientId: string, troubleId: number): boolean {
+  handleAnswer(clientId: string, trouble: Trouble): boolean {
     const client = this.clients.get(clientId);
-    if (!client?.session) return false;
+    if (!client?.testSession) return false;
 
-    const session = client.session;
-    const currentQuestion = session.questions[session.currentQuestionIndex];
+    const session = client.testSession;
+    const currentQuestion = session.test.questions[session.currentQuestionIndex];
     
-    // Check if the trouble is part of current question
-    const isCorrect = currentQuestion.troubles.includes(troubleId) && 
-                     session.remainingTroubles.includes(troubleId);
+    // Check if the trouble is part of current question and not yet solved
+    const isCorrect = currentQuestion.troubles.some(t => t.id === trouble.id);
+    const alreadySolved = this.isTroubleSolved(session, session.currentQuestionIndex, trouble);
     
-    if (isCorrect) {
-      // Remove solved trouble
-      session.remainingTroubles = session.remainingTroubles.filter(t => t !== troubleId);
+    if (isCorrect && !alreadySolved) {
+      // Add to solved troubles for current question
+      const existingEntry = session.solvedTroubles.find(([index]) => index === session.currentQuestionIndex);
+      if (existingEntry) {
+        existingEntry[1].push(trouble);
+      } else {
+        session.solvedTroubles.push([session.currentQuestionIndex, [trouble]]);
+      }
     }
 
     // Log the answer
@@ -166,29 +202,40 @@ export class TestSystemManager {
       timestamp,
       action: 'answer',
       details: {
-        questionNumber: session.currentQuestionIndex + 1,
-        troubleId,
-        result: isCorrect,
+        questionIndex: session.currentQuestionIndex,
+        trouble,
+        result: isCorrect && !alreadySolved,
         timeDiff: timestamp - lastLog.timestamp
       }
     });
 
-    return isCorrect;
+    return isCorrect && !alreadySolved;
+  }
+
+  private isTroubleSolved(session: TestSession, questionIndex: number, trouble: Trouble): boolean {
+    const entry = session.solvedTroubles.find(([index]) => index === questionIndex);
+    return entry ? entry[1].some(t => t.id === trouble.id) : false;
+  }
+
+  private getRemainingTroubles(session: TestSession): Trouble[] {
+    const currentQuestion = session.test.questions[session.currentQuestionIndex];
+    const solvedTroubles = session.solvedTroubles.find(([index]) => index === session.currentQuestionIndex)?.[1] || [];
+    return currentQuestion.troubles.filter(trouble => 
+      !solvedTroubles.some(solved => solved.id === trouble.id)
+    );
   }
 
   navigateQuestion(clientId: string, direction: "next" | "prev"): boolean {
     const client = this.clients.get(clientId);
-    if (!client?.session) return false;
+    if (!client?.testSession) return false;
 
-    const session = client.session;
+    const session = client.testSession;
     const newIndex = direction === "next" 
       ? session.currentQuestionIndex + 1 
       : session.currentQuestionIndex - 1;
 
-    if (newIndex >= 0 && newIndex < session.questions.length) {
+    if (newIndex >= 0 && newIndex < session.test.questions.length) {
       session.currentQuestionIndex = newIndex;
-      // Reset remaining troubles for new question
-      session.remainingTroubles = [...session.questions[newIndex].troubles];
       
       // Log the navigation
       const timestamp = getSecondTimestamp();
@@ -197,7 +244,7 @@ export class TestSystemManager {
         timestamp,
         action: 'navigation',
         details: {
-          questionNumber: newIndex + 1,
+          questionIndex: newIndex,
           direction,
           timeDiff: timestamp - lastLog.timestamp
         }
@@ -211,11 +258,11 @@ export class TestSystemManager {
 
   finishTest(clientId: string, timestamp?: number): boolean {
     const client = this.clients.get(clientId);
-    if (!client?.session) return false;
+    if (!client?.testSession) return false;
 
-    const session = client.session;
+    const session = client.testSession;
     const finishTime = timestamp || getSecondTimestamp();
-    session.endTime = finishTime;
+    session.finishTime = finishTime;
 
     // Log the finish
     const lastLog = session.logs[session.logs.length - 1];
@@ -238,32 +285,33 @@ export class TestSystemManager {
 
   private broadcastTroubleStatus() {
     for (const client of this.clients.values()) {
-      if (client.session && client.socket.readyState === WebSocket.OPEN) {
-        const session = client.session;
+      if (client.testSession && client.socket.readyState === WebSocket.OPEN) {
+        const session = client.testSession;
         const currentTime = getSecondTimestamp();
         
         // Check if session has timed out
-        if (session.durationTime && !session.endTime && 
-            currentTime >= session.startTime + session.durationTime) {
-          session.endTime = session.startTime + session.durationTime;
+        if (session.test.durationTime && !session.finishTime && 
+            currentTime >= session.test.startTime + session.test.durationTime) {
+          session.finishTime = session.test.startTime + session.test.durationTime;
           const lastLog = session.logs[session.logs.length - 1];
           session.logs.push({
-            timestamp: session.endTime,
+            timestamp: session.finishTime,
             action: 'finish',
             details: {
-              timeDiff: session.endTime - lastLog.timestamp
+              timeDiff: session.finishTime - lastLog.timestamp
             }
           });
           console.log(`Session timeout for client ${client.id}`);
         }
         
         // Only broadcast if test has started and not finished
-        if (currentTime >= session.startTime && !session.endTime) {
+        if (currentTime >= session.test.startTime && !session.finishTime) {
+          const remainingTroubles = this.getRemainingTroubles(session);
           const message: ExistTroublesMessage = {
             type: "exist_troubles",
-            troubles: session.remainingTroubles,
+            troubles: remainingTroubles,
             current_question: session.currentQuestionIndex + 1,
-            total_questions: session.questions.length,
+            total_questions: session.test.questions.length,
           };
           
           try {
@@ -276,37 +324,27 @@ export class TestSystemManager {
     }
   }
 
-  addQuestion(question: Omit<Question, "id">): Question {
-    const newQuestion: Question = {
-      id: Math.max(...this.questionBank.map(q => q.id), 0) + 1,
-      ...question,
-    };
-    this.questionBank.push(newQuestion);
-    return newQuestion;
+  getTroubles(): Trouble[] {
+    return [...TROUBLES];
   }
 
-  getQuestions(): Question[] {
+  get questions(): Question[] {
     return [...this.questionBank];
   }
 
-  updateQuestion(id: number, updates: Partial<Question>): boolean {
-    const index = this.questionBank.findIndex(q => q.id === id);
-    if (index === -1) return false;
-    
-    this.questionBank[index] = { ...this.questionBank[index], ...updates };
-    return true;
+  getTests(): Test[] {
+    return [...this.tests];
   }
 
-  deleteQuestion(id: number): boolean {
-    const index = this.questionBank.findIndex(q => q.id === id);
-    if (index === -1) return false;
-    
-    this.questionBank.splice(index, 1);
-    return true;
-  }
-
-  getTroubles(): Trouble[] {
-    return [...TROUBLES];
+  createTest(questions: Question[], startTime: number, durationTime: number | null = null): Test {
+    const test: Test = {
+      id: Date.now(),
+      questions,
+      startTime,
+      durationTime
+    };
+    this.tests.push(test);
+    return test;
   }
 
   cleanup() {
