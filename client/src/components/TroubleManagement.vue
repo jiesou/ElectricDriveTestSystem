@@ -178,7 +178,7 @@ onMounted(async () => {
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'action'">
           <Space>
-            <Button type="link" size="small" @click="openEditModal(record)">
+            <Button type="link" size="small" @click="openEditModal(record as Question)">
               编辑
             </Button>
             <Popconfirm 
