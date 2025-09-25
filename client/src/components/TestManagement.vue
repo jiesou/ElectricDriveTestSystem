@@ -19,10 +19,23 @@ interface Client {
 }
 
 interface TestSession {
-  clientIds: string[]
-  questionIds: number[]
+  id: string
+  clientId: string
+  clientIp: string
   startTime: number
-  createdAt: number
+  durationTime?: number | null
+  endTime?: number | null
+  questions: Question[]
+  currentQuestion: number
+  totalQuestions: number
+  remainingTroubles: number[]
+  activityLog: ActivityLogEntry[]
+}
+
+interface ActivityLogEntry {
+  timestamp: number
+  type: 'start' | 'answer' | 'navigate' | 'finish' | 'timeout'
+  data?: any
 }
 
 const questions = ref<Question[]>([])
@@ -35,7 +48,8 @@ const modalVisible = ref(false)
 const formState = reactive({
   clientIds: [] as string[],
   questionIds: [] as number[],
-  startTime: '' as string
+  startTime: '' as string,
+  durationTime: '' as string
 })
 
 async function fetchData() {

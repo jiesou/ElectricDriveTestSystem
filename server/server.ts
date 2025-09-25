@@ -151,11 +151,11 @@ apiRouter.get("/clients", (ctx) => {
   };
 });
 
-// 新建 Test session
+// Test sessions endpoint
 apiRouter.post("/test-sessions", async (ctx) => {
   try {
     const body = await ctx.request.body.json();
-    const { clientIds, questionIds, startTime } = body;
+    const { clientIds, questionIds, startTime, durationTime } = body;
 
     if (!Array.isArray(clientIds) || !Array.isArray(questionIds)) {
       ctx.response.status = 400;
@@ -174,9 +174,13 @@ apiRouter.post("/test-sessions", async (ctx) => {
 
     const results: { clientId: string; success: boolean }[] = [];
 
-    // 对每个客户机创建测试会话
     for (const clientId of clientIds) {
-      const success = manager.createTestSession(clientId, selectedQuestions, startTime || Date.now() / 1000);
+      const success = manager.createTestSession(
+        clientId, 
+        selectedQuestions, 
+        startTime || Date.now() / 1000,
+        durationTime
+      );
       results.push({ clientId, success });
     }
 
@@ -188,6 +192,31 @@ apiRouter.post("/test-sessions", async (ctx) => {
     ctx.response.status = 400;
     ctx.response.body = { success: false, error: "Invalid request body" };
   }
+});
+
+// Get test sessions (for displaying scheduled tests)
+apiRouter.get("/test-sessions", (ctx) => {
+  const clients = manager.getConnectedClients();
+  const sessions = clients
+    .filter(client => client.session)
+    .map(client => ({
+      id: client.session!.id,
+      clientId: client.id,
+      clientIp: client.ip,
+      startTime: client.session!.startTime,
+      durationTime: client.session!.durationTime,
+      endTime: client.session!.endTime,
+      questions: client.session!.questions,
+      currentQuestion: client.session!.currentQuestionIndex + 1,
+      totalQuestions: client.session!.questions.length,
+      remainingTroubles: client.session!.remainingTroubles,
+      activityLog: client.session!.activityLog,
+    }));
+
+  ctx.response.body = {
+    success: true,
+    data: sessions,
+  };
 });
 
 apiRouter.get("/status", (ctx) => {
@@ -263,6 +292,16 @@ function handleWebSocketMessage(
     
     case "ping": {
       safeSend(socket, { type: "pong", timestamp: Date.now() / 1000 });
+      break;
+    }
+    
+    case "finish": {
+      const success = manager.finishSession(clientId, 'finish');
+      safeSend(socket, {
+        type: "finish_result",
+        success,
+        timestamp: Date.now() / 1000,
+      });
       break;
     }
   }
