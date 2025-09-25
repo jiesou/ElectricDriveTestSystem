@@ -32,12 +32,12 @@ export interface TestSession {
 
 export interface TestLog {
   timestamp: number;
-  action: 'start' | 'answer' | 'navigation' | 'finish';
+  action: "start" | "answer" | "navigation" | "finish";
   details: {
     question?: Question;
     trouble?: Trouble;
     result?: boolean;
-    direction?: 'next' | 'prev';
+    direction?: "next" | "prev";
   };
 }
 
@@ -94,43 +94,56 @@ export const TROUBLES: Trouble[] = [
 
 export class TestSystemManager {
   private clients = new Map<string, Client>();
-  private tests: Test[] = []; // Store scheduled tests
+  private tests: Test[] = [];
   private questionBank: Question[] = [
-    { 
-      id: 1, 
+    {
+      id: 1,
       troubles: [
         TROUBLES[0], // 101 和 102 断路
-        TROUBLES[1]  // 102 和 103 断路
-      ]
+        TROUBLES[1], // 102 和 103 断路
+      ],
     },
-    { 
-      id: 2, 
+    {
+      id: 2,
       troubles: [
         TROUBLES[2], // 103 和 104 断路
-        TROUBLES[3]  // 104 和 105 断路
-      ]
+        TROUBLES[3], // 104 和 105 断路
+      ],
     },
-    { 
-      id: 3, 
+    {
+      id: 3,
       troubles: [
         TROUBLES[0], // 101 和 102 断路
         TROUBLES[2], // 103 和 104 断路
-        TROUBLES[4]  // 201 和 202 断路
-      ]
+        TROUBLES[4], // 201 和 202 断路
+      ],
     },
-    { 
-      id: 4, 
+    {
+      id: 4,
       troubles: [
         TROUBLES[1], // 102 和 103 断路
         TROUBLES[3], // 104 和 105 断路
-        TROUBLES[5]  // 202 和 203 断路
-      ]
+        TROUBLES[5], // 202 和 203 断路
+      ],
     },
   ];
   private broadcastInterval?: number;
 
   constructor() {
+    /* 野鸡持久存储方案 */
+    // Object.assign(this, JSON.parse(Deno.readTextFileSync("data.json")), {
+    //   clients: new Map(),
+    // });
     this.startBroadcast();
+    // 自动保存
+    setInterval(
+      () =>
+        Deno.writeTextFileSync(
+          "data.json",
+          JSON.stringify(this),
+        ),
+      5000,
+    );
   }
 
   addClient(clientId: string, ip: string, socket: WebSocket) {
@@ -164,9 +177,9 @@ export class TestSystemManager {
       solvedTroubles: [],
       logs: [{
         timestamp: getSecondTimestamp(),
-        action: 'start',
-        details: { question: test.questions[0] }
-      }]
+        action: "start",
+        details: { question: test.questions[0] },
+      }],
     };
 
     client.testSession = session;
@@ -178,14 +191,17 @@ export class TestSystemManager {
     if (!client?.testSession) return false;
 
     const session = client.testSession;
-    const currentQuestion = session.test.questions[session.currentQuestionIndex];
-    
+    const currentQuestion =
+      session.test.questions[session.currentQuestionIndex];
+
     // Check if the trouble is part of current question
-    const isCorrect = currentQuestion.troubles.some(t => t.id === trouble.id);
-    
+    const isCorrect = currentQuestion.troubles.some((t) => t.id === trouble.id);
+
     if (isCorrect) {
       // Add to solved troubles for current question
-      const existingEntry = session.solvedTroubles.find(([index]) => index === session.currentQuestionIndex);
+      const existingEntry = session.solvedTroubles.find(([index]) =>
+        index === session.currentQuestionIndex
+      );
       if (existingEntry) {
         existingEntry[1].push(trouble);
       } else {
@@ -197,12 +213,12 @@ export class TestSystemManager {
     const timestamp = getSecondTimestamp();
     session.logs.push({
       timestamp,
-      action: 'answer',
+      action: "answer",
       details: {
         question: currentQuestion,
         trouble,
-        result: isCorrect
-      }
+        result: isCorrect,
+      },
     });
 
     return isCorrect;
@@ -214,7 +230,7 @@ export class TestSystemManager {
 
   addQuestion(question: Omit<Question, "id">): Question {
     const newQuestion: Question = {
-      id: Math.max(...this.questionBank.map(q => q.id), 0) + 1,
+      id: Math.max(...this.questionBank.map((q) => q.id), 0) + 1,
       ...question,
     };
     this.questionBank.push(newQuestion);
@@ -222,26 +238,30 @@ export class TestSystemManager {
   }
 
   updateQuestion(id: number, updates: Partial<Question>): boolean {
-    const index = this.questionBank.findIndex(q => q.id === id);
+    const index = this.questionBank.findIndex((q) => q.id === id);
     if (index === -1) return false;
-    
+
     this.questionBank[index] = { ...this.questionBank[index], ...updates };
     return true;
   }
 
   deleteQuestion(id: number): boolean {
-    const index = this.questionBank.findIndex(q => q.id === id);
+    const index = this.questionBank.findIndex((q) => q.id === id);
     if (index === -1) return false;
-    
+
     this.questionBank.splice(index, 1);
     return true;
   }
 
   private getRemainingTroubles(session: TestSession): Trouble[] {
-    const currentQuestion = session.test.questions[session.currentQuestionIndex];
-    const solvedTroubles = session.solvedTroubles.find(([index]) => index === session.currentQuestionIndex)?.[1] || [];
-    return currentQuestion.troubles.filter(trouble => 
-      !solvedTroubles.some(solved => solved.id === trouble.id)
+    const currentQuestion =
+      session.test.questions[session.currentQuestionIndex];
+    const solvedTroubles =
+      session.solvedTroubles.find(([index]) =>
+        index === session.currentQuestionIndex
+      )?.[1] || [];
+    return currentQuestion.troubles.filter((trouble) =>
+      !solvedTroubles.some((solved) => solved.id === trouble.id)
     );
   }
 
@@ -250,24 +270,24 @@ export class TestSystemManager {
     if (!client?.testSession) return false;
 
     const session = client.testSession;
-    const newIndex = direction === "next" 
-      ? session.currentQuestionIndex + 1 
+    const newIndex = direction === "next"
+      ? session.currentQuestionIndex + 1
       : session.currentQuestionIndex - 1;
 
     if (newIndex >= 0 && newIndex < session.test.questions.length) {
       session.currentQuestionIndex = newIndex;
-      
+
       // Log the navigation
       const timestamp = getSecondTimestamp();
       session.logs.push({
         timestamp,
-        action: 'navigation',
+        action: "navigation",
         details: {
           question: session.test.questions[newIndex],
-          direction
-        }
+          direction,
+        },
       });
-      
+
       return true;
     }
 
@@ -285,8 +305,8 @@ export class TestSystemManager {
     // Log the finish
     session.logs.push({
       timestamp: finishTime,
-      action: 'finish',
-      details: {}
+      action: "finish",
+      details: {},
     });
 
     return true;
@@ -303,19 +323,22 @@ export class TestSystemManager {
       if (client.testSession && client.socket.readyState === WebSocket.OPEN) {
         const session = client.testSession;
         const currentTime = getSecondTimestamp();
-        
+
         // Check if session has timed out
-        if (session.test.durationTime && !session.finishTime && 
-            currentTime >= session.test.startTime + session.test.durationTime) {
-          session.finishTime = session.test.startTime + session.test.durationTime;
+        if (
+          session.test.durationTime && !session.finishTime &&
+          currentTime >= session.test.startTime + session.test.durationTime
+        ) {
+          session.finishTime = session.test.startTime +
+            session.test.durationTime;
           session.logs.push({
             timestamp: session.finishTime,
-            action: 'finish',
-            details: {}
+            action: "finish",
+            details: {},
           });
           console.log(`Session timeout for client ${client.id}`);
         }
-        
+
         // Only broadcast if test has started and not finished
         if (currentTime >= session.test.startTime && !session.finishTime) {
           const remainingTroubles = this.getRemainingTroubles(session);
@@ -325,7 +348,7 @@ export class TestSystemManager {
             current_question: session.currentQuestionIndex + 1,
             total_questions: session.test.questions.length,
           };
-          
+
           try {
             client.socket.send(JSON.stringify(message));
           } catch (error) {
@@ -344,12 +367,16 @@ export class TestSystemManager {
     return [...this.tests];
   }
 
-  createTest(questions: Question[], startTime: number, durationTime: number | null = null): Test {
+  createTest(
+    questions: Question[],
+    startTime: number,
+    durationTime: number | null = null,
+  ): Test {
     const test: Test = {
       id: Date.now(),
       questions,
       startTime,
-      durationTime
+      durationTime,
     };
     this.tests.push(test);
     return test;

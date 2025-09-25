@@ -175,7 +175,7 @@ onMounted(() => {
 
     <Card title="发起测验" style="margin-bottom: 20px;">
       <Button type="primary" @click="openCreateTestModal">
-        ▶ 创建新测验
+        ▶ 安排新测验
       </Button>
     </Card>
 
