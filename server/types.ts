@@ -14,23 +14,8 @@ export interface TestSession {
   questions: Question[];
   currentQuestionIndex: number;
   startTime: number; // timestamp
-  durationTime?: number | null; // duration in seconds, null = no time limit
-  endTime?: number | null; // timestamp when ended (finished or timeout)
   clientId: string;
   remainingTroubles: number[]; // troubles not yet solved for current question
-  activityLog: ActivityLogEntry[];
-}
-
-export interface ActivityLogEntry {
-  timestamp: number;
-  type: 'start' | 'answer' | 'navigate' | 'finish' | 'timeout';
-  data?: {
-    questionIndex?: number;
-    troubleId?: number;
-    isCorrect?: boolean;
-    direction?: 'next' | 'prev';
-    [key: string]: any;
-  };
 }
 
 export interface ClientConnection {
@@ -65,11 +50,6 @@ export interface AnswerResultMessage extends WSMessage {
 
 export interface QuestionNavigationMessage extends WSMessage {
   type: "last_question" | "next_question";
-}
-
-export interface FinishMessage extends WSMessage {
-  type: "finish";
-  timestamp: number;
 }
 
 // Predefined troubles (hardcoded as requested)
@@ -115,7 +95,7 @@ export class TestSystemManager {
     return Array.from(this.clients.values());
   }
 
-  createTestSession(clientId: string, questions: Question[], startTime: number, durationTime?: number | null): boolean {
+  createTestSession(clientId: string, questions: Question[], startTime: number): boolean {
     const client = this.clients.get(clientId);
     if (!client) return false;
 
@@ -124,15 +104,8 @@ export class TestSystemManager {
       questions,
       currentQuestionIndex: 0,
       startTime,
-      durationTime,
-      endTime: null,
       clientId,
       remainingTroubles: [...questions[0].troubles],
-      activityLog: [{
-        timestamp: Date.now() / 1000,
-        type: 'start',
-        data: { questionIndex: 0 }
-      }],
     };
 
     client.session = session;
@@ -146,26 +119,9 @@ export class TestSystemManager {
     const session = client.session;
     const currentQuestion = session.questions[session.currentQuestionIndex];
     
-    // Check if session has timed out
-    if (this.isSessionTimedOut(session)) {
-      this.finishSession(clientId, 'timeout');
-      return false;
-    }
-    
     // Check if the trouble is part of current question
     const isCorrect = currentQuestion.troubles.includes(troubleId) && 
                      session.remainingTroubles.includes(troubleId);
-    
-    // Log the answer
-    session.activityLog.push({
-      timestamp: Date.now() / 1000,
-      type: 'answer',
-      data: {
-        questionIndex: session.currentQuestionIndex,
-        troubleId,
-        isCorrect
-      }
-    });
     
     if (isCorrect) {
       // Remove solved trouble
@@ -180,13 +136,6 @@ export class TestSystemManager {
     if (!client?.session) return false;
 
     const session = client.session;
-    
-    // Check if session has timed out
-    if (this.isSessionTimedOut(session)) {
-      this.finishSession(clientId, 'timeout');
-      return false;
-    }
-    
     const newIndex = direction === "next" 
       ? session.currentQuestionIndex + 1 
       : session.currentQuestionIndex - 1;
@@ -195,63 +144,16 @@ export class TestSystemManager {
       session.currentQuestionIndex = newIndex;
       // Reset remaining troubles for new question
       session.remainingTroubles = [...session.questions[newIndex].troubles];
-      
-      // Log navigation
-      session.activityLog.push({
-        timestamp: Date.now() / 1000,
-        type: 'navigate',
-        data: {
-          direction,
-          questionIndex: newIndex
-        }
-      });
-      
       return true;
     }
 
     return false;
   }
 
-  finishSession(clientId: string, reason: 'finish' | 'timeout'): boolean {
-    const client = this.clients.get(clientId);
-    if (!client?.session) return false;
-
-    const session = client.session;
-    const now = Date.now() / 1000;
-    
-    session.endTime = now;
-    session.activityLog.push({
-      timestamp: now,
-      type: reason,
-      data: {}
-    });
-
-    // Remove the session (or keep it for later analysis)
-    client.session = undefined;
-    
-    console.log(`Session finished for client ${clientId}: ${reason}`);
-    return true;
-  }
-
-  isSessionTimedOut(session: TestSession): boolean {
-    if (!session.durationTime) return false; // No time limit
-    const now = Date.now() / 1000;
-    return now > (session.startTime + session.durationTime);
-  }
-
   private startBroadcast() {
     this.broadcastInterval = setInterval(() => {
       this.broadcastTroubleStatus();
-      this.checkTimeouts();
     }, 500); // 0.5 seconds
-  }
-
-  private checkTimeouts() {
-    for (const client of this.clients.values()) {
-      if (client.session && this.isSessionTimedOut(client.session)) {
-        this.finishSession(client.id, 'timeout');
-      }
-    }
   }
 
   private broadcastTroubleStatus() {
