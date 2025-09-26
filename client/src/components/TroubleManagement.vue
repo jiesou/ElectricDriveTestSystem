@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { Table, Button, Modal, Form, Select, message, Space, Popconfirm } from 'ant-design-vue'
+import { ref, reactive, onMounted, h } from 'vue'
+import { Table, Button, Modal, Form, Select, message, Space, Popconfirm, Tag } from 'ant-design-vue'
 import type { Trouble, Question } from '../types'
 
 const troubles = ref<Trouble[]>([])
@@ -17,7 +17,9 @@ const formState = reactive({
 
 const troubleColumns = [
   { title: 'ID', dataIndex: 'id', key: 'id' },
-  { title: '描述', dataIndex: 'description', key: 'description' }
+  { title: '描述', dataIndex: 'description', key: 'description' },
+  { title: '起始线号', dataIndex: 'from_wire', key: 'from_wire' },
+  { title: '结束线号', dataIndex: 'to_wire', key: 'to_wire' }
 ]
 
 const questionColumns = [
@@ -27,10 +29,9 @@ const questionColumns = [
     dataIndex: 'troubles', 
     key: 'troubles',
     customRender: ({ record }: { record: Question }) => {
-      const troubleDescs = record.troubles.map(trouble => {
-        return `${trouble.id}:${trouble.description}`
-      })
-      return troubleDescs.join(', ')
+      return h('div', record.troubles.map((trouble: Trouble) =>
+        h(Tag, { key: trouble.id }, `${trouble.id}: ${trouble.description}`)
+      ))
     }
   },
   {

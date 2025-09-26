@@ -254,8 +254,7 @@ export class TestSystemManager {
     );
   }
 
-  navigateQuestion(clientId: string, direction: "next" | "prev"): boolean {
-    const client = this.clients[clientId];
+  navigateQuestion(client: Client, direction: "next" | "prev"): boolean {
     if (!client?.testSession) return false;
 
     const session = client.testSession;
@@ -283,8 +282,7 @@ export class TestSystemManager {
     return false;
   }
 
-  finishTest(clientId: string, timestamp?: number): boolean {
-    const client = this.clients[clientId];
+  finishTest(client: Client, timestamp?: number): boolean {
     if (!client?.testSession) return false;
 
     const session = client.testSession;
