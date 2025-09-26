@@ -1,5 +1,6 @@
 import { Application, Router } from "@oak/oak";
-import { TestSystemManager, getSecondTimestamp } from "./types.ts";
+import { Client, getSecondTimestamp } from "./types.ts";
+import { TestSystemManager } from "./TestSystemManager.ts";
 
 const app = new Application();
 const manager = new TestSystemManager();
@@ -31,23 +32,24 @@ app.use(async (ctx, next) => {
 
 // WebSocket route
 const wsRouter = new Router();
-wsRouter.get("/ws", async (ctx) => {
+wsRouter.get("/ws", (ctx) => {
   if (!ctx.isUpgradable) {
     ctx.throw(400, "Connection is not upgradable to WebSocket");
     return;
   }
 
-  const socket = await ctx.upgrade();
+  const { socket, response } = Deno.upgradeWebSocket(ctx.request.source!, {
+    idleTimeout: 3, // ping 超时时间，单位秒
+  });
   const clientIp = ctx.request.ip;
-
-  const clientId = manager.connectClient(clientIp, socket);
-
+  const client = manager.connectClient(clientIp, socket);
   socket.onmessage = (event) => {
     try {
       const message = JSON.parse(event.data as string);
-      handleWebSocketMessage(manager, clientId, socket, message);
+      console.log("Received message:", message);
+      handleWebSocketMessage(manager, client, socket, message);
     } catch (error) {
-      console.error(`Error parsing message from ${clientId}:`, error);
+      console.error(`Error parsing message from ${client}:`, error);
     }
   };
 
@@ -56,11 +58,12 @@ wsRouter.get("/ws", async (ctx) => {
   // };
 
   socket.onerror = (error) => {
-    console.error(`WebSocket error for ${clientId}:`, error);
-    manager.disconnectClient(clientId);
+    console.error(`WebSocket error for ${client}:`, error);
+    manager.disconnectClient(client);
   };
 
-  console.log(`WebSocket connection established for client ${clientId}`);
+  console.log(`WebSocket connection established for client ${client}`);
+  ctx.response.with(response);
 });
 
 // API routes
@@ -270,17 +273,16 @@ function safeSend(socket: WebSocket, message: Record<string, unknown>) {
 
 function handleWebSocketMessage(
   manager: TestSystemManager, 
-  clientId: string, 
+  client: Client, 
   socket: WebSocket, 
   message: Record<string, unknown>
 ) {
-  console.log(`Message from ${clientId}:`, message);
+  console.log(`Message from ${client}:`, message);
 
   switch (message.type) {
     case "answer": {
       // find the trouble object in the current question by id
       const troubleId = message.trouble_id as number;
-      const client = manager.clients[clientId];
       if (!client.testSession) {
         safeSend(socket, { type: "error", message: "No active test session", timestamp: getSecondTimestamp() });
         return;
@@ -291,7 +293,7 @@ function handleWebSocketMessage(
         safeSend(socket, { type: "error", message: "Trouble not found", timestamp: getSecondTimestamp() });
         return;
       }
-      const isCorrect = manager.handleAnswer(clientId, trouble);
+      const isCorrect = manager.handleAnswer(client, trouble);
       safeSend(socket, {
         type: "answer_result",
         result: isCorrect,
@@ -304,7 +306,7 @@ function handleWebSocketMessage(
     case "next_question":
     case "last_question": {
       const direction = message.type === "next_question" ? "next" : "prev";
-      const success = manager.navigateQuestion(clientId, direction);
+      const success = manager.navigateQuestion(client, direction);
       safeSend(socket, {
         type: "navigation_result",
         success,
@@ -316,7 +318,7 @@ function handleWebSocketMessage(
     
     case "finish": {
       const timestamp = typeof message.timestamp === 'number' ? message.timestamp : undefined;
-      const success = manager.finishTest(clientId, timestamp);
+      const success = manager.finishTest(client, timestamp);
       safeSend(socket, {
         type: "finish_result",
         success,
