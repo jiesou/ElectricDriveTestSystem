@@ -120,8 +120,8 @@ const testColumns = [
     title: '所含题目',
     key: 'questions',
     customRender: ({ record }: { record: Test }) => {
-      return record.questions.map((question: Question, index: number) => 
-        h(Tag, { key: question.id, style: index > 0 ? 'margin-left: 4px' : '', color: 'blue' }, () => `题目${question.id}`)
+      return record.questions.map((question: Question) => 
+        h(Tag, { key: question.id}, () => `题目${question.id}`)
       )
     }
   },
