@@ -121,7 +121,7 @@ const testColumns = [
     key: 'questions',
     customRender: ({ record }: { record: Test }) => {
       return record.questions.map((question: Question) => 
-        h(Tag, { key: question.id}, () => `题目${question.id}`)
+        h(Tag, () => `题目${question.id}`)
       )
     }
   },

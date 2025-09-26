@@ -7,6 +7,8 @@ export function getSecondTimestamp(): number {
 export interface Trouble {
   id: number;
   description: string;
+  from_wire: number;
+  to_wire: number;
 }
 
 export interface Question {
@@ -86,12 +88,12 @@ export interface FinishMessage extends WSMessage {
   timestamp: number;
 }
 
-// Predefined troubles (hardcoded as requested)
+// Predefined troubles (hardcoded)
 export const TROUBLES: Trouble[] = [
-  { id: 1, description: "101 和 102 断路" },
-  { id: 2, description: "102 和 103 断路" },
-  { id: 3, description: "103 和 104 断路" },
-  { id: 4, description: "104 和 105 断路" },
-  { id: 5, description: "201 和 202 断路" },
-  { id: 6, description: "202 和 203 断路" },
+  { id: 1, description: "101 和 102 断路", from_wire: 101, to_wire: 102 },
+  { id: 2, description: "102 和 103 断路", from_wire: 102, to_wire: 103 },
+  { id: 3, description: "103 和 104 断路", from_wire: 103, to_wire: 104 },
+  { id: 4, description: "104 和 105 断路", from_wire: 104, to_wire: 105 },
+  { id: 5, description: "201 和 202 断路", from_wire: 201, to_wire: 202 },
+  { id: 6, description: "202 和 203 断路", from_wire: 202, to_wire: 203 },
 ];
