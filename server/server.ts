@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+import { getConnInfo } from "hono/deno";
+import { serveStatic } from "hono/deno";
 import { Client, getSecondTimestamp } from "./types.ts";
 import { TestSystemManager } from "./TestSystemManager.ts";
 
@@ -34,7 +36,8 @@ app.get("/ws", (c) => {
     idleTimeout: 3, // ping 超时时间，单位秒
   });
   
-  const clientIp = c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "unknown";
+  const connInfo = getConnInfo(c);
+  const clientIp = connInfo.remote.address || "unknown";
   const client = manager.connectClient(clientIp, socket);
   
   socket.onmessage = (event) => {
@@ -223,9 +226,9 @@ app.get("/health", (c) => {
   return c.json({ status: "ok", timestamp: getSecondTimestamp() });
 });
 
-// Static file serving (optional - only if public directory exists)
-// Note: Hono doesn't handle static files by default, but since the original
-// code tried to serve from ./public, we'll skip it if the directory doesn't exist
+// Static file serving for client build output
+app.use("/*", serveStatic({ root: "./public" }));
+app.use("/", serveStatic({ path: "./public/index.html" }));
 
 // Helper function to safely send WebSocket messages
 function safeSend(socket: WebSocket, message: Record<string, unknown>) {
