@@ -1,48 +1,37 @@
-import { Application, Router } from "@oak/oak";
+import { Hono, cors } from "./hono-compat.ts";
 import { Client, getSecondTimestamp } from "./types.ts";
 import { TestSystemManager } from "./TestSystemManager.ts";
 
-const app = new Application();
+const app = new Hono();
 const manager = new TestSystemManager();
 
-// Error handling middleware
-app.use(async (ctx, next) => {
-  try {
-    await next();
-  } catch (err) {
-    console.error("Server error:", err);
-    ctx.response.status = 500;
-    ctx.response.body = { error: "Internal server error" };
-  }
-});
-
 // CORS middleware
-app.use(async (ctx, next) => {
-  ctx.response.headers.set("Access-Control-Allow-Origin", "*");
-  ctx.response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  ctx.response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  
-  if (ctx.request.method === "OPTIONS") {
-    ctx.response.status = 204;
-    return;
-  }
-  
-  await next();
+app.use("*", cors({
+  origin: "*",
+  allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowHeaders: ["Content-Type", "Authorization"],
+}));
+
+// Error handling middleware
+app.onError((err, c) => {
+  console.error("Server error:", err);
+  return c.json({ error: "Internal server error" }, 500);
 });
 
-// WebSocket route
-const wsRouter = new Router();
-wsRouter.get("/ws", (ctx) => {
-  if (!ctx.isUpgradable) {
-    ctx.throw(400, "Connection is not upgradable to WebSocket");
-    return;
+// WebSocket route - using Deno native WebSocket
+app.get("/ws", (c) => {
+  const upgrade = c.req.header("upgrade");
+  if (upgrade !== "websocket") {
+    return c.text("Expected websocket", 400);
   }
 
-  const { socket, response } = Deno.upgradeWebSocket(ctx.request.source!, {
+  const { socket, response } = Deno.upgradeWebSocket(c.req.raw, {
     idleTimeout: 3, // ping 超时时间，单位秒
   });
-  const clientIp = ctx.request.ip;
+  
+  const clientIp = c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "unknown";
   const client = manager.connectClient(clientIp, socket);
+  
   socket.onmessage = (event) => {
     try {
       const message = JSON.parse(event.data as string);
@@ -53,89 +42,77 @@ wsRouter.get("/ws", (ctx) => {
     }
   };
 
-  // socket.onclose = () => {
-  //   manager.disconnectClient(clientId);
-  // };
-
   socket.onerror = (error) => {
     console.error(`WebSocket error for ${client}:`, error);
     manager.disconnectClient(client);
   };
 
   console.log(`WebSocket connection established for client ${client}`);
-  ctx.response.with(response);
+  return response;
 });
 
 // API routes
-const apiRouter = new Router({ prefix: "/api" });
-
-apiRouter.get("/troubles", (ctx) => {
-  ctx.response.body = {
+app.get("/api/troubles", (c) => {
+  return c.json({
     success: true,
     data: manager.getTroubles(),
-  };
+  });
 });
 
-apiRouter.get("/questions", (ctx) => {
-  ctx.response.body = {
+app.get("/api/questions", (c) => {
+  return c.json({
     success: true,
     data: manager.questions,
-  };
+  });
 });
 
-apiRouter.post("/questions", async (ctx) => {
+app.post("/api/questions", async (c) => {
   try {
-    const body = await ctx.request.body.json();
+    const body = await c.req.json();
     const { troubles } = body;
 
     if (!Array.isArray(troubles) || troubles.length === 0) {
-      ctx.response.status = 400;
-      ctx.response.body = { success: false, error: "Invalid troubles array" };
-      return;
+      return c.json({ success: false, error: "Invalid troubles array" }, 400);
     }
 
     const newQuestion = manager.addQuestion({ troubles });
-    ctx.response.body = {
+    return c.json({
       success: true,
       data: newQuestion,
-    };
+    });
   } catch (_error) {
-    ctx.response.status = 400;
-    ctx.response.body = { success: false, error: "Invalid request body" };
+    return c.json({ success: false, error: "Invalid request body" }, 400);
   }
 });
 
-apiRouter.put("/questions/:id", async (ctx) => {
+app.put("/api/questions/:id", async (c) => {
   try {
-    const id = parseInt(ctx.params.id!);
-    const body = await ctx.request.body.json();
+    const id = parseInt(c.req.param("id"));
+    const body = await c.req.json();
     const success = manager.updateQuestion(id, body);
 
     if (success) {
-      ctx.response.body = { success: true };
+      return c.json({ success: true });
     } else {
-      ctx.response.status = 404;
-      ctx.response.body = { success: false, error: "Question not found" };
+      return c.json({ success: false, error: "Question not found" }, 404);
     }
   } catch (_error) {
-    ctx.response.status = 400;
-    ctx.response.body = { success: false, error: "Invalid request" };
+    return c.json({ success: false, error: "Invalid request" }, 400);
   }
 });
 
-apiRouter.delete("/questions/:id", (ctx) => {
-  const id = parseInt(ctx.params.id!);
+app.delete("/api/questions/:id", (c) => {
+  const id = parseInt(c.req.param("id"));
   const success = manager.deleteQuestion(id);
 
   if (success) {
-    ctx.response.body = { success: true };
+    return c.json({ success: true });
   } else {
-    ctx.response.status = 404;
-    ctx.response.body = { success: false, error: "Question not found" };
+    return c.json({ success: false, error: "Question not found" }, 404);
   }
 });
 
-apiRouter.get("/clients", (ctx) => {
+app.get("/api/clients", (c) => {
   const clients = Object.values(manager.clients).map((client) => ({
     id: client.id,
     name: client.name,
@@ -144,63 +121,54 @@ apiRouter.get("/clients", (ctx) => {
     testSession: client.testSession || null,
   }));
 
-  ctx.response.body = {
+  return c.json({
     success: true,
     data: clients,
-  };
+  });
 });
 
-apiRouter.get("/tests", (ctx) => {
-  ctx.response.body = {
+app.get("/api/tests", (c) => {
+  return c.json({
     success: true,
     data: manager.getTests(),
-  };
+  });
 });
 
-// Create Test session
-apiRouter.post("/test-sessions", async (ctx) => {
+app.post("/api/test-sessions", async (c) => {
   try {
-    const body = await ctx.request.body.json();
+    const body = await c.req.json();
     const { clientIds, questionIds, startTime, durationTime } = body;
 
     if (!Array.isArray(clientIds) || !Array.isArray(questionIds)) {
-      ctx.response.status = 400;
-      ctx.response.body = { success: false, error: "Invalid clientIds or questionIds" };
-      return;
+      return c.json({ success: false, error: "Invalid clientIds or questionIds" }, 400);
     }
 
     const allQuestions = manager.questions;
     const selectedQuestions = allQuestions.filter(q => questionIds.includes(q.id));
 
     if (selectedQuestions.length !== questionIds.length) {
-      ctx.response.status = 400;
-      ctx.response.body = { success: false, error: "Some questions not found" };
-      return;
+      return c.json({ success: false, error: "Some questions not found" }, 400);
     }
 
-    // Create a test first
     const test = manager.createTest(selectedQuestions, startTime || getSecondTimestamp(), durationTime || null);
     
     const results: { clientId: string; success: boolean }[] = [];
 
-    // Create test sessions for each client
     for (const clientId of clientIds) {
       const success = manager.createTestSession(clientId, test);
       results.push({ clientId, success });
     }
 
-    ctx.response.body = {
+    return c.json({
       success: true,
       data: results,
-    };
+    });
   } catch (_error) {
-    ctx.response.status = 400;
-    ctx.response.body = { success: false, error: "Invalid request body" };
+    return c.json({ success: false, error: "Invalid request body" }, 400);
   }
 });
 
-// Get test sessions - updated for new architecture
-apiRouter.get("/test-sessions", (ctx) => {
+app.get("/api/test-sessions", (c) => {
   const clients = Object.values(manager.clients);
   const sessions = clients.filter((c) => c.testSession).map((client) => ({
     sessionId: client.testSession!.id,
@@ -215,16 +183,16 @@ apiRouter.get("/test-sessions", (ctx) => {
     logs: client.testSession!.logs
   }));
 
-  ctx.response.body = {
+  return c.json({
     success: true,
     data: sessions,
-  };
+  });
 });
 
-apiRouter.get("/status", (ctx) => {
+app.get("/api/status", (c) => {
   const clients = Object.values(manager.clients);
   
-  ctx.response.body = {
+  return c.json({
     success: true,
     data: {
       timestamp: getSecondTimestamp(),
@@ -233,32 +201,39 @@ apiRouter.get("/status", (ctx) => {
       totalQuestions: manager.questions.length,
       totalTroubles: manager.getTroubles().length,
     },
-  };
+  });
 });
 
 // Health check
-const healthRouter = new Router();
-healthRouter.get("/health", (ctx) => {
-  ctx.response.body = { status: "ok", timestamp: getSecondTimestamp() };
+app.get("/health", (c) => {
+  return c.json({ status: "ok", timestamp: getSecondTimestamp() });
 });
 
-// Register routes
-app.use(async (ctx, next) => {
-  const pathname = ctx.request.url.pathname;
-  if (!pathname.startsWith("/api") && !pathname.startsWith("/ws")) {
-    await ctx.send({
-      root: "./public",
-      path: pathname,
-      index: "index.html",
-    });
-  } else {
-    await next();
+// Static file serving fallback
+app.get("*", async (c) => {
+  const pathname = new URL(c.req.url).pathname;
+  
+  if (pathname.startsWith("/api") || pathname.startsWith("/ws")) {
+    return c.notFound();
+  }
+  
+  try {
+    const filePath = pathname === "/" ? "/index.html" : pathname;
+    const file = await Deno.readFile(`./public${filePath}`);
+    const ext = filePath.split(".").pop();
+    const contentType = ext === "html" ? "text/html" : 
+                       ext === "js" ? "application/javascript" :
+                       ext === "css" ? "text/css" : "text/plain";
+    return c.body(file, 200, { "Content-Type": contentType });
+  } catch {
+    try {
+      const indexFile = await Deno.readFile("./public/index.html");
+      return c.html(new TextDecoder().decode(indexFile));
+    } catch {
+      return c.notFound();
+    }
   }
 });
-app.use(wsRouter.routes());
-app.use(apiRouter.routes());
-app.use(apiRouter.allowedMethods());
-app.use(healthRouter.routes());
 
 // Helper function to safely send WebSocket messages
 function safeSend(socket: WebSocket, message: Record<string, unknown>) {
@@ -306,7 +281,7 @@ function handleWebSocketMessage(
     case "next_question":
     case "last_question": {
       const direction = message.type === "next_question" ? "next" : "prev";
-      const success = manager.navigateQuestion(client, direction);
+      const success = manager.navigateQuestion(client.id, direction);
       safeSend(socket, {
         type: "navigation_result",
         success,
@@ -318,7 +293,7 @@ function handleWebSocketMessage(
     
     case "finish": {
       const timestamp = typeof message.timestamp === 'number' ? message.timestamp : undefined;
-      const success = manager.finishTest(client, timestamp);
+      const success = manager.finishTest(client.id, timestamp);
       safeSend(socket, {
         type: "finish_result",
         success,
@@ -329,13 +304,9 @@ function handleWebSocketMessage(
   }
 }
 
-// Handle application errors silently
-app.addEventListener("error", (evt) => {
-  console.log("Application error:", evt.error?.message || "Unknown");
-});
-
+// Start the server
 console.log("Server starting on port 8000");
 console.log("WebSocket endpoint: ws://localhost:8000/ws");
 console.log("API endpoint: http://localhost:8000/api");
 
-await app.listen({ port: 8000 });
+Deno.serve({ port: 8000 }, app.fetch);
