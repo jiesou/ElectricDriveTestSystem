@@ -156,11 +156,6 @@ export class TestSystemManager {
       logs: [
         {
           timestamp,
-          action: "connect",
-          details: {},
-        },
-        {
-          timestamp,
           action: "start",
           details: { question: test.questions[0] },
         },
