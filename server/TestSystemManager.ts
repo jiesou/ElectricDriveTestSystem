@@ -294,26 +294,6 @@ export class TestSystemManager {
     return true;
   }
 
-  finishTestById(testId: number): boolean {
-    const finishTime = getSecondTimestamp();
-    let finished = false;
-
-    // Find all clients with test sessions matching the test ID
-    for (const client of Object.values(this.clients)) {
-      if (client.testSession && client.testSession.test.id === testId && !client.testSession.finishTime) {
-        client.testSession.finishTime = finishTime;
-        client.testSession.logs.push({
-          timestamp: finishTime,
-          action: "finish",
-          details: {},
-        });
-        finished = true;
-      }
-    }
-
-    return finished;
-  }
-
   private startBroadcast() {
     this.broadcastInterval = setInterval(() => {
       this.broadcastTroubleStatus();

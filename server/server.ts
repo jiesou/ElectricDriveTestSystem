@@ -19,14 +19,20 @@ app.use(async (ctx, next) => {
 // CORS middleware
 app.use(async (ctx, next) => {
   ctx.response.headers.set("Access-Control-Allow-Origin", "*");
-  ctx.response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  ctx.response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  
+  ctx.response.headers.set(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, OPTIONS",
+  );
+  ctx.response.headers.set(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization",
+  );
+
   if (ctx.request.method === "OPTIONS") {
     ctx.response.status = 204;
     return;
   }
-  
+
   await next();
 });
 
@@ -157,16 +163,21 @@ apiRouter.get("/tests", (ctx) => {
   };
 });
 
-apiRouter.post("/tests/:id/finish", (ctx) => {
-  const testId = parseInt(ctx.params.id!);
-  const success = manager.finishTestById(testId);
-
-  if (success) {
-    ctx.response.body = { success: true };
-  } else {
-    ctx.response.status = 404;
-    ctx.response.body = { success: false, error: "Test not found or already finished" };
+apiRouter.post("/tests/finish-all", (ctx) => {
+  const finishTime = getSecondTimestamp();
+  for (const client of Object.values(manager.clients)) {
+    manager.finishTest(client, finishTime);
   }
+
+  ctx.response.body = { success: true };
+});
+
+apiRouter.post("/tests/clear-all", (ctx) => {
+  for (const client of Object.values(manager.clients)) {
+    client.testSession = undefined;
+  }
+
+  ctx.response.body = { success: true };
 });
 
 // Create Test session
@@ -177,12 +188,17 @@ apiRouter.post("/test-sessions", async (ctx) => {
 
     if (!Array.isArray(clientIds) || !Array.isArray(questionIds)) {
       ctx.response.status = 400;
-      ctx.response.body = { success: false, error: "Invalid clientIds or questionIds" };
+      ctx.response.body = {
+        success: false,
+        error: "Invalid clientIds or questionIds",
+      };
       return;
     }
 
     const allQuestions = manager.questions;
-    const selectedQuestions = allQuestions.filter(q => questionIds.includes(q.id));
+    const selectedQuestions = allQuestions.filter((q) =>
+      questionIds.includes(q.id)
+    );
 
     if (selectedQuestions.length !== questionIds.length) {
       ctx.response.status = 400;
@@ -191,8 +207,12 @@ apiRouter.post("/test-sessions", async (ctx) => {
     }
 
     // Create a test first
-    const test = manager.createTest(selectedQuestions, startTime || getSecondTimestamp(), durationTime || null);
-    
+    const test = manager.createTest(
+      selectedQuestions,
+      startTime || getSecondTimestamp(),
+      durationTime || null,
+    );
+
     const results: { clientId: string; success: boolean }[] = [];
 
     // Create test sessions for each client
@@ -224,7 +244,7 @@ apiRouter.get("/test-sessions", (ctx) => {
     finishTime: client.testSession!.finishTime,
     currentQuestionIndex: client.testSession!.currentQuestionIndex,
     totalQuestions: client.testSession!.test.questions.length,
-    logs: client.testSession!.logs
+    logs: client.testSession!.logs,
   }));
 
   ctx.response.body = {
@@ -235,7 +255,7 @@ apiRouter.get("/test-sessions", (ctx) => {
 
 apiRouter.get("/status", (ctx) => {
   const clients = Object.values(manager.clients);
-  
+
   ctx.response.body = {
     success: true,
     data: {
@@ -284,10 +304,10 @@ function safeSend(socket: WebSocket, message: Record<string, unknown>) {
 }
 
 function handleWebSocketMessage(
-  manager: TestSystemManager, 
-  client: Client, 
-  socket: WebSocket, 
-  message: Record<string, unknown>
+  manager: TestSystemManager,
+  client: Client,
+  socket: WebSocket,
+  message: Record<string, unknown>,
 ) {
   console.log(`Message from ${client}:`, message);
 
@@ -296,13 +316,23 @@ function handleWebSocketMessage(
       // find the trouble object in the current question by id
       const troubleId = message.trouble_id as number;
       if (!client.testSession) {
-        safeSend(socket, { type: "error", message: "No active test session", timestamp: getSecondTimestamp() });
+        safeSend(socket, {
+          type: "error",
+          message: "No active test session",
+          timestamp: getSecondTimestamp(),
+        });
         return;
       }
-      const currentQuestion = client.testSession.test.questions[client.testSession.currentQuestionIndex];
-      const trouble = currentQuestion.troubles.find(t => t.id === troubleId);
+      const currentQuestion =
+        client.testSession.test
+          .questions[client.testSession.currentQuestionIndex];
+      const trouble = currentQuestion.troubles.find((t) => t.id === troubleId);
       if (!trouble) {
-        safeSend(socket, { type: "error", message: "Trouble not found", timestamp: getSecondTimestamp() });
+        safeSend(socket, {
+          type: "error",
+          message: "Trouble not found",
+          timestamp: getSecondTimestamp(),
+        });
         return;
       }
       const isCorrect = manager.handleAnswer(client, trouble);
@@ -314,7 +344,7 @@ function handleWebSocketMessage(
       });
       break;
     }
-    
+
     case "next_question":
     case "last_question": {
       const direction = message.type === "next_question" ? "next" : "prev";
@@ -322,15 +352,19 @@ function handleWebSocketMessage(
       safeSend(socket, {
         type: "navigation_result",
         success,
-        direction: message.type === "next_question" ? "next_question" : "last_question",
+        direction: message.type === "next_question"
+          ? "next_question"
+          : "last_question",
         timestamp: getSecondTimestamp(),
       });
       break;
     }
-    
+
     case "finish": {
-      const timestamp = typeof message.timestamp === 'number' ? message.timestamp : undefined;
-      const success = manager.finishTest(client, timestamp);
+      const timestamp = typeof message.timestamp === "number"
+        ? message.timestamp
+        : undefined;
+      const success = manager.finishTest(client, timestamp); // 使用客户机传来的时间戳（如果有）标记结束时间
       safeSend(socket, {
         type: "finish_result",
         success,

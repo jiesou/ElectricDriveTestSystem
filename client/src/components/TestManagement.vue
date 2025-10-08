@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, h } from 'vue'
-import { Table, Button, Modal, Form, Select, DatePicker, message, Card, Tag, InputNumber } from 'ant-design-vue'
+import { Table, Button, Modal, Form, Select, DatePicker, message, Card, Tag, InputNumber, Popconfirm } from 'ant-design-vue'
 import type { Question, Client, Test } from '../types'
 import { getSecondTimestamp } from '../types'
 import ClientTable from './ClientTable.vue'
@@ -110,22 +110,41 @@ function formatTime(timestamp: number): string {
   return new Date(timestamp * 1000).toLocaleString()
 }
 
-async function handleFinishTest(testId: number) {
+async function handleFinishTest() {
   try {
-    const response = await fetch(`/api/tests/${testId}/finish`, {
+    const response = await fetch(`/api/tests/finish-all`, {
       method: 'POST'
     })
 
     const result = await response.json()
     if (result.success) {
-      message.success('测验已提前结束')
+      message.success('活跃测验已全部结束')
       await fetchData() // Refresh data
     } else {
-      message.error(result.error || '结束测验失败')
+      message.error(result.error || '结束活跃测验失败')
     }
   } catch (error) {
     console.error('Failed to finish test:', error)
-    message.error('结束测验失败')
+    message.error('结束活跃测验失败')
+  }
+}
+
+async function handleClearAllTests() {
+  try {
+    const response = await fetch(`/api/tests/clear-all`, {
+      method: 'POST'
+    })
+
+    const result = await response.json()
+    if (result.success) {
+      message.success('所有测验记录已清除')
+      await fetchData() // Refresh data
+    } else {
+      message.error(result.error || '清除测验记录失败')
+    }
+  } catch (error) {
+    console.error('Failed to clear all tests:', error)
+    message.error('清除测验记录失败')
   }
 }
 
@@ -139,7 +158,7 @@ const testColumns = [
     title: '所含题目',
     key: 'questions',
     customRender: ({ record }: { record: Test }) => {
-      return record.questions.map((question: Question) => 
+      return record.questions.map((question: Question) =>
         h(Tag, () => `题目${question.id}`)
       )
     }
@@ -159,17 +178,6 @@ const testColumns = [
     customRender: ({ text }: { text: number | null }) => {
       return text ? `${Math.floor(text / 60)} 分钟` : '无限制'
     }
-  },
-  {
-    title: '操作',
-    key: 'actions',
-    customRender: ({ record }: { record: Test }) => {
-      return h(Button, {
-        size: 'small',
-        danger: true,
-        onClick: () => handleFinishTest(record.id)
-      }, () => '结束测验')
-    }
   }
 ]
 
@@ -184,10 +192,20 @@ onMounted(() => {
   <div>
     <h2>测验管理</h2>
 
-    <Card title="发起测验" style="margin-bottom: 20px;">
+    <Card title="测验动作" style="margin-bottom: 20px;">
       <Button type="primary" @click="openCreateTestModal">
         ▶ 安排新测验
       </Button>
+      <Popconfirm title="确定结束所有活跃测验？" @confirm="handleFinishTest">
+        <Button danger style="margin-left: 10px;">
+          ■ 结束所有活跃测验
+        </Button>
+      </Popconfirm>
+      <Popconfirm title="确定清除测验记录？" @confirm="handleClearAllTests">
+        <Button style="margin-left: 10px;">
+          X 清除测验记录
+        </Button>
+      </Popconfirm>
     </Card>
 
     <Card title="连接的客户机" style="margin-bottom: 20px;">
@@ -202,7 +220,7 @@ onMounted(() => {
       <Form layout="vertical">
         <Form.Item label="选择客户机" required>
           <Select v-model:value="formState.clientIds" mode="multiple" placeholder="请选择目标客户机" style="width: 100%">
-            <Select.Option v-for="client in clients" :key="client.id" :value="client.id" :disabled="!!client.testSession || !client.online">
+            <Select.Option v-for="client in clients" :key="client.id" :value="client.id">
               {{ client.name }} ({{ client.ip }})
               <Tag v-if="!client.online" color="red" size="small">离线</Tag>
               <Tag v-else-if="client.testSession" color="blue" size="small">进行中</Tag>
@@ -244,7 +262,8 @@ onMounted(() => {
         </Form.Item>
 
         <Form.Item label="测验持续时间（分钟）">
-          <InputNumber v-model:value="formState.durationTime" :min="1" :max="300" placeholder="留空表示无时间限制" style="width: 100%" />
+          <InputNumber v-model:value="formState.durationTime" :min="1" :max="300" placeholder="留空表示无时间限制"
+            style="width: 100%" />
         </Form.Item>
       </Form>
     </Modal>
