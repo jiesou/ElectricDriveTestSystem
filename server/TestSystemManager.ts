@@ -156,11 +156,6 @@ export class TestSystemManager {
       logs: [
         {
           timestamp,
-          action: "connect",
-          details: {},
-        },
-        {
-          timestamp,
           action: "start",
           details: { question: test.questions[0] },
         },
@@ -323,7 +318,7 @@ export class TestSystemManager {
           session.finishTime = session.test.startTime +
             session.test.durationTime;
           session.logs.push({
-            timestamp: session.finishTime,
+            timestamp: getSecondTimestamp(),
             action: "finish",
             details: {},
           });
