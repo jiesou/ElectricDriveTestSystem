@@ -157,6 +157,18 @@ apiRouter.get("/tests", (ctx) => {
   };
 });
 
+apiRouter.post("/tests/:id/finish", (ctx) => {
+  const testId = parseInt(ctx.params.id!);
+  const success = manager.finishTestById(testId);
+
+  if (success) {
+    ctx.response.body = { success: true };
+  } else {
+    ctx.response.status = 404;
+    ctx.response.body = { success: false, error: "Test not found or already finished" };
+  }
+});
+
 // Create Test session
 apiRouter.post("/test-sessions", async (ctx) => {
   try {

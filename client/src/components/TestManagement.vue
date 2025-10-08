@@ -110,6 +110,25 @@ function formatTime(timestamp: number): string {
   return new Date(timestamp * 1000).toLocaleString()
 }
 
+async function handleFinishTest(testId: number) {
+  try {
+    const response = await fetch(`/api/tests/${testId}/finish`, {
+      method: 'POST'
+    })
+
+    const result = await response.json()
+    if (result.success) {
+      message.success('测验已提前结束')
+      await fetchData() // Refresh data
+    } else {
+      message.error(result.error || '结束测验失败')
+    }
+  } catch (error) {
+    console.error('Failed to finish test:', error)
+    message.error('结束测验失败')
+  }
+}
+
 const testColumns = [
   {
     title: '测验ID',
@@ -139,6 +158,17 @@ const testColumns = [
     key: 'durationTime',
     customRender: ({ text }: { text: number | null }) => {
       return text ? `${Math.floor(text / 60)} 分钟` : '无限制'
+    }
+  },
+  {
+    title: '操作',
+    key: 'actions',
+    customRender: ({ record }: { record: Test }) => {
+      return h(Button, {
+        size: 'small',
+        danger: true,
+        onClick: () => handleFinishTest(record.id)
+      }, () => '结束测验')
     }
   }
 ]
