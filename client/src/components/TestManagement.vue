@@ -4,14 +4,17 @@ import { Table, Button, Modal, Form, Select, DatePicker, message, Card, Tag, Inp
 import type { Question, Client, Test } from '../types'
 import { getSecondTimestamp } from '../types'
 import ClientTable from './ClientTable.vue'
+import QuestionManagement from './QuestionManagement.vue'
 
 const questions = ref<Question[]>([])
 const tests = ref<Test[]>([])
 const clients = ref<Client[]>([]) // Only used for modal selection
 const loading = ref(false)
 
-// Modal state
-const modalVisible = ref(false)
+const createTestModalVisible = ref(false)
+const questionManagementModalVisible = ref(false)
+const questionManagementRef = ref<InstanceType<typeof QuestionManagement> | null>(null)
+
 const formState = reactive({
   clientIds: [] as string[],
   questionIds: [] as number[],
@@ -60,7 +63,17 @@ function openCreateTestModal() {
   formState.questionIds = []
   formState.startTime = ''
   formState.durationTime = undefined
-  modalVisible.value = true
+  createTestModalVisible.value = true
+}
+
+function openQuestionManagementModal() {
+  questionManagementModalVisible.value = true
+}
+
+async function handleQuestionManagementClose() {
+  questionManagementModalVisible.value = false
+  // Refresh questions list after closing question management modal
+  await fetchData()
 }
 
 async function handleCreateTest() {
@@ -94,7 +107,7 @@ async function handleCreateTest() {
     if (result.success) {
       const successCount = result.data.filter((r: any) => r.success).length
       message.success(`测验创建成功，${successCount}/${result.data.length} 个客户机已分配测验`)
-      modalVisible.value = false
+      createTestModalVisible.value = false
 
       await fetchData() // Refresh all data
     } else {
@@ -216,7 +229,7 @@ onMounted(() => {
       <Table :dataSource="tests" :columns="testColumns" size="small" rowKey="id" :pagination="false" />
     </Card>
 
-    <Modal v-model:open="modalVisible" title="创建测验" @ok="handleCreateTest" width="600px">
+    <Modal v-model:open="createTestModalVisible" title="创建测验" @ok="handleCreateTest" width="600px">
       <Form layout="vertical">
         <Form.Item label="选择客户机" required>
           <Select v-model:value="formState.clientIds" mode="multiple" placeholder="请选择目标客户机" style="width: 100%">
@@ -230,11 +243,16 @@ onMounted(() => {
         </Form.Item>
 
         <Form.Item label="选择题目" required>
-          <Select v-model:value="formState.questionIds" mode="multiple" placeholder="请选择测验题目" style="width: 100%">
-            <Select.Option v-for="question in questions" :key="question.id" :value="question.id">
-              题目 {{ question.id }} ({{ question.troubles.length }} 个故障)
-            </Select.Option>
-          </Select>
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+            <Select v-model:value="formState.questionIds" mode="multiple" placeholder="请选择测验题目" style="width: 100%">
+              <Select.Option v-for="question in questions" :key="question.id" :value="question.id">
+                题目 {{ question.id }} ({{ question.troubles.length }} 个故障)
+              </Select.Option>
+            </Select>
+            <Button type="link" @click="openQuestionManagementModal">
+              管理题库
+            </Button>
+          </div>
         </Form.Item>
 
         <Form.Item label="开始时间">
@@ -266,6 +284,17 @@ onMounted(() => {
             style="width: 100%" />
         </Form.Item>
       </Form>
+    </Modal>
+
+    <!-- Question Management Modal -->
+    <Modal 
+      v-model:open="questionManagementModalVisible" 
+      title="题库管理" 
+      width="800px"
+      :footer="null"
+      @cancel="handleQuestionManagementClose"
+    >
+      <QuestionManagement ref="questionManagementRef" />
     </Modal>
   </div>
 </template>
