@@ -1,17 +1,20 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, h } from 'vue'
-import { Table, Button, Modal, Form, Select, DatePicker, message, Card, Tag, InputNumber } from 'ant-design-vue'
+import { Table, Button, Modal, Form, Select, DatePicker, message, Card, Tag, InputNumber, Popconfirm } from 'ant-design-vue'
 import type { Question, Client, Test } from '../types'
 import { getSecondTimestamp } from '../types'
 import ClientTable from './ClientTable.vue'
+import QuestionManagement from './QuestionManagement.vue'
 
 const questions = ref<Question[]>([])
 const tests = ref<Test[]>([])
 const clients = ref<Client[]>([]) // Only used for modal selection
 const loading = ref(false)
 
-// Modal state
-const modalVisible = ref(false)
+const createTestModalVisible = ref(false)
+const questionManagementModalVisible = ref(false)
+const questionManagementRef = ref<InstanceType<typeof QuestionManagement> | null>(null)
+
 const formState = reactive({
   clientIds: [] as string[],
   questionIds: [] as number[],
@@ -60,7 +63,17 @@ function openCreateTestModal() {
   formState.questionIds = []
   formState.startTime = ''
   formState.durationTime = undefined
-  modalVisible.value = true
+  createTestModalVisible.value = true
+}
+
+function openQuestionManagementModal() {
+  questionManagementModalVisible.value = true
+}
+
+async function handleQuestionManagementClose() {
+  questionManagementModalVisible.value = false
+  // Refresh questions list after closing question management modal
+  await fetchData()
 }
 
 async function handleCreateTest() {
@@ -94,7 +107,7 @@ async function handleCreateTest() {
     if (result.success) {
       const successCount = result.data.filter((r: any) => r.success).length
       message.success(`测验创建成功，${successCount}/${result.data.length} 个客户机已分配测验`)
-      modalVisible.value = false
+      createTestModalVisible.value = false
 
       await fetchData() // Refresh all data
     } else {
@@ -110,6 +123,44 @@ function formatTime(timestamp: number): string {
   return new Date(timestamp * 1000).toLocaleString()
 }
 
+async function handleFinishTest() {
+  try {
+    const response = await fetch(`/api/tests/finish-all`, {
+      method: 'POST'
+    })
+
+    const result = await response.json()
+    if (result.success) {
+      message.success('活跃测验已全部结束')
+      await fetchData() // Refresh data
+    } else {
+      message.error(result.error || '结束活跃测验失败')
+    }
+  } catch (error) {
+    console.error('Failed to finish test:', error)
+    message.error('结束活跃测验失败')
+  }
+}
+
+async function handleClearAllTests() {
+  try {
+    const response = await fetch(`/api/tests/clear-all`, {
+      method: 'POST'
+    })
+
+    const result = await response.json()
+    if (result.success) {
+      message.success('所有测验记录已清除')
+      await fetchData() // Refresh data
+    } else {
+      message.error(result.error || '清除测验记录失败')
+    }
+  } catch (error) {
+    console.error('Failed to clear all tests:', error)
+    message.error('清除测验记录失败')
+  }
+}
+
 const testColumns = [
   {
     title: '测验ID',
@@ -120,7 +171,7 @@ const testColumns = [
     title: '所含题目',
     key: 'questions',
     customRender: ({ record }: { record: Test }) => {
-      return record.questions.map((question: Question) => 
+      return record.questions.map((question: Question) =>
         h(Tag, () => `题目${question.id}`)
       )
     }
@@ -154,10 +205,20 @@ onMounted(() => {
   <div>
     <h2>测验管理</h2>
 
-    <Card title="发起测验" style="margin-bottom: 20px;">
+    <Card title="测验动作" style="margin-bottom: 20px;">
       <Button type="primary" @click="openCreateTestModal">
         ▶ 安排新测验
       </Button>
+      <Popconfirm title="确定结束所有活跃测验？" @confirm="handleFinishTest">
+        <Button danger style="margin-left: 10px;">
+          ■ 结束所有活跃测验
+        </Button>
+      </Popconfirm>
+      <Popconfirm title="确定清除测验记录？" @confirm="handleClearAllTests">
+        <Button style="margin-left: 10px;">
+          X 清除测验记录
+        </Button>
+      </Popconfirm>
     </Card>
 
     <Card title="连接的客户机" style="margin-bottom: 20px;">
@@ -168,11 +229,11 @@ onMounted(() => {
       <Table :dataSource="tests" :columns="testColumns" size="small" rowKey="id" :pagination="false" />
     </Card>
 
-    <Modal v-model:open="modalVisible" title="创建测验" @ok="handleCreateTest" width="600px">
+    <Modal v-model:open="createTestModalVisible" title="创建测验" @ok="handleCreateTest" width="600px">
       <Form layout="vertical">
         <Form.Item label="选择客户机" required>
           <Select v-model:value="formState.clientIds" mode="multiple" placeholder="请选择目标客户机" style="width: 100%">
-            <Select.Option v-for="client in clients" :key="client.id" :value="client.id" :disabled="!!client.testSession || !client.online">
+            <Select.Option v-for="client in clients" :key="client.id" :value="client.id">
               {{ client.name }} ({{ client.ip }})
               <Tag v-if="!client.online" color="red" size="small">离线</Tag>
               <Tag v-else-if="client.testSession" color="blue" size="small">进行中</Tag>
@@ -182,11 +243,16 @@ onMounted(() => {
         </Form.Item>
 
         <Form.Item label="选择题目" required>
-          <Select v-model:value="formState.questionIds" mode="multiple" placeholder="请选择测验题目" style="width: 100%">
-            <Select.Option v-for="question in questions" :key="question.id" :value="question.id">
-              题目 {{ question.id }} ({{ question.troubles.length }} 个故障)
-            </Select.Option>
-          </Select>
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+            <Select v-model:value="formState.questionIds" mode="multiple" placeholder="请选择测验题目" style="width: 100%">
+              <Select.Option v-for="question in questions" :key="question.id" :value="question.id">
+                题目 {{ question.id }} ({{ question.troubles.length }} 个故障)
+              </Select.Option>
+            </Select>
+            <Button type="link" @click="openQuestionManagementModal">
+              管理题库
+            </Button>
+          </div>
         </Form.Item>
 
         <Form.Item label="开始时间">
@@ -214,9 +280,21 @@ onMounted(() => {
         </Form.Item>
 
         <Form.Item label="测验持续时间（分钟）">
-          <InputNumber v-model:value="formState.durationTime" :min="1" :max="300" placeholder="留空表示无时间限制" style="width: 100%" />
+          <InputNumber v-model:value="formState.durationTime" :min="1" :max="300" placeholder="留空表示无时间限制"
+            style="width: 100%" />
         </Form.Item>
       </Form>
+    </Modal>
+
+    <!-- Question Management Modal -->
+    <Modal 
+      v-model:open="questionManagementModalVisible" 
+      title="题库管理" 
+      width="800px"
+      :footer="null"
+      @cancel="handleQuestionManagementClose"
+    >
+      <QuestionManagement ref="questionManagementRef" />
     </Modal>
   </div>
 </template>

@@ -11,7 +11,7 @@ import { getSecondTimestamp } from "./types.ts";
 
 export class TestSystemManager {
   public clients: Record<string, Client> = {}; // Changed from Map to Record for persistence
-  private tests: Test[] = [];
+  public tests: Test[] = [];
   private questionBank: Question[] = [
     {
       id: 1,
@@ -177,12 +177,12 @@ export class TestSystemManager {
       index === session.currentQuestionIndex &&
       troubles.some((t) => t.id === trouble.id)
     );
-    // Check if the trouble is part of current question
+    // 检查 session 对应 question 确实包含该 trouble，且未被解决过
     const isCorrect = !haveBeenSolved &&
       currentQuestion.troubles.some((t: Trouble) => t.id === trouble.id);
 
     if (isCorrect) {
-      // Add to solved troubles for current question
+      // 加入到 currentQuestion 的 solvedTroubles
       const existingEntry = session.solvedTroubles.find((
         [index]: [number, Trouble[]],
       ) => index === session.currentQuestionIndex);
@@ -240,10 +240,10 @@ export class TestSystemManager {
   private getRemainingTroubles(session: TestSession): Trouble[] {
     const currentQuestion =
       session.test.questions[session.currentQuestionIndex];
-    const solvedTroubles =
-      session.solvedTroubles.find(([index]: [number, Trouble[]]) =>
-        index === session.currentQuestionIndex
-      )?.[1] || [];
+    const solvedEntry = session.solvedTroubles.find(([index]: [number, Trouble[]]) =>
+      index === session.currentQuestionIndex
+    );
+    const solvedTroubles = solvedEntry ? solvedEntry[1] : [];
     return currentQuestion.troubles.filter((trouble: Trouble) =>
       !solvedTroubles.some((solved: Trouble) => solved.id === trouble.id)
     );
@@ -350,10 +350,6 @@ export class TestSystemManager {
 
   getTroubles(): Trouble[] {
     return [...TROUBLES];
-  }
-
-  getTests(): Test[] {
-    return [...this.tests];
   }
 
   createTest(
