@@ -159,7 +159,7 @@ apiRouter.get("/clients", (ctx) => {
 apiRouter.get("/tests", (ctx) => {
   ctx.response.body = {
     success: true,
-    data: manager.getTests(),
+    data: manager.tests,
   };
 });
 
@@ -176,6 +176,7 @@ apiRouter.post("/tests/clear-all", (ctx) => {
   for (const client of Object.values(manager.clients)) {
     client.testSession = undefined;
   }
+  manager.tests = [];
 
   ctx.response.body = { success: true };
 });
