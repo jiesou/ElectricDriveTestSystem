@@ -232,28 +232,6 @@ apiRouter.post("/test-sessions", async (ctx) => {
   }
 });
 
-// Get test sessions - updated for new architecture
-apiRouter.get("/test-sessions", (ctx) => {
-  const clients = Object.values(manager.clients);
-  const sessions = clients.filter((c) => c.testSession).map((client) => ({
-    sessionId: client.testSession!.id,
-    clientId: client.id,
-    clientIp: client.ip,
-    questionIds: client.testSession!.test.questions.map((q) => q.id),
-    startTime: client.testSession!.test.startTime,
-    durationTime: client.testSession!.test.durationTime,
-    finishTime: client.testSession!.finishTime,
-    currentQuestionIndex: client.testSession!.currentQuestionIndex,
-    totalQuestions: client.testSession!.test.questions.length,
-    logs: client.testSession!.logs,
-  }));
-
-  ctx.response.body = {
-    success: true,
-    data: sessions,
-  };
-});
-
 apiRouter.get("/status", (ctx) => {
   const clients = Object.values(manager.clients);
 
