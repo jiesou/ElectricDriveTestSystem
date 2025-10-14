@@ -55,6 +55,7 @@ export interface Client {
 // WebSocket message types
 export interface WSMessage {
   type: string;
+  timestamp?: number; // in seconds
   [key: string]: unknown;
 }
 
@@ -85,7 +86,10 @@ export interface QuestionNavigationMessage extends WSMessage {
 
 export interface FinishMessage extends WSMessage {
   type: "finish";
-  timestamp: number;
+}
+
+export interface FinishResultMessage extends WSMessage {
+  type: "finish_result";
 }
 
 // Predefined troubles (hardcoded)

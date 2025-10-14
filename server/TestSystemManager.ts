@@ -127,12 +127,10 @@ export class TestSystemManager {
 
   // 断开客户端连接
   disconnectClient(client: Client) {
-    const timestamp = getSecondTimestamp();
-
     // 如果有测试会话，记录断开连接日志
     if (client.testSession) {
       client.testSession.logs.push({
-        timestamp,
+        timestamp: getSecondTimestamp(),
         action: "disconnect",
         details: {},
       });
@@ -147,7 +145,6 @@ export class TestSystemManager {
     const client = this.clients[clientId];
     if (!client) return false;
 
-    const timestamp = getSecondTimestamp();
     const session: TestSession = {
       id: `${clientId}_${Date.now()}`,
       test,
@@ -155,7 +152,7 @@ export class TestSystemManager {
       solvedTroubles: [],
       logs: [
         {
-          timestamp,
+          timestamp: getSecondTimestamp(),
           action: "start",
           details: { question: test.questions[0] },
         },
@@ -194,9 +191,8 @@ export class TestSystemManager {
     }
 
     // Log the answer
-    const timestamp = getSecondTimestamp();
     session.logs.push({
-      timestamp,
+      timestamp: getSecondTimestamp(),
       action: "answer",
       details: {
         question: currentQuestion,
@@ -261,9 +257,8 @@ export class TestSystemManager {
       session.currentQuestionIndex = newIndex;
 
       // Log the navigation
-      const timestamp = getSecondTimestamp();
       session.logs.push({
-        timestamp,
+        timestamp: getSecondTimestamp(),
         action: "navigation",
         details: {
           question: session.test.questions[newIndex],
@@ -297,7 +292,7 @@ export class TestSystemManager {
   private startBroadcast() {
     this.broadcastInterval = setInterval(() => {
       this.broadcastTroubleStatus();
-    }, 1000); // 1 seconds
+    }, 3000); // 1 seconds
   }
 
   private broadcastTroubleStatus() {
@@ -330,6 +325,7 @@ export class TestSystemManager {
           const remainingTroubles = this.getRemainingTroubles(session);
           const message: InTestingMessage = {
             type: "in_testing",
+            timestamp: getSecondTimestamp(),
             all_troubles: TROUBLES,
             exist_troubles: remainingTroubles,
             current_question: session.currentQuestionIndex + 1,

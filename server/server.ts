@@ -1,5 +1,5 @@
 import { Application, Router } from "@oak/oak";
-import { Client, getSecondTimestamp } from "./types.ts";
+import { Client, getSecondTimestamp, AnswerResultMessage, FinishResultMessage } from "./types.ts";
 import { TestSystemManager } from "./TestSystemManager.ts";
 
 const app = new Application();
@@ -45,7 +45,7 @@ wsRouter.get("/ws", (ctx) => {
   }
 
   const { socket, response } = Deno.upgradeWebSocket(ctx.request.source!, {
-    idleTimeout: 3, // ping 超时时间，单位秒
+    idleTimeout: 6, // ping 超时时间，单位秒
   });
   const clientIp = ctx.request.ip;
   const client = manager.connectClient(clientIp, socket);
@@ -327,25 +327,17 @@ function handleWebSocketMessage(
       const isCorrect = manager.handleAnswer(client, trouble);
       safeSend(socket, {
         type: "answer_result",
-        result: isCorrect,
-        trouble: trouble,
         timestamp: getSecondTimestamp(),
-      });
+        result: isCorrect,
+        trouble,
+      } as AnswerResultMessage);
       break;
     }
 
     case "next_question":
     case "last_question": {
       const direction = message.type === "next_question" ? "next" : "prev";
-      const success = manager.navigateQuestion(client, direction);
-      safeSend(socket, {
-        type: "navigation_result",
-        success,
-        direction: message.type === "next_question"
-          ? "next_question"
-          : "last_question",
-        timestamp: getSecondTimestamp(),
-      });
+      manager.navigateQuestion(client, direction);
       break;
     }
 
@@ -353,12 +345,11 @@ function handleWebSocketMessage(
       const timestamp = typeof message.timestamp === "number"
         ? message.timestamp
         : undefined;
-      const success = manager.finishTest(client, timestamp); // 使用客户机传来的时间戳（如果有）标记结束时间
+      manager.finishTest(client, timestamp); // 使用客户机传来的时间戳（如果有）标记结束时间
       safeSend(socket, {
         type: "finish_result",
-        success,
         timestamp: getSecondTimestamp(),
-      });
+      } as FinishResultMessage);
       break;
     }
   }
