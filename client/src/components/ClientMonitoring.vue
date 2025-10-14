@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { Card, Tag, Timeline } from 'ant-design-vue'
+import { Card, Popconfirm, Button, Tag, Timeline } from 'ant-design-vue'
 import type { Client } from '../types'
 import ClientTable from './ClientTable.vue'
 
@@ -13,7 +13,7 @@ async function fetchClients() {
     loading.value = true
     const response = await fetch('/api/clients')
     const result = await response.json()
-    
+
     if (result.success) {
       clients.value = result.data
     }
@@ -53,6 +53,22 @@ function formatTime(timestamp: number): string {
   return new Date(timestamp * 1000).toLocaleString()
 }
 
+function handleForgetClients() {
+  fetch('/api/clients/forget', { method: 'POST' })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        fetchClients()
+      } else {
+        alert('操作失败，请稍后重试。')
+      }
+    })
+    .catch(err => {
+      console.error('Error forgetting clients:', err)
+      alert('操作失败，请稍后重试。')
+    })
+}
+
 onMounted(() => {
   fetchClients()
   startAutoRefresh()
@@ -68,6 +84,11 @@ onUnmounted(() => {
     <h2>客户机监控</h2>
 
     <Card title="实时客户机状态">
+      <template #extra>
+        <Popconfirm title="确定要忘记所有客户机吗？这也将清除客户机的活跃测验进度。" @confirm="handleForgetClients">
+          <Button type="primary" danger>忘记所有客户机</Button>
+        </Popconfirm>
+      </template>
       <ClientTable />
     </Card>
 
@@ -77,12 +98,13 @@ onUnmounted(() => {
           <div v-if="client.testSession">
             <div style="margin-bottom: 16px;">
               <p><strong>开始时间:</strong> {{ formatTime(client.testSession.test.startTime) }}</p>
-              <p><strong>连接状态:</strong> 
+              <p><strong>连接状态:</strong>
                 <Tag style="margin-left: 4px;" :color="client.online ? 'green' : 'red'">
                   {{ client.online ? '在线' : '离线' }}
                 </Tag>
               </p>
-              <p><strong>当前进度:</strong> 第 {{ client.testSession.currentQuestionIndex + 1 }}/{{ client.testSession.test.questions.length }} 题</p>
+              <p><strong>当前进度:</strong> 第 {{ client.testSession.currentQuestionIndex + 1 }}/{{
+                client.testSession.test.questions.length }} 题</p>
               <div v-if="client.testSession.logs && client.testSession.logs.length > 0">
                 <strong>测验日志</strong>
                 <Timeline style="margin-top: 12px;">
@@ -98,10 +120,11 @@ onUnmounted(() => {
                         <strong v-else-if="log.action == 'connect'">连接上服务器</strong>
                         <strong v-else-if="log.action == 'disconnect'">断开了连接</strong>
                         <strong v-else-if="log.action == 'answer'">
-                          选择了 <Tag v-if="log.details.trouble">故障{{ log.details.trouble.id }} ({{ log.details.trouble.description }})</Tag> - {{log.details.result ? '正确' : '错误' }}
+                          选择了 <Tag v-if="log.details.trouble">故障{{ log.details.trouble.id }} ({{
+                            log.details.trouble.description }})</Tag> - {{ log.details.result ? '正确' : '错误' }}
                         </strong>
                         <strong v-else-if="log.action == 'navigation'">
-                          切换到{{ log.details.direction === 'next' ? '下一题' :'上一题' }}
+                          切换到{{ log.details.direction === 'next' ? '下一题' : '上一题' }}
                         </strong>
                         <strong v-else>未知操作</strong>
                       </div>
@@ -125,7 +148,9 @@ onUnmounted(() => {
     <!-- 显示已完成的测验 -->
     <div style="margin-top: 20px;" v-if="clients.filter(c => c.testSession && c.testSession.finishTime).length > 0">
       <Card title="已完成测验">
-        <div v-for="client in clients.filter(c => c.testSession && c.testSession.finishTime)" :key="`finished-${client.id}`" style="margin-bottom: 16px; padding: 12px; border: 1px solid #f0f0f0; border-radius: 6px;">
+        <div v-for="client in clients.filter(c => c.testSession && c.testSession.finishTime)"
+          :key="`finished-${client.id}`"
+          style="margin-bottom: 16px; padding: 12px; border: 1px solid #f0f0f0; border-radius: 6px;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <div>
               <strong>{{ client.name }} ({{ client.ip }})</strong>

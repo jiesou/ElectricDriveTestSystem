@@ -372,4 +372,22 @@ export class TestSystemManager {
       clearInterval(this.broadcastInterval);
     }
   }
+
+  clearClients(): number {
+    const clientsToClear = Object.values(this.clients);
+
+    for (const client of clientsToClear) {
+      if (client.socket && client.socket.readyState === WebSocket.OPEN) {
+        try {
+          client.socket.close(1000, "Cleared by administrator");
+        } catch (error) {
+          console.error(`Failed to close socket for client ${client.id}:`, error);
+        }
+      }
+    }
+
+    const clearedCount = clientsToClear.length;
+    this.clients = {};
+    return clearedCount;
+  }
 }

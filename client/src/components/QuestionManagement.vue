@@ -130,17 +130,29 @@ async function handleDelete(id: number) {
     }
 }
 
-async function createRandom3Troubles() {
-    const selectedTroubles = new Set<number>()
-    while (selectedTroubles.size < 3) {
-        const randomIndex = Math.floor(Math.random() * troubles.value.length)
-        const trouble = troubles.value[randomIndex]
-        if (trouble) {
-            selectedTroubles.add(trouble.id)
+async function createRandom3Questions() {
+    for (let i = 0; i < 3; i++) {
+        const availableTroubles = troubles.value;
+        if (availableTroubles.length === 0) break;
+        const randomIndex = Math.floor(Math.random() * availableTroubles.length);
+        const selectedTrouble = availableTroubles[randomIndex];
+        if (!selectedTrouble) continue;
+
+        const response = await fetch('/api/questions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ troubles: [selectedTrouble] })
+        })
+
+        const result = await response.json()
+        if (result.success) {
+            message.success('题目创建成功')
+            modalVisible.value = false
+            await fetchQuestions()
+        } else {
+            message.error(result.error || '操作失败')
         }
     }
-    formState.troubles = Array.from(selectedTroubles)
-    modalVisible.value = true
 }
 
 onMounted(async () => {
@@ -158,9 +170,9 @@ defineExpose({
     <div>
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
             <h3 style="margin: 0;">题目列表</h3>
-            <div style="display: flex; gap: 8px;" @click="createRandom3Troubles">
-                <Button>
-                    ✨ 随机 3 个故障
+            <div style="display: flex; gap: 8px;">
+                <Button @click="createRandom3Questions">
+                    ✨ 随机 3 个题目
                 </Button>
                 <Button type="primary" @click="openAddModal">
                     + 添加题目

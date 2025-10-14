@@ -156,6 +156,15 @@ apiRouter.get("/clients", (ctx) => {
   };
 });
 
+apiRouter.post("/clients/forget", (ctx) => {
+  const clearedCount = manager.clearClients();
+
+  ctx.response.body = {
+    success: true,
+    data: { cleared: clearedCount },
+  };
+});
+
 apiRouter.get("/tests", (ctx) => {
   ctx.response.body = {
     success: true,
@@ -197,9 +206,10 @@ apiRouter.post("/test-sessions", async (ctx) => {
     }
 
     const allQuestions = manager.questions;
-    const selectedQuestions = allQuestions.filter((q) =>
-      questionIds.includes(q.id)
-    );
+    // 查找所含的题目，同时确保保持输入的顺序
+    const selectedQuestions = questionIds
+      .map((id) => allQuestions.find((q) => q.id === id))
+      .filter((q) => q !== undefined);
 
     if (selectedQuestions.length !== questionIds.length) {
       ctx.response.status = 400;
