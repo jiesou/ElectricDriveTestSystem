@@ -45,7 +45,7 @@ wsRouter.get("/ws", (ctx) => {
   }
 
   const { socket, response } = Deno.upgradeWebSocket(ctx.request.source!, {
-    idleTimeout: 6, // ping 超时时间，单位秒
+    idleTimeout: 10, // ping 超时时间，单位秒
   });
   const clientIp = ctx.request.ip;
   const client = manager.connectClient(clientIp, socket);
