@@ -1,5 +1,5 @@
 import { Application, Router } from "@oak/oak";
-import { Client, getSecondTimestamp, AnswerResultMessage, FinishResultMessage } from "./types.ts";
+import { Client, getSecondTimestamp, AnswerResultMessage, FinishResultMessage, TROUBLES } from "./types.ts";
 import { TestSystemManager } from "./TestSystemManager.ts";
 
 const app = new Application();
@@ -312,10 +312,7 @@ function handleWebSocketMessage(
         });
         return;
       }
-      const currentQuestion =
-        client.testSession.test
-          .questions[client.testSession.currentQuestionIndex];
-      const trouble = currentQuestion.troubles.find((t) => t.id === troubleId);
+      const trouble = TROUBLES.find((t) => t.id === troubleId);
       if (!trouble) {
         safeSend(socket, {
           type: "error",
@@ -345,9 +342,10 @@ function handleWebSocketMessage(
       const timestamp = typeof message.timestamp === "number"
         ? message.timestamp
         : undefined;
-      manager.finishTest(client, timestamp); // 使用客户机传来的时间戳（如果有）标记结束时间
+      const finishedScore = manager.finishTest(client, timestamp); // 使用客户机传来的时间戳（如果有）标记结束时间
       safeSend(socket, {
         type: "finish_result",
+        finished_score: finishedScore,
         timestamp: getSecondTimestamp(),
       } as FinishResultMessage);
       break;

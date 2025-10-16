@@ -139,8 +139,8 @@ onUnmounted(() => {
                       </div>
                       <div style="font-size: 12px; color: #666;">
                         {{ formatTime(log.timestamp) }}
-                        <span v-if="index > 0 && client.testSession?.logs && client.testSession.logs[index - 1]">
-                          (经过 {{ (log.timestamp - client.testSession.logs[index - 1]!.timestamp) }} 秒)
+                        <span v-if="index > 0">
+                          (经过 {{ (log.timestamp - client.testSession.logs.filter(l => showConnectionEvents || (l.action !== 'connect' && l.action !== 'disconnect'))[index - 1]!.timestamp) }} 秒)
                         </span>
                       </div>
                     </div>
