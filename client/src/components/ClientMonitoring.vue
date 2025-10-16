@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { Card, Popconfirm, Button, Tag, Timeline } from 'ant-design-vue'
+import { Card, Popconfirm, Button, Tag, Timeline, Switch } from 'ant-design-vue'
 import type { Client } from '../types'
 import ClientTable from './ClientTable.vue'
 
 const clients = ref<Client[]>([])
 const loading = ref(false)
 const refreshTimer = ref<number | null>(null)
+const showConnectionEvents = ref(false)
 
 async function fetchClients() {
   try {
@@ -107,8 +108,14 @@ onUnmounted(() => {
                 client.testSession.test.questions.length }} 题</p>
               <div v-if="client.testSession.logs && client.testSession.logs.length > 0">
                 <strong>测验日志</strong>
+                <Switch
+                  v-model:checked="showConnectionEvents"
+                  checked-children="显示连接变化"
+                  un-checked-children="隐藏连接变化"
+                  style="margin-left: 12px;"
+                />
                 <Timeline style="margin-top: 12px;">
-                  <Timeline.Item v-for="(log, index) in client.testSession.logs" :key="index"
+                  <Timeline.Item v-for="(log, index) in client.testSession.logs.filter(log => showConnectionEvents || (log.action !== 'connect' && log.action !== 'disconnect'))" :key="index"
                     :color="getLogColor(log.action)">
                     <div>
                       <Tag :color="getLogColor(log.action)" size="small">
@@ -116,7 +123,9 @@ onUnmounted(() => {
                       </Tag>
                       <div style="margin-top: 4px;">
                         <strong v-if="log.action == 'start'">开始测验</strong>
-                        <strong v-else-if="log.action == 'finish'">完成测验</strong>
+                        <strong v-else-if="log.action == 'finish'">
+                          完成测验 得分: {{ log.details.score }}
+                        </strong>
                         <strong v-else-if="log.action == 'connect'">连接上服务器</strong>
                         <strong v-else-if="log.action == 'disconnect'">断开了连接</strong>
                         <strong v-else-if="log.action == 'answer'">

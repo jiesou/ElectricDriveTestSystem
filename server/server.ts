@@ -298,7 +298,7 @@ function handleWebSocketMessage(
   socket: WebSocket,
   message: Record<string, unknown>,
 ) {
-  console.log(`Message from ${client}:`, message);
+  console.log(`Message from ${client.id}:`, message);
 
   switch (message.type) {
     case "answer": {

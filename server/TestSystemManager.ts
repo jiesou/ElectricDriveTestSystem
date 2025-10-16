@@ -272,21 +272,34 @@ export class TestSystemManager {
     return false;
   }
 
-  finishTest(client: Client, timestamp?: number): boolean {
-    if (!client?.testSession) return false;
+  finishTest(client: Client, timestamp?: number): number {
+    if (!client?.testSession) return 0;
 
     const session = client.testSession;
     const finishTime = timestamp || getSecondTimestamp();
     session.finishTime = finishTime;
 
+    // 计算得分
+    const totalTroublesCount = session.test.questions.reduce(
+      (sum, q) => sum + q.troubles.length,
+      0,
+    );
+    const solvedTroublesCount = session.solvedTroubles.reduce(
+      (sum, [_questionIndex, solvedTroubles]) => sum + solvedTroubles.length,
+      0,
+    );
+    const score = Math.round((solvedTroublesCount / totalTroublesCount) * 100);
+
     // Log the finish
     session.logs.push({
       timestamp: finishTime,
       action: "finish",
-      details: {},
+      details: {
+        score: score,
+      },
     });
 
-    return true;
+    return score;
   }
 
   private startBroadcast() {
@@ -317,6 +330,7 @@ export class TestSystemManager {
             action: "finish",
             details: {},
           });
+          this.finishTest(client, session.finishTime);
           console.log(`Session timeout for client ${client.id}`);
         }
 
@@ -326,9 +340,9 @@ export class TestSystemManager {
           const message: InTestingMessage = {
             type: "in_testing",
             timestamp: getSecondTimestamp(),
-            all_troubles: TROUBLES,
+            all_troubles: session.test.questions[session.currentQuestionIndex].troubles,
             exist_troubles: remainingTroubles,
-            current_question: session.currentQuestionIndex + 1,
+            current_question_index: session.currentQuestionIndex,
             total_questions: session.test.questions.length,
             start_time: session.test.startTime,
             duration_time: session.test.durationTime,

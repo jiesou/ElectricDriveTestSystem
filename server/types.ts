@@ -39,7 +39,8 @@ export interface TestLog {
     question?: Question; // For start, navigation, answer
     trouble?: Trouble; // For answer
     result?: boolean; // For answer
-    direction?: "next" | "prev"; // For navigation
+    direction?: "next" | "prev"; // For navigation,
+    score?: number; // For finish
   };
 }
 
@@ -63,7 +64,7 @@ export interface InTestingMessage extends WSMessage {
   type: "in_testing";
   all_troubles: Trouble[];
   exist_troubles: Trouble[];
-  current_question: number;
+  current_question_index: number;
   total_questions: number;
   start_time: number;
   duration_time: number | null;
@@ -71,7 +72,7 @@ export interface InTestingMessage extends WSMessage {
 
 export interface AnswerMessage extends WSMessage {
   type: "answer";
-  trouble: Trouble;
+  trouble_id: number;
 }
 
 export interface AnswerResultMessage extends WSMessage {
@@ -90,6 +91,7 @@ export interface FinishMessage extends WSMessage {
 
 export interface FinishResultMessage extends WSMessage {
   type: "finish_result";
+  finished_score: number;
 }
 
 // Predefined troubles (hardcoded)

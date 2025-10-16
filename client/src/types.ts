@@ -28,13 +28,14 @@ export interface TestSession {
 }
 
 export interface TestLog {
-  timestamp: number; // seconds timestamp
-  action: 'start' | 'answer' | 'navigation' | 'finish' | 'connect' | 'disconnect';
+  timestamp: number;
+  action: "start" | "answer" | "navigation" | "finish" | "connect" | "disconnect";
   details: {
-    question?: Question;
-    trouble?: Trouble;
-    result?: boolean;
-    direction?: 'next' | 'prev';
+    question?: Question; // For start, navigation, answer
+    trouble?: Trouble; // For answer
+    result?: boolean; // For answer
+    direction?: "next" | "prev"; // For navigation,
+    score?: number; // For finish
   };
 }
 
