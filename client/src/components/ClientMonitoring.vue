@@ -93,6 +93,34 @@ onUnmounted(() => {
       <ClientTable />
     </Card>
 
+
+    <!-- 显示已结束的测验 -->
+    <div style="margin-top: 20px;" v-if="clients.filter(c => c.testSession && c.testSession.finishTime).length > 0">
+      <Card title="已结束的测验">
+        <div v-for="client in clients.filter(c => c.testSession && c.testSession.finishTime)"
+          :key="`finished-${client.id}`"
+          style="margin-bottom: 16px; padding: 12px; border: 1px solid #f0f0f0; border-radius: 6px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong>{{ client.name }} ({{ client.ip }})</strong>
+              <Tag :color="client.online ? 'green' : 'gray'" size="small" style="margin-left: 8px;">
+                {{ client.online ? '在线' : '离线' }}
+              </Tag>
+            </div>
+            <div style="text-align: right; font-size: 12px; color: #666;">
+            </div>
+          </div>
+          <div style="margin-top: 8px; font-size: 12px; color: #666;">
+            完成时间: {{ formatTime(client.testSession!.finishTime!) }} | 
+            用时: {{ Math.floor((client.testSession!.finishTime! - client.testSession!.test.startTime) / 60) }}分钟
+            <br>
+            分数: {{ client.testSession!.finishedScore }}
+            | 日志条数: {{ client.testSession!.logs.length }}
+          </div>
+        </div>
+      </Card>
+    </div>
+
     <div style="margin-top: 20px;" v-if="clients.filter(c => c.testSession).length > 0">
       <div v-for="client in clients.filter(c => c.testSession)" :key="client.id" style="margin-bottom: 20px;">
         <Card :title="`活跃测验详情 - ${client.name} (${client.ip})`">
@@ -108,15 +136,12 @@ onUnmounted(() => {
                 client.testSession.test.questions.length }} 题</p>
               <div v-if="client.testSession.logs && client.testSession.logs.length > 0">
                 <strong>测验日志</strong>
-                <Switch
-                  v-model:checked="showConnectionEvents"
-                  checked-children="显示连接变化"
-                  un-checked-children="隐藏连接变化"
-                  style="margin-left: 12px;"
-                />
+                <Switch v-model:checked="showConnectionEvents" checked-children="显示连接变化" un-checked-children="隐藏连接变化"
+                  style="margin-left: 12px;" />
                 <Timeline style="margin-top: 12px;">
-                  <Timeline.Item v-for="(log, index) in client.testSession.logs.filter(log => showConnectionEvents || (log.action !== 'connect' && log.action !== 'disconnect'))" :key="index"
-                    :color="getLogColor(log.action)">
+                  <Timeline.Item
+                    v-for="(log, index) in client.testSession.logs.filter(log => showConnectionEvents || (log.action !== 'connect' && log.action !== 'disconnect'))"
+                    :key="index" :color="getLogColor(log.action)">
                     <div>
                       <Tag :color="getLogColor(log.action)" size="small">
                         {{ log.action.toUpperCase() }}
@@ -140,7 +165,8 @@ onUnmounted(() => {
                       <div style="font-size: 12px; color: #666;">
                         {{ formatTime(log.timestamp) }}
                         <span v-if="index > 0">
-                          (经过 {{ (log.timestamp - client.testSession.logs.filter(l => showConnectionEvents || (l.action !== 'connect' && l.action !== 'disconnect'))[index - 1]!.timestamp) }} 秒)
+                          (经过 {{ (log.timestamp - client.testSession.logs.filter(l => showConnectionEvents || (l.action
+                          !== 'connect' && l.action !== 'disconnect'))[index - 1]!.timestamp) }} 秒)
                         </span>
                       </div>
                     </div>
@@ -154,31 +180,5 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- 显示已完成的测验 -->
-    <div style="margin-top: 20px;" v-if="clients.filter(c => c.testSession && c.testSession.finishTime).length > 0">
-      <Card title="已完成测验">
-        <div v-for="client in clients.filter(c => c.testSession && c.testSession.finishTime)"
-          :key="`finished-${client.id}`"
-          style="margin-bottom: 16px; padding: 12px; border: 1px solid #f0f0f0; border-radius: 6px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <strong>{{ client.name }} ({{ client.ip }})</strong>
-              <Tag :color="client.online ? 'green' : 'gray'" size="small" style="margin-left: 8px;">
-                {{ client.online ? '在线' : '离线' }}
-              </Tag>
-            </div>
-            <div style="text-align: right; font-size: 12px; color: #666;">
-              完成时间: {{ formatTime(client.testSession!.finishTime!) }}
-              <br>
-              用时: {{ Math.floor((client.testSession!.finishTime! - client.testSession!.test.startTime) / 60) }}分钟
-            </div>
-          </div>
-          <div style="margin-top: 8px; font-size: 12px; color: #666;">
-            题目进度: {{ client.testSession!.currentQuestionIndex + 1 }}/{{ client.testSession!.test.questions.length }}
-            | 日志条数: {{ client.testSession!.logs.length }}
-          </div>
-        </div>
-      </Card>
-    </div>
   </div>
 </template>

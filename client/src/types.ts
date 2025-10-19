@@ -22,7 +22,8 @@ export interface TestSession {
   id: string;
   test: Test; // Reference to the scheduled test
   currentQuestionIndex: number;
-  finishTime?: number; // timestamp when session finished (early finish or timeout)
+  finishTime?: number; // timestamp when session finished (is null if not finished)
+  finishedScore?: number; // final score after finishing the test (out of 100, is null if not finished)
   solvedTroubles: [number, Trouble[]][]; // Array of [questionIndex, solvedTroubles[]] pairs
   logs: TestLog[]; // activity logs
 }

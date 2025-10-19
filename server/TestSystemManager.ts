@@ -292,6 +292,8 @@ export class TestSystemManager {
     );
     const score = Math.round((solvedTroublesCount / totalTroublesCount) * 100);
 
+    session.finishedScore = score;
+
     // Log the finish
     session.logs.push({
       timestamp: finishTime,
