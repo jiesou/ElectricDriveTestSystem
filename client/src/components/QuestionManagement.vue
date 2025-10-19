@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, h } from 'vue'
-import { Table, Button, Modal, Form, Select, message, Space, Popconfirm, Tag } from 'ant-design-vue'
+import { Table, Button, Modal, Form, Select, message, Space, Tag } from 'ant-design-vue'
 import type { Trouble, Question } from '../types'
 
 const troubles = ref<Trouble[]>([])
