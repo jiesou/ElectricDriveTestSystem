@@ -342,12 +342,14 @@ function handleWebSocketMessage(
       const timestamp = typeof message.timestamp === "number"
         ? message.timestamp
         : undefined;
-      const finishedScore = manager.finishTest(client, timestamp); // 使用客户机传来的时间戳（如果有）标记结束时间
+      
+      const finishedScore = manager.finishTest(client, timestamp);
       safeSend(socket, {
         type: "finish_result",
         finished_score: finishedScore,
         timestamp: getSecondTimestamp(),
       } as FinishResultMessage);
+
       break;
     }
   }

@@ -1,6 +1,7 @@
 import {
   Client,
   InTestingMessage,
+  FinishResultMessage,
   Question,
   Test,
   TestSession,
@@ -10,7 +11,7 @@ import {
 import { getSecondTimestamp } from "./types.ts";
 
 export class TestSystemManager {
-  public clients: Record<string, Client> = {}; // Changed from Map to Record for persistence
+  public clients: Record<string, Client> = {};
   public tests: Test[] = [];
   private questionBank: Question[] = [
     {
@@ -58,7 +59,7 @@ export class TestSystemManager {
       }
     } catch {
       // 文件不存在或解析失败，使用默认值
-      console.log("No existing data.json, starting fresh");
+      console.log("未找到 data.json 数据库，自动使用全新默认数据");
     }
 
     this.startBroadcast();
@@ -256,7 +257,7 @@ export class TestSystemManager {
     if (newIndex >= 0 && newIndex < session.test.questions.length) {
       session.currentQuestionIndex = newIndex;
 
-      // Log the navigation
+      // log 记录
       session.logs.push({
         timestamp: getSecondTimestamp(),
         action: "navigation",
@@ -277,7 +278,8 @@ export class TestSystemManager {
 
     const session = client.testSession;
     const finishTime = timestamp || getSecondTimestamp();
-    session.finishTime = finishTime;
+    // 如果已经设置过结束时间，就保持原值（避免覆盖）
+    session.finishTime = session.finishTime || finishTime;
 
     // 计算得分
     const totalTroublesCount = session.test.questions.reduce(
@@ -298,62 +300,73 @@ export class TestSystemManager {
         score: score,
       },
     });
-
     return score;
   }
 
   private startBroadcast() {
     this.broadcastInterval = setInterval(() => {
       this.broadcastTroubleStatus();
-    }, 3000); // 1 seconds
+    }, 3000); // 轮查间隔
   }
 
   private broadcastTroubleStatus() {
     for (const [_clientId, client] of Object.entries(this.clients)) {
       if (!client.online) continue;
+      if (!client.testSession) continue;
+      if (!client.socket) continue;
+      if (!(client.socket.readyState === WebSocket.OPEN)) continue;
+      
+      const session = client.testSession;
+      const currentTime = getSecondTimestamp();
+
+      // 检查测试会话是否超时
       if (
-        client.testSession && client.socket &&
-        client.socket.readyState === WebSocket.OPEN
+        session.test.durationTime && !session.finishTime &&
+        currentTime >= session.test.startTime + session.test.durationTime
       ) {
-        const session = client.testSession;
-        const currentTime = getSecondTimestamp();
+        const timeoutTimestamp = session.test.startTime +
+          session.test.durationTime;
+        session.logs.push({
+          timestamp: currentTime,
+          action: "finish",
+          details: {},
+        });
 
-        // Check if session has timed out
-        if (
-          session.test.durationTime && !session.finishTime &&
-          currentTime >= session.test.startTime + session.test.durationTime
-        ) {
-          session.finishTime = session.test.startTime +
-            session.test.durationTime;
-          session.logs.push({
-            timestamp: getSecondTimestamp(),
-            action: "finish",
-            details: {},
-          });
-          this.finishTest(client, session.finishTime);
-          console.log(`Session timeout for client ${client.id}`);
+        const finishedScore = this.finishTest(client, timeoutTimestamp);
+
+        try {
+          client.socket.send(JSON.stringify({
+            type: "finish_result",
+            finished_score: finishedScore,
+            timestamp: currentTime,
+          } as FinishResultMessage));
+        } catch (error) {
+          console.error(`[broadcast] Failed to send timeout message to client ${client.id}:`, error);
         }
 
-        // Only broadcast if test has started and not finished
-        if (currentTime >= session.test.startTime && !session.finishTime) {
-          const remainingTroubles = this.getRemainingTroubles(session);
-          const message: InTestingMessage = {
-            type: "in_testing",
-            timestamp: getSecondTimestamp(),
-            all_troubles: session.test.questions[session.currentQuestionIndex].troubles,
-            exist_troubles: remainingTroubles,
-            current_question_index: session.currentQuestionIndex,
-            total_questions: session.test.questions.length,
-            start_time: session.test.startTime,
-            duration_time: session.test.durationTime,
-          };
+        console.log(`Session timeout for client ${client.id}`);
+      }
 
-          try {
-            client.socket.send(JSON.stringify(message));
-          } catch (error) {
-            console.error(`Failed to send to client ${client.id}:`, error);
-          }
-        }
+      // 只在测验进行中进行广播
+      if (session.finishTime) continue;
+      if (currentTime < session.test.startTime) continue;
+      
+      const remainingTroubles = this.getRemainingTroubles(session);
+      const message: InTestingMessage = {
+        type: "in_testing",
+        timestamp: currentTime,
+        all_troubles: session.test.questions[session.currentQuestionIndex].troubles,
+        exist_troubles: remainingTroubles,
+        current_question_index: session.currentQuestionIndex,
+        total_questions: session.test.questions.length,
+        start_time: session.test.startTime,
+        duration_time: session.test.durationTime,
+      };
+
+      try {
+        client.socket.send(JSON.stringify(message));
+      } catch (error) {
+        console.error(`[broadcast] Failed to send WebSocket message to client ${client.id}:`, error);
       }
     }
   }
