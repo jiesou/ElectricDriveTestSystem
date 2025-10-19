@@ -172,7 +172,7 @@ const testColumns = [
     key: 'questions',
     customRender: ({ record }: { record: Test }) => {
       return record.questions.map((question: Question) =>
-        h(Tag, () => `题目${question.id}`)
+      h(Tag, () => `题目${question.id}: ${question.troubles.map(trouble => trouble.description).join(', ')}`)
       )
     }
   },
@@ -232,21 +232,27 @@ onMounted(() => {
     <Modal v-model:open="createTestModalVisible" title="创建测验" @ok="handleCreateTest" width="600px">
       <Form layout="vertical">
         <Form.Item label="选择客户机" required>
-          <Select v-model:value="formState.clientIds" mode="multiple" placeholder="请选择目标客户机" style="width: 100%">
-            <Select.Option v-for="client in clients" :key="client.id" :value="client.id">
-              {{ client.name }} ({{ client.ip }})
-              <Tag v-if="!client.online" color="red" size="small">离线</Tag>
-              <Tag v-else-if="client.testSession" color="blue" size="small">进行中</Tag>
-              <Tag v-else color="green" size="small">可用</Tag>
-            </Select.Option>
-          </Select>
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+            <Select v-model:value="formState.clientIds" mode="multiple" placeholder="请选择目标客户机" style="width: 100%">
+              <Select.Option v-for="client in clients" :key="client.id" :value="client.id">
+          {{ client.name }} ({{ client.ip }})
+          <Tag v-if="!client.online" color="red" size="small">离线</Tag>
+          <Tag v-else-if="client.testSession?.finishTime" color="green" size="small">已结束</Tag>
+          <Tag v-else-if="client.testSession" color="blue" size="small">进行中</Tag>
+          <Tag v-else color="green" size="small">可用</Tag>
+              </Select.Option>
+            </Select>
+            <Button type="link" @click="formState.clientIds = clients.map(client => client.id)">
+              全选
+            </Button>
+          </div>
         </Form.Item>
 
         <Form.Item label="选择题目" required>
           <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
             <Select v-model:value="formState.questionIds" mode="multiple" placeholder="请选择测验题目" style="width: 100%">
               <Select.Option v-for="question in questions" :key="question.id" :value="question.id">
-                题目 {{ question.id }} ({{ question.troubles.length }} 个故障)
+                {{ question.id }}: {{ question.troubles.map(trouble => trouble.description).join(', ') }}
               </Select.Option>
             </Select>
             <Button type="link" @click="openQuestionManagementModal">
@@ -287,13 +293,8 @@ onMounted(() => {
     </Modal>
 
     <!-- Question Management Modal -->
-    <Modal 
-      v-model:open="questionManagementModalVisible" 
-      title="题库管理" 
-      width="800px"
-      :footer="null"
-      @cancel="handleQuestionManagementClose"
-    >
+    <Modal v-model:open="questionManagementModalVisible" title="题库管理" width="800px" :footer="null"
+      @cancel="handleQuestionManagementClose">
       <QuestionManagement ref="questionManagementRef" />
     </Modal>
   </div>

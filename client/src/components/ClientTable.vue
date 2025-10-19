@@ -73,14 +73,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <Table 
-    :dataSource="clients" 
-    :columns="columns" 
-    :loading="loading" 
-    size="middle"
-    rowKey="id" 
-    :pagination="false"
-  >
+  <Table :dataSource="clients" :columns="columns" :loading="loading" size="middle" rowKey="id" :pagination="false">
     <template #bodyCell="{ column, record }">
       <template v-if="column.key === 'online'">
         <Tag :color="record.online ? 'green' : 'red'">
@@ -89,14 +82,12 @@ onUnmounted(() => {
       </template>
 
       <template v-if="column.key === 'testStatus'">
-        <Tag :color="record.testSession ? (record.testSession.finishTime ? 'red' : 'blue') : 'default'">
-          {{ record.testSession ? (record.testSession.finishTime ? '已结束' : '进行中') : '空闲' }}
-        </Tag>
+        <Tag v-if="!record.online" color="red" size="small">离线</Tag>
+        <Tag v-else-if="record.testSession?.finishTime" color="green" size="small">已结束</Tag>
+        <Tag v-else-if="record.testSession" color="blue" size="small">进行中</Tag>
+        <Tag v-else color="green" size="small">可用</Tag>
         <div v-if="record.testSession" style="margin-top: 4px; font-size: 12px; color: #666;">
           第 {{ record.testSession.currentQuestionIndex + 1 }}/{{ record.testSession.test.questions.length }} 题
-          <span v-if="record.testSession.test.durationTime">
-            (限时{{ Math.floor(record.testSession.test.durationTime / 60) }}分钟)
-          </span>
         </div>
       </template>
     </template>

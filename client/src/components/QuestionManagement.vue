@@ -187,11 +187,9 @@ defineExpose({
                         <Button type="link" size="small" @click="openEditModal(record as Question)">
                             编辑
                         </Button>
-                        <Popconfirm title="确定要删除这个题目吗？" @confirm="handleDelete(record.id)">
-                            <Button type="link" size="small" danger>
-                                删除
-                            </Button>
-                        </Popconfirm>
+                        <Button type="link" size="small" danger @click="handleDelete(record.id)">
+                            删除
+                        </Button>
                     </Space>
                 </template>
             </template>
