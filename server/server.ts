@@ -1,7 +1,7 @@
 import { Application, Router } from "@oak/oak";
 import { Client, getSecondTimestamp, AnswerResultMessage, FinishResultMessage, TROUBLES } from "./types.ts";
 import { TestSystemManager } from "./TestSystemManager.ts";
-import { buildPrompt, streamGenerate } from "./generator.ts";
+import { createGeneratorRouter } from "./generator.ts";
 
 const app = new Application();
 const manager = new TestSystemManager();
@@ -287,68 +287,8 @@ apiRouter.get("/status", (ctx) => {
   };
 });
 
-// Generator API routes
-const generatorRouter = new Router({ prefix: "/api/generator" });
-
-generatorRouter.post("/analyze", async (ctx) => {
-  try {
-    const body = await ctx.request.body.json();
-    const { clientIds } = body;
-
-    if (!Array.isArray(clientIds) || clientIds.length === 0) {
-      ctx.response.status = 400;
-      ctx.response.body = { success: false, error: "Invalid clientIds array" };
-      return;
-    }
-
-    // Find clients and validate they have test sessions
-    const clients = clientIds
-      .map((id) => manager.clients[id])
-      .filter((client) => client && client.testSession);
-
-    if (clients.length === 0) {
-      ctx.response.status = 404;
-      ctx.response.body = {
-        success: false,
-        error: "No clients found with test sessions",
-      };
-      return;
-    }
-
-    // Build prompt and stream response
-    const prompt = buildPrompt(clients);
-
-    // Set up SSE headers
-    ctx.response.headers.set("Content-Type", "text/event-stream");
-    ctx.response.headers.set("Cache-Control", "no-cache");
-    ctx.response.headers.set("Connection", "keep-alive");
-
-    const stream = new ReadableStream({
-      async start(controller) {
-        const encoder = new TextEncoder();
-        try {
-          for await (const chunk of streamGenerate(prompt)) {
-            const data = `data: ${JSON.stringify({ content: chunk })}\n\n`;
-            controller.enqueue(encoder.encode(data));
-          }
-          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-        } catch (error) {
-          console.error("Streaming error:", error);
-          const errorData = `data: ${JSON.stringify({ error: String(error) })}\n\n`;
-          controller.enqueue(encoder.encode(errorData));
-        } finally {
-          controller.close();
-        }
-      },
-    });
-
-    ctx.response.body = stream;
-  } catch (error) {
-    console.error("Generator API error:", error);
-    ctx.response.status = 500;
-    ctx.response.body = { success: false, error: "Internal server error" };
-  }
-});
+// Generator API routes (now created from generator.ts module)
+const generatorRouter = createGeneratorRouter(manager);
 
 // Health check
 const healthRouter = new Router();

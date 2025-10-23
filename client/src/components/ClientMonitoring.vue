@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { Card, Popconfirm, Button, Tag, Timeline, Switch, Modal, Spin } from 'ant-design-vue'
+import { Card, Popconfirm, Button, Tag, Timeline, Switch } from 'ant-design-vue'
 import type { Client } from '../types'
 import ClientTable from './ClientTable.vue'
+import AIAnalysisModal from './AIAnalysisModal.vue'
 
 const clients = ref<Client[]>([])
 const loading = ref(false)
 const refreshTimer = ref<number | null>(null)
 const showConnectionEvents = ref(false)
 const aiAnalysisModal = ref(false)
-const aiAnalysisContent = ref('')
-const aiAnalysisLoading = ref(false)
+const currentAnalysisClientId = ref<string | undefined>(undefined)
 
 async function fetchClients() {
   try {
@@ -73,66 +73,9 @@ function handleForgetClients() {
     })
 }
 
-async function handleAIAnalysis(clientId: string) {
+function handleAIAnalysis(clientId: string) {
+  currentAnalysisClientId.value = clientId
   aiAnalysisModal.value = true
-  aiAnalysisContent.value = ''
-  aiAnalysisLoading.value = true
-
-  try {
-    const response = await fetch('/api/generator/analyze', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        clientIds: [clientId],
-      }),
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    const reader = response.body?.getReader()
-    if (!reader) {
-      throw new Error('无法读取响应流')
-    }
-
-    const decoder = new TextDecoder()
-    let buffer = ''
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
-
-      for (const line of lines) {
-        const trimmed = line.trim()
-        if (!trimmed || trimmed === 'data: [DONE]') continue
-
-        if (trimmed.startsWith('data: ')) {
-          try {
-            const json = JSON.parse(trimmed.slice(6))
-            if (json.content) {
-              aiAnalysisContent.value += json.content
-            } else if (json.error) {
-              aiAnalysisContent.value += `\n\n错误: ${json.error}`
-            }
-          } catch (e) {
-            console.error('Failed to parse SSE data:', e)
-          }
-        }
-      }
-    }
-  } catch (error) {
-    console.error('AI analysis error:', error)
-    aiAnalysisContent.value = `分析失败: ${error}`
-  } finally {
-    aiAnalysisLoading.value = false
-  }
 }
 
 onMounted(() => {
@@ -190,20 +133,10 @@ onUnmounted(() => {
     </div>
 
     <!-- AI 分析结果模态框 -->
-    <Modal
-      v-model:open="aiAnalysisModal"
-      title="大模型汇总分析"
-      width="800px"
-      :footer="null"
-    >
-      <div v-if="aiAnalysisLoading" style="text-align: center; padding: 40px;">
-        <Spin size="large" />
-        <p style="margin-top: 16px; color: #666;">AI 正在分析中，请稍候...</p>
-      </div>
-      <div v-else style="white-space: pre-wrap; line-height: 1.6; max-height: 600px; overflow-y: auto;">
-        {{ aiAnalysisContent }}
-      </div>
-    </Modal>
+    <AIAnalysisModal 
+      v-model:open="aiAnalysisModal" 
+      :client-id="currentAnalysisClientId"
+    />
 
     <div style="margin-top: 20px;" v-if="clients.filter(c => c.testSession).length > 0">
       <div v-for="client in clients.filter(c => c.testSession)" :key="client.id" style="margin-bottom: 20px;">

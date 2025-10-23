@@ -6,6 +6,7 @@
     "npm:@vue/tsconfig@~0.8.1": "0.8.1_typescript@5.8.3_vue@3.5.21__typescript@5.8.3",
     "npm:ant-design-vue@^4.2.6": "4.2.6_vue@3.5.21__typescript@5.8.3_typescript@5.8.3",
     "npm:dayjs@^1.11.10": "1.11.18",
+    "npm:marked@12": "12.0.2",
     "npm:typescript@~5.8.3": "5.8.3",
     "npm:vite@^7.1.7": "7.1.7_picomatch@4.0.3",
     "npm:vue-tsc@^3.0.7": "3.0.8_typescript@5.8.3",
@@ -589,6 +590,10 @@
         "@jridgewell/sourcemap-codec"
       ]
     },
+    "marked@12.0.2": {
+      "integrity": "sha512-qXUm7e/YKFoqFPYPa3Ukg9xlI5cyAtGmyEIzMfW//m6kXwCy2Ps9DYf5ioijFKQ8qyuscrHoY04iJGctu2Kg0Q==",
+      "bin": true
+    },
     "muggle-string@0.4.1": {
       "integrity": "sha512-VNTrAak/KhO2i8dqqnqnAHOa3cYBwXEZe9h+D5h/1ZqFSTEFHdM65lR7RoIqq3tBBYavsOXV84NoHXZ0AkPyqQ=="
     },
@@ -743,6 +748,7 @@
         "npm:@vue/tsconfig@~0.8.1",
         "npm:ant-design-vue@^4.2.6",
         "npm:dayjs@^1.11.10",
+        "npm:marked@12",
         "npm:typescript@~5.8.3",
         "npm:vite@^7.1.7",
         "npm:vue-tsc@^3.0.7",
