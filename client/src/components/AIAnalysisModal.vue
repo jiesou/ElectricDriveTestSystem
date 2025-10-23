@@ -65,25 +65,26 @@ async function handleAIAnalysis(clientId: string) {
 
       for (const line of lines) {
         const trimmed = line.trim()
-        if (!trimmed || trimmed === 'data: [DONE]') continue
+        if (!trimmed) continue
 
-        if (trimmed.startsWith('data: ')) {
-          try {
-            const json = JSON.parse(trimmed.slice(6))
-            if (json.content) {
-              aiAnalysisContent.value += json.content
-              // Set loading to false when first content arrives
-              if (!firstContentReceived) {
-                aiAnalysisLoading.value = false
-                firstContentReceived = true
-              }
-            } else if (json.error) {
-              aiAnalysisContent.value += `\n\n错误: ${json.error}`
+        try {
+          const json = JSON.parse(trimmed)
+          if (json.content) {
+            aiAnalysisContent.value += json.content
+            // Set loading to false when first content arrives
+            if (!firstContentReceived) {
               aiAnalysisLoading.value = false
+              firstContentReceived = true
             }
-          } catch (e) {
-            console.error('Failed to parse SSE data:', e)
+          } else if (json.error) {
+            aiAnalysisContent.value += `\n\n错误: ${json.error}`
+            aiAnalysisLoading.value = false
+          } else if (json.done) {
+            // Stream completed
+            break
           }
+        } catch (e) {
+          console.error('Failed to parse JSON:', e, trimmed)
         }
       }
     }

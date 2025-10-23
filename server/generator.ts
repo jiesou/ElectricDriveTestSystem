@@ -1,6 +1,9 @@
 import { Client, TestLog, Question } from "./types.ts";
 import { Router } from "@oak/oak";
-import type { TestSystemManager } from "./TestSystemManager.ts";
+import { TestSystemManager } from "./TestSystemManager.ts";
+
+// Create singleton manager instance
+export const manager = new TestSystemManager();
 
 interface OpenAIConfig {
   apiKey: string;
@@ -192,7 +195,7 @@ export async function* streamGenerate(prompt: string): AsyncGenerator<string> {
 }
 
 // Create and export the generator router
-export function createGeneratorRouter(manager: TestSystemManager): Router {
+export function createGeneratorRouter(): Router {
   const generatorRouter = new Router({ prefix: "/api/generator" });
 
   generatorRouter.post("/analyze", async (ctx) => {
@@ -233,14 +236,12 @@ export function createGeneratorRouter(manager: TestSystemManager): Router {
           const encoder = new TextEncoder();
           try {
             for await (const chunk of streamGenerate(prompt)) {
-              const data = `data: ${JSON.stringify({ content: chunk })}\n\n`;
-              controller.enqueue(encoder.encode(data));
+              controller.enqueue(encoder.encode(JSON.stringify({ content: chunk }) + "\n\n"));
             }
-            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+            controller.enqueue(encoder.encode(JSON.stringify({ done: true }) + "\n\n"));
           } catch (error) {
             console.error("Streaming error:", error);
-            const errorData = `data: ${JSON.stringify({ error: String(error) })}\n\n`;
-            controller.enqueue(encoder.encode(errorData));
+            controller.enqueue(encoder.encode(JSON.stringify({ error: String(error) }) + "\n\n"));
           } finally {
             controller.close();
           }

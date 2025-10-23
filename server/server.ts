@@ -1,10 +1,8 @@
 import { Application, Router } from "@oak/oak";
 import { Client, getSecondTimestamp, AnswerResultMessage, FinishResultMessage, TROUBLES } from "./types.ts";
-import { TestSystemManager } from "./TestSystemManager.ts";
-import { createGeneratorRouter } from "./generator.ts";
+import { manager, createGeneratorRouter } from "./generator.ts";
 
 const app = new Application();
-const manager = new TestSystemManager();
 
 // Error handling middleware
 app.use(async (ctx, next) => {
@@ -287,8 +285,8 @@ apiRouter.get("/status", (ctx) => {
   };
 });
 
-// Generator API routes (now created from generator.ts module)
-const generatorRouter = createGeneratorRouter(manager);
+// Generator API routes (now created from generator.ts module with singleton manager)
+const generatorRouter = createGeneratorRouter();
 
 // Health check
 const healthRouter = new Router();
@@ -328,7 +326,7 @@ function safeSend(socket: WebSocket, message: Record<string, unknown>) {
 }
 
 function handleWebSocketMessage(
-  manager: TestSystemManager,
+  mgr: typeof manager,
   client: Client,
   socket: WebSocket,
   message: Record<string, unknown>,
@@ -356,7 +354,7 @@ function handleWebSocketMessage(
         });
         return;
       }
-      const isCorrect = manager.handleAnswer(client, trouble);
+      const isCorrect = mgr.handleAnswer(client, trouble);
       safeSend(socket, {
         type: "answer_result",
         timestamp: getSecondTimestamp(),
@@ -369,7 +367,7 @@ function handleWebSocketMessage(
     case "next_question":
     case "last_question": {
       const direction = message.type === "next_question" ? "next" : "prev";
-      manager.navigateQuestion(client, direction);
+      mgr.navigateQuestion(client, direction);
       break;
     }
 
@@ -378,7 +376,7 @@ function handleWebSocketMessage(
         ? message.timestamp
         : undefined;
       
-      const finishedScore = manager.finishTest(client, timestamp);
+      const finishedScore = mgr.finishTest(client, timestamp);
       safeSend(socket, {
         type: "finish_result",
         finished_score: finishedScore,
