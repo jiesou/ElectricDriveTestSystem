@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "dev": "deno run -A --watch main.ts",
+    "dev": "deno run -A --env-file --watch main.ts",
     "start": "deno run -A main.ts",
     "build": "deno compile -A --target x86_64-pc-windows-msvc main.ts"
   },

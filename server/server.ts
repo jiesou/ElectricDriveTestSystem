@@ -1,9 +1,9 @@
 import { Application, Router } from "@oak/oak";
 import { Client, getSecondTimestamp, AnswerResultMessage, FinishResultMessage, TROUBLES } from "./types.ts";
-import { TestSystemManager } from "./TestSystemManager.ts";
+import { manager } from "./TestSystemManager.ts";
+import { generatorRouter } from "./generator.ts";
 
 const app = new Application();
-const manager = new TestSystemManager();
 
 // Error handling middleware
 app.use(async (ctx, next) => {
@@ -308,6 +308,8 @@ app.use(async (ctx, next) => {
 app.use(wsRouter.routes());
 app.use(apiRouter.routes());
 app.use(apiRouter.allowedMethods());
+apiRouter.use(generatorRouter.routes());
+apiRouter.use(generatorRouter.allowedMethods());
 app.use(healthRouter.routes());
 
 // Helper function to safely send WebSocket messages
@@ -322,7 +324,7 @@ function safeSend(socket: WebSocket, message: Record<string, unknown>) {
 }
 
 function handleWebSocketMessage(
-  manager: TestSystemManager,
+  mgr: typeof manager,
   client: Client,
   socket: WebSocket,
   message: Record<string, unknown>,
@@ -350,7 +352,7 @@ function handleWebSocketMessage(
         });
         return;
       }
-      const isCorrect = manager.handleAnswer(client, trouble);
+      const isCorrect = mgr.handleAnswer(client, trouble);
       safeSend(socket, {
         type: "answer_result",
         timestamp: getSecondTimestamp(),
@@ -363,7 +365,7 @@ function handleWebSocketMessage(
     case "next_question":
     case "last_question": {
       const direction = message.type === "next_question" ? "next" : "prev";
-      manager.navigateQuestion(client, direction);
+      mgr.navigateQuestion(client, direction);
       break;
     }
 
@@ -372,7 +374,7 @@ function handleWebSocketMessage(
         ? message.timestamp
         : undefined;
       
-      const finishedScore = manager.finishTest(client, timestamp);
+      const finishedScore = mgr.finishTest(client, timestamp);
       safeSend(socket, {
         type: "finish_result",
         finished_score: finishedScore,

@@ -3,11 +3,14 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { Card, Popconfirm, Button, Tag, Timeline, Switch } from 'ant-design-vue'
 import type { Client } from '../types'
 import ClientTable from './ClientTable.vue'
+import AIAnalysisModal from './AIAnalysisModal.vue'
 
 const clients = ref<Client[]>([])
 const loading = ref(false)
 const refreshTimer = ref<number | null>(null)
 const showConnectionEvents = ref(false)
+const aiAnalysisModal = ref(false)
+const currentAnalysisClientId = ref<string | undefined>(undefined)
 
 async function fetchClients() {
   try {
@@ -70,6 +73,11 @@ function handleForgetClients() {
     })
 }
 
+function handleAIAnalysis(clientId: string) {
+  currentAnalysisClientId.value = clientId
+  aiAnalysisModal.value = true
+}
+
 onMounted(() => {
   fetchClients()
   startAutoRefresh()
@@ -107,7 +115,10 @@ onUnmounted(() => {
                 {{ client.online ? '在线' : '离线' }}
               </Tag>
             </div>
-            <div style="text-align: right; font-size: 12px; color: #666;">
+            <div style="text-align: right;">
+              <Button type="primary" size="small" @click="handleAIAnalysis(client.id)">
+                大模型汇总分析
+              </Button>
             </div>
           </div>
           <div style="margin-top: 8px; font-size: 12px; color: #666;">
@@ -120,6 +131,12 @@ onUnmounted(() => {
         </div>
       </Card>
     </div>
+
+    <!-- AI 分析结果模态框 -->
+    <AIAnalysisModal 
+      v-model:open="aiAnalysisModal" 
+      :client-id="currentAnalysisClientId"
+    />
 
     <div style="margin-top: 20px;" v-if="clients.filter(c => c.testSession).length > 0">
       <div v-for="client in clients.filter(c => c.testSession)" :key="client.id" style="margin-bottom: 20px;">
