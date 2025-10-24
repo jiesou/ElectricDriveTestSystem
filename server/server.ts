@@ -1,6 +1,7 @@
 import { Application, Router } from "@oak/oak";
 import { Client, getSecondTimestamp, AnswerResultMessage, FinishResultMessage, TROUBLES } from "./types.ts";
-import { manager, createGeneratorRouter } from "./generator.ts";
+import { manager } from "./TestSystemManager.ts";
+import { generatorRouter } from "./generator.ts";
 
 const app = new Application();
 
@@ -285,9 +286,6 @@ apiRouter.get("/status", (ctx) => {
   };
 });
 
-// Generator API routes (now created from generator.ts module with singleton manager)
-const generatorRouter = createGeneratorRouter();
-
 // Health check
 const healthRouter = new Router();
 healthRouter.get("/health", (ctx) => {
@@ -310,8 +308,8 @@ app.use(async (ctx, next) => {
 app.use(wsRouter.routes());
 app.use(apiRouter.routes());
 app.use(apiRouter.allowedMethods());
-app.use(generatorRouter.routes());
-app.use(generatorRouter.allowedMethods());
+apiRouter.use(generatorRouter.routes());
+apiRouter.use(generatorRouter.allowedMethods());
 app.use(healthRouter.routes());
 
 // Helper function to safely send WebSocket messages

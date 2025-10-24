@@ -1,9 +1,6 @@
 import { Client, TestLog, Question } from "./types.ts";
 import { Router } from "@oak/oak";
-import { TestSystemManager } from "./TestSystemManager.ts";
-
-// Create singleton manager instance
-export const manager = new TestSystemManager();
+import { manager } from "./TestSystemManager.ts";
 
 interface OpenAIConfig {
   apiKey: string;
@@ -49,7 +46,7 @@ function formatLogEntry(log: TestLog, index: number): string {
   return `${index + 1}. [${time}] ${log.action.toUpperCase()}: ${detail}`;
 }
 
-export function buildPrompt(clients: Client[]): string {
+function buildPrompt(clients: Client[]): string {
   const markdown: string[] = [];
   
   markdown.push("# 电力拖动测试系统 - 测验结果分析\n");
@@ -115,12 +112,11 @@ export function buildPrompt(clients: Client[]): string {
   markdown.push("2. 操作效率分析（答题速度、错误率等）");
   markdown.push("3. 知识点掌握情况（哪些故障类型容易出错）");
   markdown.push("4. 改进建议");
-  markdown.push("5. 如果有多位学生，可以进行横向对比");
   
   return markdown.join("\n");
 }
 
-export async function* streamGenerate(prompt: string): AsyncGenerator<string> {
+async function* streamGenerate(prompt: string): AsyncGenerator<string> {
   const config = getOpenAIConfig();
   
   if (!config.apiKey) {
@@ -194,67 +190,62 @@ export async function* streamGenerate(prompt: string): AsyncGenerator<string> {
   }
 }
 
-// Create and export the generator router
-export function createGeneratorRouter(): Router {
-  const generatorRouter = new Router({ prefix: "/api/generator" });
+export const generatorRouter = new Router({ prefix: "/generator" });
 
-  generatorRouter.post("/analyze", async (ctx) => {
-    try {
-      const body = await ctx.request.body.json();
-      const { clientIds } = body;
+generatorRouter.post("/analyze", async (ctx) => {
+  try {
+    const body = await ctx.request.body.json();
+    const { clientIds } = body;
 
-      if (!Array.isArray(clientIds) || clientIds.length === 0) {
-        ctx.response.status = 400;
-        ctx.response.body = { success: false, error: "Invalid clientIds array" };
-        return;
-      }
-
-      // Find clients and validate they have test sessions
-      const clients = clientIds
-        .map((id) => manager.clients[id])
-        .filter((client) => client && client.testSession);
-
-      if (clients.length === 0) {
-        ctx.response.status = 404;
-        ctx.response.body = {
-          success: false,
-          error: "No clients found with test sessions",
-        };
-        return;
-      }
-
-      // Build prompt and stream response
-      const prompt = buildPrompt(clients);
-
-      // Set up SSE headers
-      ctx.response.headers.set("Content-Type", "text/event-stream");
-      ctx.response.headers.set("Cache-Control", "no-cache");
-      ctx.response.headers.set("Connection", "keep-alive");
-
-      const stream = new ReadableStream({
-        async start(controller) {
-          const encoder = new TextEncoder();
-          try {
-            for await (const chunk of streamGenerate(prompt)) {
-              controller.enqueue(encoder.encode(JSON.stringify({ content: chunk }) + "\n\n"));
-            }
-            controller.enqueue(encoder.encode(JSON.stringify({ done: true }) + "\n\n"));
-          } catch (error) {
-            console.error("Streaming error:", error);
-            controller.enqueue(encoder.encode(JSON.stringify({ error: String(error) }) + "\n\n"));
-          } finally {
-            controller.close();
-          }
-        },
-      });
-
-      ctx.response.body = stream;
-    } catch (error) {
-      console.error("Generator API error:", error);
-      ctx.response.status = 500;
-      ctx.response.body = { success: false, error: "Internal server error" };
+    if (!Array.isArray(clientIds) || clientIds.length === 0) {
+      ctx.response.status = 400;
+      ctx.response.body = { success: false, error: "Invalid clientIds array" };
+      return;
     }
-  });
 
-  return generatorRouter;
-}
+    // Find clients and validate they have test sessions
+    const clients = clientIds
+      .map((id) => manager.clients[id])
+      .filter((client) => client && client.testSession);
+
+    if (clients.length === 0) {
+      ctx.response.status = 404;
+      ctx.response.body = {
+        success: false,
+        error: "No clients found with test sessions",
+      };
+      return;
+    }
+
+    // Build prompt and stream response
+    const prompt = buildPrompt(clients);
+
+    // Set up SSE headers
+    ctx.response.headers.set("Content-Type", "text/event-stream");
+    ctx.response.headers.set("Cache-Control", "no-cache");
+    ctx.response.headers.set("Connection", "keep-alive");
+
+    const stream = new ReadableStream({
+      async start(controller) {
+        const encoder = new TextEncoder();
+        try {
+          for await (const chunk of streamGenerate(prompt)) {
+            controller.enqueue(encoder.encode(JSON.stringify({ content: chunk }) + "\n\n"));
+          }
+          controller.enqueue(encoder.encode(JSON.stringify({ done: true }) + "\n\n"));
+        } catch (error) {
+          console.error("Streaming error:", error);
+          controller.enqueue(encoder.encode(JSON.stringify({ error: String(error) }) + "\n\n"));
+        } finally {
+          controller.close();
+        }
+      },
+    });
+
+    ctx.response.body = stream;
+  } catch (error) {
+    console.error("Generator API error:", error);
+    ctx.response.status = 500;
+    ctx.response.body = { success: false, error: "Internal server error" };
+  }
+});
