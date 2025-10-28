@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { Modal, Skeleton } from 'ant-design-vue'
+import { Modal, Skeleton, Spin } from 'ant-design-vue'
 import { marked } from 'marked'
 
 interface Props {
@@ -13,8 +13,10 @@ const emit = defineEmits<{
   (e: 'update:open', value: boolean): void
 }>()
 
-const aiAnalysisContent = ref('')
-const aiAnalysisLoading = ref(false)
+const aiAnalysisContentMarkdown = ref('')
+const aiAnalysisLoading = ref(true)
+let abortController: AbortController | null = null
+
 
 // Watch for modal open/close
 watch(() => props.open, (newVal) => {
@@ -22,13 +24,24 @@ watch(() => props.open, (newVal) => {
     handleAIAnalysis(props.clientId)
   } else if (!newVal) {
     // Reset state when modal closes
-    aiAnalysisContent.value = ''
-    aiAnalysisLoading.value = false
+    if (abortController) {
+      abortController.abort()
+      abortController = null
+    }
+    aiAnalysisContentMarkdown.value = ''
+    aiAnalysisLoading.value = true
   }
 })
 
+
 async function handleAIAnalysis(clientId: string) {
-  aiAnalysisContent.value = ''
+  // Cancel previous request if any
+  if (abortController) {
+    abortController.abort()
+  }
+
+  abortController = new AbortController()
+  aiAnalysisContentMarkdown.value = ''
   aiAnalysisLoading.value = true
 
   try {
@@ -40,6 +53,7 @@ async function handleAIAnalysis(clientId: string) {
       body: JSON.stringify({
         clientIds: [clientId],
       }),
+      signal: abortController.signal,
     })
 
     if (!response.ok) {
@@ -53,76 +67,60 @@ async function handleAIAnalysis(clientId: string) {
 
     const decoder = new TextDecoder()
     let buffer = ''
-    let firstContentReceived = false
 
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
 
       buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
 
-      for (const line of lines) {
-        const trimmed = line.trim()
-        if (!trimmed) continue
-
-        try {
-          const json = JSON.parse(trimmed)
-          if (json.content) {
-            aiAnalysisContent.value += json.content
-            // Set loading to false when first content arrives
-            if (!firstContentReceived) {
-              aiAnalysisLoading.value = false
-              firstContentReceived = true
-            }
-          } else if (json.error) {
-            aiAnalysisContent.value += `\n\n错误: ${json.error}`
-            aiAnalysisLoading.value = false
-          } else if (json.done) {
-            // Stream completed
-            break
-          }
-        } catch (e) {
-          console.error('Failed to parse JSON:', e, trimmed)
-        }
-      }
+      if (!buffer) continue
+      aiAnalysisContentMarkdown.value = buffer
+      // 首个内容到达时，即可停止加载状态
+      aiAnalysisLoading.value = false
     }
   } catch (error) {
+    // 忽略被取消的请求错误
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.log('AI analysis request cancelled')
+      return
+    }
     console.error('AI analysis error:', error)
-    aiAnalysisContent.value = `分析失败: ${error}`
+    aiAnalysisContentMarkdown.value = `分析失败: ${error}`
     aiAnalysisLoading.value = false
   }
 }
 
 function handleClose() {
+  if (abortController) {
+    abortController.abort()
+    abortController = null
+  }
   emit('update:open', false)
-}
-
-// Convert markdown to HTML
-function getRenderedContent() {
-  if (!aiAnalysisContent.value) return ''
-  return marked(aiAnalysisContent.value)
 }
 </script>
 
 <template>
-  <Modal
-    :open="open"
-    title="大模型汇总分析"
-    width="800px"
-    :footer="null"
-    @cancel="handleClose"
-  >
-    <div v-if="aiAnalysisLoading" style="padding: 40px 0;">
-      <Skeleton active :paragraph="{ rows: 8 }" />
+  <Modal :open="open" title="大模型汇总分析" width="800px" :footer="null" @cancel="handleClose">
+    <div v-if="aiAnalysisLoading" style="padding: 40px 0; text-align: center;">
+      <Spin size="large">
+        <template #tip>
+          <div class="ai-tip-rotator" aria-hidden="true">
+            <span class="rotitem">AI 深度思考中…</span>
+            <span class="rotitem">线路连接重置中…</span>
+            <span class="rotitem">知识联系挖掘中…</span>
+            <span class="rotitem">答题行为汇总中…</span>
+            <span class="rotitem">学生思维推演中…</span>
+            <span class="rotitem">深度报告呈现中…</span>
+            <!-- 头尾无缝衔接 -->
+            <span class="rotitem">AI 深度思考中…</span>
+          </div>
+        </template>
+        <Skeleton active :paragraph="{ rows: 8 }" />
+      </Spin>
     </div>
-    <div 
-      v-else 
-      v-html="getRenderedContent()"
-      style="line-height: 1.6; max-height: 600px; overflow-y: auto;"
-      class="markdown-content"
-    />
+    <div v-else v-html="marked(aiAnalysisContentMarkdown)" style="max-height: 75vh; overflow-y: auto;"
+      class="markdown-content" />
   </Modal>
 </template>
 
@@ -159,7 +157,8 @@ function getRenderedContent() {
   margin-bottom: 0.8em;
 }
 
-.markdown-content :deep(ul), .markdown-content :deep(ol) {
+.markdown-content :deep(ul),
+.markdown-content :deep(ol) {
   margin-left: 1.5em;
   margin-bottom: 0.8em;
 }
@@ -196,5 +195,35 @@ function getRenderedContent() {
   padding-left: 1em;
   margin-left: 0;
   color: #666;
+}
+
+
+/* 轮换文字 */
+.ai-tip-rotator {
+  height: 0.95em;
+  line-height: 1em;
+  margin-top: 16px;
+  font-size: 3em; 
+  overflow: hidden;
+}
+
+.ai-tip-rotator .rotitem {
+  display: block;
+  animation: scroll-up 16s ease-out infinite;
+}
+
+@keyframes scroll-up {
+  0%, 12.5% { transform: translateY(0); }
+  14.28% { transform: translateY(-100%); }
+  26.78%, 28.56% { transform: translateY(-100%); }
+  30.56% { transform: translateY(-200%); }
+  43.06%, 44.84% { transform: translateY(-200%); }
+  46.84% { transform: translateY(-300%); }
+  59.34%, 61.12% { transform: translateY(-300%); }
+  63.12% { transform: translateY(-400%); }
+  75.62%, 77.4% { transform: translateY(-400%); }
+  79.4% { transform: translateY(-500%); }
+  91.9%, 93.68% { transform: translateY(-500%); }
+  95.68%, 100% { transform: translateY(-600%); }
 }
 </style>

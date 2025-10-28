@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, h } from 'vue'
 import { Card, Popconfirm, Button, Tag, Timeline, Switch } from 'ant-design-vue'
+import { AimOutlined } from '@ant-design/icons-vue'
 import type { Client } from '../types'
 import ClientTable from './ClientTable.vue'
 import AIAnalysisModal from './AIAnalysisModal.vue'
@@ -116,8 +117,8 @@ onUnmounted(() => {
               </Tag>
             </div>
             <div style="text-align: right;">
-              <Button type="primary" size="small" @click="handleAIAnalysis(client.id)">
-                大模型汇总分析
+              <Button type="primary" size="small" :icon="h(AimOutlined)" @click="handleAIAnalysis(client.id)">
+                DeepSeek 汇总分析
               </Button>
             </div>
           </div>

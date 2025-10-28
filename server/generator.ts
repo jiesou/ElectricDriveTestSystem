@@ -230,12 +230,10 @@ generatorRouter.post("/analyze", async (ctx) => {
         const encoder = new TextEncoder();
         try {
           for await (const chunk of streamGenerate(prompt)) {
-            controller.enqueue(encoder.encode(JSON.stringify({ content: chunk }) + "\n\n"));
+            controller.enqueue(encoder.encode(`${chunk}`));
           }
-          controller.enqueue(encoder.encode(JSON.stringify({ done: true }) + "\n\n"));
         } catch (error) {
           console.error("Streaming error:", error);
-          controller.enqueue(encoder.encode(JSON.stringify({ error: String(error) }) + "\n\n"));
         } finally {
           controller.close();
         }
