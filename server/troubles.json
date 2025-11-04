@@ -1,0 +1,3 @@
+[
+  { "id": 1, "description": "100 和 133 断路", "from_wire": 100, "to_wire": 133 }
+]
