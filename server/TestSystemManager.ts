@@ -317,6 +317,7 @@ export class TestSystemManager {
       if (!client.testSession) continue;
       if (!client.socket) continue;
       if (!(client.socket.readyState === WebSocket.OPEN)) continue;
+      if (client.testSession.finishTime) continue; // 已结束则跳过
       
       const session = client.testSession;
       const currentTime = getSecondTimestamp();
@@ -350,8 +351,8 @@ export class TestSystemManager {
       }
 
       // 只在测验进行中进行广播
-      if (session.finishTime) continue;
-      if (currentTime < session.test.startTime) continue;
+      // if (currentTime < session.test.startTime) continue;
+      // 测验开始前也广播当前状态
       
       const remainingTroubles = this.getRemainingTroubles(session);
       const message: InTestingMessage = {

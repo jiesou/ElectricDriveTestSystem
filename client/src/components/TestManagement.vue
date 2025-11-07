@@ -66,6 +66,32 @@ function openCreateTestModal() {
   createTestModalVisible.value = true
 }
 
+// 当已经存在已安排测验时，用户点击“安排新测验”会触发此函数：
+// 依次执行结束所有活跃测验 -> 清除测验记录 -> 刷新数据 -> 打开创建测验模态
+async function confirmThenCreate() {
+  try {
+    loading.value = true
+    // 先结束所有活跃测验
+    await handleFinishTest()
+    // 再清除所有测验记录
+    await handleClearAllTests()
+    // 刷新数据，确保 UI 状态同步
+    await fetchData()
+
+    // 打开创建模态并重置表单
+    formState.clientIds = []
+    formState.questionIds = []
+    formState.startTime = ''
+    formState.durationTime = undefined
+    createTestModalVisible.value = true
+  } catch (error) {
+    console.error('confirmThenCreate failed:', error)
+    message.error('准备新测验失败')
+  } finally {
+    loading.value = false
+  }
+}
+
 function openQuestionManagementModal() {
   questionManagementModalVisible.value = true
 }
@@ -206,9 +232,22 @@ onMounted(() => {
     <h2>测验管理</h2>
 
     <Card title="测验动作" style="margin-bottom: 20px;">
-      <Button type="primary" @click="openCreateTestModal">
-        ▶ 安排新测验
-      </Button>
+        <!-- 如果已经有已安排测验，则在点击时先弹出确认，确认后自动执行: 结束所有活跃测验 -> 清除测验记录 -> 打开创建测验模态 -->
+        <template v-if="tests && tests.length > 0">
+          <Popconfirm
+            title="现在已有测验，确定清除当前测验然后创建新的？"
+            ok-text="继续"
+            cancel-text="取消"
+            @confirm="confirmThenCreate"
+          >
+            <Button type="primary">▶ 安排新测验</Button>
+          </Popconfirm>
+        </template>
+        <template v-else>
+          <Button type="primary" @click="openCreateTestModal">
+            ▶ 安排新测验
+          </Button>
+        </template>
       <Popconfirm title="确定结束所有活跃测验？" @confirm="handleFinishTest">
         <Button danger style="margin-left: 10px;">
           ■ 结束所有活跃测验
