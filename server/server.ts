@@ -45,7 +45,7 @@ wsRouter.get("/ws", (ctx) => {
   }
 
   const { socket, response } = Deno.upgradeWebSocket(ctx.request.source!, {
-    idleTimeout: 10, // ping 超时时间，单位秒
+    idleTimeout: 60, // ping 超时时间，单位秒
   });
   const clientIp = ctx.request.ip;
   const client = manager.connectClient(clientIp, socket);
@@ -53,6 +53,12 @@ wsRouter.get("/ws", (ctx) => {
     try {
       const message = JSON.parse(event.data as string);
       console.log("Received message:", message);
+      // handle application-level ping: update lastPing timestamp
+      if (message && typeof message.type === "string" && message.type === "ping") {
+        client.lastPing = getSecondTimestamp();
+        return;
+      }
+
       handleWebSocketMessage(manager, client, socket, message);
     } catch (error) {
       console.error(`Error parsing message from ${client}:`, error);

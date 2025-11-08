@@ -51,6 +51,7 @@ export interface Client {
   ip: string;
   online: boolean;
   socket?: WebSocket; // Optional since offline clients don't have socket
+  lastPing?: number; // timestamp in seconds of last application-layer ping
   testSession?: TestSession;
 }
 
@@ -69,6 +70,10 @@ export interface InTestingMessage extends WSMessage {
   total_questions: number;
   start_time: number;
   duration_time: number | null;
+}
+
+export interface PingMessage extends WSMessage {
+  type: "ping";
 }
 
 export interface AnswerMessage extends WSMessage {

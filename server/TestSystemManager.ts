@@ -98,6 +98,7 @@ export class TestSystemManager {
       // 重连现有客户端
       existingClient.online = true;
       existingClient.socket = socket;
+      existingClient.lastPing = getSecondTimestamp();
 
       // 如果在测验会话中，记录重连日志
       if (existingClient.testSession) {
@@ -119,6 +120,7 @@ export class TestSystemManager {
         ip,
         online: true,
         socket,
+        lastPing: getSecondTimestamp(),
       };
       this.clients[clientId] = client;
       console.log(`New client ${clientId} (${ip}) connected`);
@@ -139,6 +141,7 @@ export class TestSystemManager {
 
     client.online = false;
     delete client.socket;
+    delete client.lastPing;
     console.log(`Client ${client.id} disconnected`);
   }
 
@@ -309,6 +312,27 @@ export class TestSystemManager {
     this.broadcastInterval = setInterval(() => {
       this.broadcastTroubleStatus();
     }, 3000); // 轮查间隔
+
+    // Start application-layer heartbeat checker
+    setInterval(() => {
+      const now = getSecondTimestamp();
+      const TIMEOUT = 10; // seconds
+      for (const [_id, client] of Object.entries(this.clients)) {
+        if (!client.online) continue;
+        if (!client.lastPing) continue;
+        if (now - client.lastPing > TIMEOUT) {
+          console.log(`Client ${client.id} timed out (no ping for ${now - client.lastPing}s), disconnecting`);
+          if (client.socket && client.socket.readyState === WebSocket.OPEN) {
+            try {
+              client.socket.close(4000, "heartbeat timeout");
+            } catch (_e) {
+              // ignore
+            }
+          }
+          this.disconnectClient(client);
+        }
+      }
+    }, 2000);
   }
 
   private broadcastTroubleStatus() {
