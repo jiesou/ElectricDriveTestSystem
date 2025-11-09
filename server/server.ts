@@ -57,6 +57,7 @@ wsRouter.get("/ws", (ctx) => {
       if (message && typeof message.type === "string" && message.type === "ping") {
         client.lastPing = getSecondTimestamp();
         client.online = true;
+        client.socket = socket; // 更新 socket 引用
         safeSend(socket, {
           type: "pong",
           timestamp: getSecondTimestamp(),
