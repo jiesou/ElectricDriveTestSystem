@@ -4,6 +4,8 @@
 export interface Trouble {
   id: number;
   description: string;
+  from_wire: number;
+  to_wire: number;
 }
 
 export interface Question {

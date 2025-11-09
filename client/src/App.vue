@@ -5,6 +5,7 @@ import { Layout, ConfigProvider } from 'ant-design-vue'
 import TroubleManagement from './components/TroubleManagement.vue'
 import TestManagement from './components/TestManagement.vue'
 import ClientMonitoring from './components/ClientMonitoring.vue'
+import { useFakeDataMode } from './useFakeData'
 
 const { Header, Content, Sider } = Layout
 
@@ -36,13 +37,23 @@ function handleMenuClick(key: TabKey) {
   window.location.hash = `#/${key}`
 }
 
+// 按 Home 键切换假数据模式
+function handleKeyPress(event: KeyboardEvent) {
+  if (event.key === 'Home') {
+    useFakeDataMode.value = !useFakeDataMode.value
+    console.log('假数据模式:', useFakeDataMode.value ? '开启' : '关闭')
+  }
+}
+
 onMounted(() => {
   updateActiveTab()
   window.addEventListener('hashchange', updateActiveTab)
+  window.addEventListener('keydown', handleKeyPress)
 })
 
 onUnmounted(() => {
   window.removeEventListener('hashchange', updateActiveTab)
+  window.removeEventListener('keydown', handleKeyPress)
 })
 </script>
 

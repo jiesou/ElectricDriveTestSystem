@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, h } from 'vue'
+import { ref, onMounted, onUnmounted, h, computed } from 'vue'
 import { Card, Popconfirm, Button, Tag, Timeline, Switch } from 'ant-design-vue'
 import { AimOutlined } from '@ant-design/icons-vue'
 import type { Client } from '../types'
 import ClientTable from './ClientTable.vue'
 import AIAnalysisModal from './AIAnalysisModal.vue'
+import { useFakeDataMode, generateFakeData } from '../useFakeData'
 
 const clients = ref<Client[]>([])
 const loading = ref(false)
@@ -12,6 +13,14 @@ const refreshTimer = ref<number | null>(null)
 const showConnectionEvents = ref(false)
 const aiAnalysisModal = ref(false)
 const currentAnalysisClientId = ref<string | undefined>(undefined)
+
+// 根据假数据模式返回实际显示的客户端列表
+const displayClients = computed(() => {
+  if (useFakeDataMode.value) {
+    return generateFakeData()
+  }
+  return clients.value
+})
 
 async function fetchClients() {
   try {
@@ -59,6 +68,11 @@ function formatTime(timestamp: number): string {
 }
 
 function handleForgetClients() {
+  // 假数据模式下不执行真实操作
+  if (useFakeDataMode.value) {
+    return
+  }
+  
   fetch('/api/clients/forget', { method: 'POST' })
     .then(res => res.json())
     .then(data => {
@@ -104,9 +118,9 @@ onUnmounted(() => {
 
 
     <!-- 显示已结束的测验 -->
-    <div style="margin-top: 20px;" v-if="clients.filter(c => c.testSession && c.testSession.finishTime).length > 0">
+    <div style="margin-top: 20px;" v-if="displayClients.filter(c => c.testSession && c.testSession.finishTime).length > 0">
       <Card title="已结束的测验">
-        <div v-for="client in clients.filter(c => c.testSession && c.testSession.finishTime)"
+        <div v-for="client in displayClients.filter(c => c.testSession && c.testSession.finishTime)"
           :key="`finished-${client.id}`"
           style="margin-bottom: 16px; padding: 12px; border: 1px solid #f0f0f0; border-radius: 6px;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -117,7 +131,7 @@ onUnmounted(() => {
               </Tag>
             </div>
             <div style="text-align: right;">
-              <Button type="primary" size="small" :icon="h(AimOutlined)" @click="handleAIAnalysis(client.id)">
+              <Button type="primary" size="small" :icon="h(AimOutlined)" @click="handleAIAnalysis(client.id)" :disabled="useFakeDataMode">
                 DeepSeek 汇总分析
               </Button>
             </div>
@@ -139,8 +153,8 @@ onUnmounted(() => {
       :client-id="currentAnalysisClientId"
     />
 
-    <div style="margin-top: 20px;" v-if="clients.filter(c => c.testSession).length > 0">
-      <div v-for="client in clients.filter(c => c.testSession)" :key="client.id" style="margin-bottom: 20px;">
+    <div style="margin-top: 20px;" v-if="displayClients.filter(c => c.testSession).length > 0">
+      <div v-for="client in displayClients.filter(c => c.testSession)" :key="client.id" style="margin-bottom: 20px;">
         <Card :title="`活跃测验详情 - ${client.name} (${client.ip})`">
           <div v-if="client.testSession">
             <div style="margin-bottom: 16px;">
