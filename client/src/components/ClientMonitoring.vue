@@ -131,7 +131,7 @@ onUnmounted(() => {
               </Tag>
             </div>
             <div style="text-align: right;">
-              <Button type="primary" size="small" :icon="h(AimOutlined)" @click="handleAIAnalysis(client.id)" :disabled="useFakeDataMode">
+              <Button type="primary" size="small" :icon="h(AimOutlined)" @click="handleAIAnalysis(client.id)">
                 DeepSeek 汇总分析
               </Button>
             </div>

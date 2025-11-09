@@ -24,8 +24,8 @@ export function generateFakeData(): Client[] {
     { id: 3, troubles: [troubles[2]!] }
   ]
   
-  // 测验开始时间（假设30分钟前开始）
-  const testStartTime = now - 30 * 60
+  // 测验开始时间（假设5分钟前开始）
+  const testStartTime = now - 5 * 60
   
   // 创建测试
   const test: Test = {
