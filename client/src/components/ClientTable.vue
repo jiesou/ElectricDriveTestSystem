@@ -134,14 +134,14 @@ onUnmounted(() => {
 
       <template v-if="column.key === 'name'">
         <div style="display:flex;align-items:center;gap:8px">
-          <template v-if="editingId === record.id && !useFakeDataMode">
+          <template v-if="editingId === record.id">
             <Input v-model:value="editingNames[record.id]" size="small" style="width: 200px" />
             <CheckOutlined @click="saveClientName(record.id)" />
             <CloseOutlined @click="editingId = null" />
           </template>
           <template v-else>
             <div style="min-width:200px">{{ record.name }}</div>
-            <EditOutlined v-if="!useFakeDataMode" @click="startEdit(record)" />
+            <EditOutlined @click="startEdit(record)" />
           </template>
         </div>
       </template>
