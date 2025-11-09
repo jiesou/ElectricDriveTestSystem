@@ -56,6 +56,11 @@ wsRouter.get("/ws", (ctx) => {
       // handle application-level ping: update lastPing timestamp
       if (message && typeof message.type === "string" && message.type === "ping") {
         client.lastPing = getSecondTimestamp();
+        client.online = true;
+        safeSend(socket, {
+          type: "pong",
+          timestamp: getSecondTimestamp(),
+        });
         return;
       }
 
