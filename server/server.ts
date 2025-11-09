@@ -225,6 +225,25 @@ apiRouter.post("/tests/clear-all", (ctx) => {
   ctx.response.body = { success: true };
 });
 
+// 继电器功能测试广播：向每个在线客户端发送 relay_rainbow 消息
+apiRouter.post("/relay-rainbow", (ctx) => {
+  let sent = 0
+  for (const client of Object.values(manager.clients)) {
+    if (!client.online) continue
+    if (!client.socket) continue
+    if (!(client.socket.readyState === WebSocket.OPEN)) continue
+
+    try {
+      client.socket.send(JSON.stringify({ type: "relay_rainbow", timestamp: getSecondTimestamp() }))
+      sent++
+    } catch (error) {
+      console.error(`Failed to send relay_rainbow to client ${client.id}:`, error)
+    }
+  }
+
+  ctx.response.body = { success: true, data: { sent } }
+})
+
 // Create Test session
 apiRouter.post("/test-sessions", async (ctx) => {
   try {

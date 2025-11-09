@@ -145,6 +145,25 @@ async function handleCreateTest() {
   }
 }
 
+// 继电器功能测试：调用后端广播 RelayRainbowMessage 给所有 client
+async function handleRelayRainbowTest() {
+  try {
+    loading.value = true
+    const response = await fetch('/api/relay-rainbow', { method: 'POST' })
+    const result = await response.json()
+    if (result && result.success) {
+      message.success(`继电器测试广播已发送，在线客户机: ${result.data.sent || 0}`)
+    } else {
+      message.error(result.error || '继电器测试失败')
+    }
+  } catch (err) {
+    console.error('relay rainbow failed', err)
+    message.error('继电器测试请求失败')
+  } finally {
+    loading.value = false
+  }
+}
+
 function formatTime(timestamp: number): string {
   return new Date(timestamp * 1000).toLocaleString()
 }
@@ -258,6 +277,9 @@ onMounted(() => {
           X 清除测验记录
         </Button>
       </Popconfirm>
+      <Button style="margin-left: 10px;" @click="handleRelayRainbowTest">
+        ⚡ 继电器功能测试
+      </Button>
     </Card>
 
     <Card title="连接的客户机" style="margin-bottom: 20px;">

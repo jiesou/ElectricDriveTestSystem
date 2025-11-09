@@ -76,6 +76,10 @@ export interface PingMessage extends WSMessage {
   type: "ping";
 }
 
+export interface RelayRainbowMessage extends WSMessage {
+  type: "relay_rainbow";
+}
+
 export interface AnswerMessage extends WSMessage {
   type: "answer";
   trouble_id: number;
