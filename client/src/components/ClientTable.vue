@@ -1,12 +1,21 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { Table, Tag, Input, message } from 'ant-design-vue'
 import { EditOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons-vue'
 import type { Client } from '../types'
+import { useFakeDataMode, generateFakeData } from '../useFakeData'
 
 const clients = ref<Client[]>([])
 const loading = ref(false)
 const refreshTimer = ref<number | null>(null)
+
+// 根据假数据模式返回实际显示的客户端列表
+const displayClients = computed(() => {
+  if (useFakeDataMode.value) {
+    return generateFakeData()
+  }
+  return clients.value
+})
 
 const columns = [
   {
@@ -115,7 +124,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <Table :dataSource="clients" :columns="columns" :loading="loading" size="middle" rowKey="id" :pagination="false">
+  <Table :dataSource="displayClients" :columns="columns" :loading="loading" size="middle" rowKey="id" :pagination="false">
     <template #bodyCell="{ column, record }">
       <template v-if="column.key === 'online'">
         <Tag :color="record.online ? 'green' : 'red'">
