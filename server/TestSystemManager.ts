@@ -9,6 +9,7 @@ import {
   TROUBLES,
 } from "./types.ts";
 import { getSecondTimestamp } from "./types.ts";
+import { yoloManager } from "./YoloClientManager.ts";
 
 export class TestSystemManager {
   public clients: Record<string, Client> = {};
@@ -350,6 +351,9 @@ export class TestSystemManager {
           this.disconnectClient(client);
         }
       }
+      
+      // 检查 YOLO 客户端超时
+      yoloManager.checkYoloClientTimeouts(30);
     }, 2000);
   }
 

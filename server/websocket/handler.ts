@@ -8,6 +8,7 @@ import {
 } from "../types.ts";
 import { manager } from "../TestSystemManager.ts";
 import { wsManager } from "./manager.ts";
+import { yoloManager } from "../YoloClientManager.ts";
 
 /**
  * 处理 WebSocket 消息
@@ -128,18 +129,38 @@ function handleEvaluateWiringYoloRequest(
   socket: WebSocket,
   _message: Record<string, unknown>,
 ) {
-  // TODO: 实现装接评估逻辑
-  // 1. 创建 EvaluateWiringSession
-  // 2. 找到对应的 YoloClient
-  // 3. 通知 YoloClient 开始拍照/推理
-  
-  console.log(`[TODO] Handle evaluate_wiring_yolo_request from client ${client.id}`);
-  
-  wsManager.safeSend(socket, {
-    type: "error",
-    message: "evaluate_wiring_yolo_request not fully implemented yet",
-    timestamp: getSecondTimestamp(),
-  });
+  try {
+    // 查找可用的 YOLO 客户端
+    const onlineYoloClients = yoloManager.getOnlineYoloClients();
+    
+    if (onlineYoloClients.length === 0) {
+      wsManager.safeSend(socket, {
+        type: "error",
+        message: "No YOLO client available",
+        timestamp: getSecondTimestamp(),
+      });
+      return;
+    }
+
+    // 创建装接评估会话
+    const session = yoloManager.createEvaluateWiringSession(client);
+    
+    // 通知客户端会话已创建，等待拍照
+    wsManager.safeSend(socket, {
+      type: "evaluate_wiring_yolo_started",
+      message: "Evaluation session started, waiting for images",
+      timestamp: getSecondTimestamp(),
+    });
+
+    console.log(`[WebSocket] Created evaluate_wiring session for client ${client.id}`);
+  } catch (error) {
+    console.error(`[WebSocket] Error handling evaluate_wiring_yolo_request:`, error);
+    wsManager.safeSend(socket, {
+      type: "error",
+      message: error instanceof Error ? error.message : "Failed to start evaluation",
+      timestamp: getSecondTimestamp(),
+    });
+  }
 }
 
 /**
@@ -150,16 +171,36 @@ function handleFaceSigninRequest(
   socket: WebSocket,
   _message: Record<string, unknown>,
 ) {
-  // TODO: 实现人脸签到逻辑
-  // 1. 创建 FaceSigninSession
-  // 2. 找到对应的 YoloClient
-  // 3. 通知 YoloClient 开始人脸识别
-  
-  console.log(`[TODO] Handle face_signin_request from client ${client.id}`);
-  
-  wsManager.safeSend(socket, {
-    type: "error",
-    message: "face_signin_request not fully implemented yet",
-    timestamp: getSecondTimestamp(),
-  });
+  try {
+    // 查找可用的 YOLO 客户端
+    const onlineYoloClients = yoloManager.getOnlineYoloClients();
+    
+    if (onlineYoloClients.length === 0) {
+      wsManager.safeSend(socket, {
+        type: "error",
+        message: "No YOLO client available",
+        timestamp: getSecondTimestamp(),
+      });
+      return;
+    }
+
+    // 创建人脸签到会话
+    const session = yoloManager.createFaceSigninSession(client);
+    
+    // 通知客户端会话已创建，开始识别
+    wsManager.safeSend(socket, {
+      type: "face_signin_started",
+      message: "Face signin session started, waiting for face detection",
+      timestamp: getSecondTimestamp(),
+    });
+
+    console.log(`[WebSocket] Created face_signin session for client ${client.id}`);
+  } catch (error) {
+    console.error(`[WebSocket] Error handling face_signin_request:`, error);
+    wsManager.safeSend(socket, {
+      type: "error",
+      message: error instanceof Error ? error.message : "Failed to start face signin",
+      timestamp: getSecondTimestamp(),
+    });
+  }
 }
