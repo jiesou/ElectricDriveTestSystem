@@ -109,6 +109,15 @@ export class TestSystemManager {
         });
       }
 
+      // 如果在装接评估会话中，也记录重连日志
+      if (existingClient.evaluateSession) {
+        existingClient.evaluateSession.logs.push({
+          timestamp,
+          action: "reconnect",
+          details: {},
+        });
+      }
+
       console.log(`Client ${existingClient.id} (${ip}) reconnected`);
       return existingClient;
     } else {
@@ -133,6 +142,15 @@ export class TestSystemManager {
     // 如果有测试会话，记录断开连接日志
     if (client.testSession) {
       client.testSession.logs.push({
+        timestamp: getSecondTimestamp(),
+        action: "disconnect",
+        details: {},
+      });
+    }
+
+    // 如果有装接评估会话，也记录断开连接日志
+    if (client.evaluateSession) {
+      client.evaluateSession.logs.push({
         timestamp: getSecondTimestamp(),
         action: "disconnect",
         details: {},

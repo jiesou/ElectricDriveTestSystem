@@ -53,6 +53,7 @@ export interface Client {
   socket?: WebSocket; // Optional since offline clients don't have socket
   lastPing?: number; // timestamp in seconds of last application-layer ping
   testSession?: TestSession;
+  evaluateSession?: EvaluateSession; // 装接评估会话
 }
 
 // WebSocket message types
@@ -102,6 +103,110 @@ export interface FinishMessage extends WSMessage {
 export interface FinishResultMessage extends WSMessage {
   type: "finish_result";
   finished_score: number;
+}
+
+// ========== 装接评估 (Evaluate) 相关类型 ==========
+
+// 装接评估会话
+export interface EvaluateSession {
+  id: string;
+  clientId: string; // 发起评估的客户端ID
+  startTime: number;
+  finishTime?: number;
+  status: "waiting" | "in_progress" | "completed";
+  logs: EvaluateLog[];
+}
+
+export interface EvaluateLog {
+  timestamp: number;
+  action: string;
+  details: Record<string, unknown>;
+}
+
+// ========== YOLO 客户端相关类型 ==========
+
+// YOLO 会话基类
+export interface YoloSession {
+  type: "evaluate_wiring" | "face_signin";
+  clientId: string; // 发起请求的原始客户端ID
+  startTime: number;
+  status: "active" | "completed";
+}
+
+// 装接评估 YOLO 会话
+export interface EvaluateWiringSession extends YoloSession {
+  type: "evaluate_wiring";
+  shots: EvaluateWiringShot[];
+  final_result?: EvaluateWiringResult;
+}
+
+export interface EvaluateWiringShot {
+  timestamp: number;
+  image: string; // base64 编码的图片或图片URL
+  result?: {
+    sleeves_num: number; // 标号码管数量
+    cross_num: number; // 交叉连线数量
+    excopper_num: number; // 露铜数量
+  };
+}
+
+export interface EvaluateWiringResult {
+  wo_sleeves_num: number; // 缺少号码管数量
+  cross_num: number; // 交叉连线数量
+  excopper_num: number; // 露铜数量
+  scores: number; // 综合得分
+}
+
+// 人脸签到 YOLO 会话
+export interface FaceSigninSession extends YoloSession {
+  type: "face_signin";
+  final_result?: FaceSigninResult;
+}
+
+export interface FaceSigninResult {
+  who: string; // 识别出的用户
+  image: string; // 识别时的图片
+  confidence?: number; // 识别置信度
+}
+
+// YOLO 客户端类型
+export type YoloClientType = "espcam" | "jetson_nano";
+
+// YOLO 客户端
+export interface YoloClient {
+  id: string;
+  name: string;
+  ip: string;
+  type: YoloClientType;
+  online: boolean;
+  lastPing?: number;
+  currentSession?: YoloSession; // 当前正在进行的会话
+}
+
+// ========== WebSocket 消息类型扩展 ==========
+
+// 装接评估请求
+export interface EvaluateWiringYoloRequestMessage extends WSMessage {
+  type: "evaluate_wiring_yolo_request";
+  // 客户端发起装接评估请求
+}
+
+// 装接评估响应
+export interface EvaluateWiringYoloResponseMessage extends WSMessage {
+  type: "evaluate_wiring_yolo_response";
+  session: EvaluateWiringSession;
+}
+
+// 人脸签到请求
+export interface FaceSigninRequestMessage extends WSMessage {
+  type: "face_signin_request";
+  // 客户端发起人脸签到请求
+}
+
+// 人脸签到响应
+export interface FaceSigninResponseMessage extends WSMessage {
+  type: "face_signin_response";
+  result: FaceSigninResult;
 }
 
 // Predefined troubles (hardcoded)
