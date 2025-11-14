@@ -1,5 +1,5 @@
 import { Router } from "@oak/oak";
-import { clientManager } from "../../ClientManager.ts";
+import { clientManager } from "../ClientManager.ts";
 import {
   EvaluateWiringSession,
   FaceSigninSession,
@@ -7,13 +7,13 @@ import {
   WiringShot,
   EvaluateWiringYoloResponseMessage,
   FaceSigninResponseMessage,
-} from "../../types.ts";
+} from "../types.ts";
 
 /**
  * CV上传路由
  * 处理来自ESP32-CAM或Jetson Nano的图片上传和推理结果
  */
-export const cvUploadRouter = new Router();
+export const cvRouter = new Router({ prefix: "/cv" });
 
 /**
  * 装接评估：接收图片和推理结果
@@ -30,7 +30,7 @@ export const cvUploadRouter = new Router();
  *   }
  * }
  */
-cvUploadRouter.post("/upload_wiring", async (ctx) => {
+cvRouter.post("/upload_wiring", async (ctx) => {
   try {
     const body = await ctx.request.body.json();
     const { cvClientIp, image, result } = body;
@@ -97,7 +97,7 @@ cvUploadRouter.post("/upload_wiring", async (ctx) => {
  *   "cvClientIp": "192.168.1.200"
  * }
  */
-cvUploadRouter.post("/confirm_wiring", async (ctx) => {
+cvRouter.post("/confirm_wiring", async (ctx) => {
   try {
     const body = await ctx.request.body.json();
     const { cvClientIp } = body;
@@ -193,7 +193,7 @@ cvUploadRouter.post("/confirm_wiring", async (ctx) => {
  *   "image": "base64_encoded_image_or_url"
  * }
  */
-cvUploadRouter.post("/upload_face", async (ctx) => {
+cvRouter.post("/upload_face", async (ctx) => {
   try {
     const body = await ctx.request.body.json();
     const { cvClientIp, who, image } = body;

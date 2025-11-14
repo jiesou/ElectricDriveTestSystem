@@ -15,10 +15,7 @@ import { troublesRouter } from "./routes/troubles.ts";
 import { questionsRouter } from "./routes/questions.ts";
 import { clientsRouter } from "./routes/clients.ts";
 import { testsRouter } from "./routes/tests.ts";
-import { cvUploadRouter } from "./routes/cv/upload.ts";
-
-// 设置TestSystemManager和ClientManager的关联
-manager.setClientManager(clientManager);
+import { cvRouter } from "./routes/cv.ts";
 
 const app = new Application();
 
@@ -112,10 +109,6 @@ apiRouter.use(testsRouter.allowedMethods());
 apiRouter.use(generatorRouter.routes());
 apiRouter.use(generatorRouter.allowedMethods());
 
-// CV路由 (挂载到 /api/cv 下)
-const cvRouter = new Router({ prefix: "/cv" });
-cvRouter.use(cvUploadRouter.routes());
-cvRouter.use(cvUploadRouter.allowedMethods());
 apiRouter.use(cvRouter.routes());
 apiRouter.use(cvRouter.allowedMethods());
 

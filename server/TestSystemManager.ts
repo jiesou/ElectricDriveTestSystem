@@ -9,11 +9,14 @@ import {
   TROUBLES,
 } from "./types.ts";
 import { getSecondTimestamp } from "./types.ts";
-import type { ClientManager } from "./ClientManager.ts";
+import { clientManager } from "./ClientManager.ts";
 
 export class TestSystemManager {
+  // 获取clients的便捷方法
+  private get clients(): Record<string, Client> {
+    return clientManager.clients || {};
+  }
   public tests: Test[] = [];
-  private clientManager?: ClientManager; // 引用ClientManager实例
   private questionBank: Question[] = [
     {
       id: 1,
@@ -73,16 +76,6 @@ export class TestSystemManager {
       },
       5000,
     );
-  }
-
-  // 设置ClientManager引用
-  setClientManager(cm: ClientManager): void {
-    this.clientManager = cm;
-  }
-
-  // 获取clients的便捷方法
-  private get clients(): Record<string, Client> {
-    return this.clientManager?.clients || {};
   }
 
   // 创建测验会话

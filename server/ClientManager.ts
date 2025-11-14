@@ -1,8 +1,6 @@
 import {
   Client,
   CvClient,
-  ESPCAMClient,
-  JetsonNanoClient,
   CV_CLIENT_MAP,
   getSecondTimestamp,
 } from "./types.ts";
@@ -20,7 +18,32 @@ export class ClientManager {
   private readonly HEARTBEAT_CHECK_INTERVAL = 2000; // 心跳检查间隔（毫秒）
 
   constructor() {
-    this.startHeartbeatChecker();
+    this.heartbeatInterval = setInterval(() => {
+      const now = getSecondTimestamp();
+      
+      for (const [_id, client] of Object.entries(this.clients)) {
+        if (!client.online) continue;
+        if (!client.lastPing) continue;
+        
+        const timeSinceLastPing = now - client.lastPing;
+        if (timeSinceLastPing > this.HEARTBEAT_TIMEOUT) {
+          console.log(
+            `[ClientManager] Client ${client.id} timed out (no ping for ${timeSinceLastPing}s), disconnecting`,
+          );
+          
+          // 尝试关闭WebSocket连接
+          if (client.socket && client.socket.readyState === WebSocket.OPEN) {
+            try {
+              client.socket.close(4000, "heartbeat timeout");
+            } catch (_e) {
+              // 忽略关闭错误
+            }
+          }
+          
+          this.disconnectClient(client);
+        }
+      }
+    }, this.HEARTBEAT_CHECK_INTERVAL);
   }
 
   /**
@@ -121,39 +144,6 @@ export class ClientManager {
     console.log(
       `[ClientManager] Attached CV client (${mapping.cvClientType}) at ${mapping.cvClientIp} to client ${client.id}`,
     );
-  }
-
-  /**
-   * 启动心跳检测器
-   * 定期检查所有客户端的lastPing，超时则断开连接
-   */
-  private startHeartbeatChecker(): void {
-    this.heartbeatInterval = setInterval(() => {
-      const now = getSecondTimestamp();
-      
-      for (const [_id, client] of Object.entries(this.clients)) {
-        if (!client.online) continue;
-        if (!client.lastPing) continue;
-        
-        const timeSinceLastPing = now - client.lastPing;
-        if (timeSinceLastPing > this.HEARTBEAT_TIMEOUT) {
-          console.log(
-            `[ClientManager] Client ${client.id} timed out (no ping for ${timeSinceLastPing}s), disconnecting`,
-          );
-          
-          // 尝试关闭WebSocket连接
-          if (client.socket && client.socket.readyState === WebSocket.OPEN) {
-            try {
-              client.socket.close(4000, "heartbeat timeout");
-            } catch (_e) {
-              // 忽略关闭错误
-            }
-          }
-          
-          this.disconnectClient(client);
-        }
-      }
-    }, this.HEARTBEAT_CHECK_INTERVAL);
   }
 
   /**
