@@ -42,12 +42,23 @@ export interface TestLog {
   };
 }
 
+// CV客户端接口
+export interface CvClient {
+  clientType: "esp32cam" | "jetson_nano";
+  ip: string;
+  session?: {
+    type: "evaluate_wiring" | "face_signin";
+    startTime: number;
+  };
+}
+
 export interface Client {
   id: string;
   name: string;
   ip: string;
   online: boolean;
   testSession?: TestSession;
+  cvClient?: CvClient;
 }
 
 // Utility function to get integer second timestamp

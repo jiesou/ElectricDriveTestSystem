@@ -1,2 +1,6 @@
 **.bak
 .env
+server/public/
+server/data.json
+client/dist/
+client/node_modules/
