@@ -15,15 +15,7 @@ export class UdpCameraReceiver {
    */
   async start(port = 8000): Promise<void> {
     try {
-      // 注意：Deno 2.x 中 UDP 支持已移除
-      // 此处保留接口以便未来实现或使用第三方库
-      console.warn(
-        "[UdpCamera] UDP 图传接收器暂不可用（Deno 2.x 不支持 UDP），" +
-        "请使用其他方式（如 HTTP POST）上传图像"
-      );
-      
-      // 如果 Deno 版本支持 UDP，取消注释以下代码：
-      /*
+      // 注意：Deno 2.x 中需要使用 --unstable-net 标志来启用 UDP 支持
       this.listener = Deno.listenDatagram({
         port,
         transport: "udp",
@@ -33,9 +25,9 @@ export class UdpCameraReceiver {
 
       // 异步处理 UDP 数据包
       this.receiveLoop();
-      */
     } catch (error) {
       console.error("[UdpCamera] 启动 UDP 监听器失败:", error);
+      console.error("[UdpCamera] 提示：需要使用 --unstable-net 标志启动服务器");
       // 不抛出错误，让服务器继续运行
     }
   }

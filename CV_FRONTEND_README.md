@@ -46,7 +46,7 @@ export interface CvClient {
 - **包格式**：4字节IP + 4字节frame_index + 2字节chunk_index + 2字节chunk_total + payload
 - **分片组装**：自动收集并组装分片 JPEG 数据
 - **缓存管理**：自动清理超过5帧的过时数据
-- **Deno 2.x 兼容**：由于 Deno 2.x 移除了 UDP API，当前提供友好的警告信息
+- **Deno 2.x 支持**：使用 `--unstable-net` 标志启用 UDP 功能
 
 #### 3. HTTP 图像上传端点
 
@@ -153,12 +153,21 @@ Content-Type: multipart/x-mixed-replace; boundary=frame
 
 ```bash
 cd server
-deno run --allow-net --allow-read --allow-write main.ts
+deno run --allow-net --allow-read --allow-write --unstable-net main.ts
 ```
 
 ### CV 客户端上传图像
 
-#### 方法 1：HTTP POST（推荐）
+#### 方法 1：UDP 数据包（推荐用于高帧率）
+
+发送 UDP 数据包到 `udp://server_ip:8000`，包格式：
+- 4 字节：CV 客户端 IP（如 192.168.1.200 = [192, 168, 1, 200]）
+- 4 字节：帧索引（小端序 uint32）
+- 2 字节：分片索引（小端序 uint16）
+- 2 字节：分片总数（小端序 uint16）
+- 剩余字节：JPEG 分片数据
+
+#### 方法 2：HTTP POST
 
 ```bash
 curl -X POST http://localhost:8000/api/cv/upload_frame \
@@ -169,7 +178,7 @@ curl -X POST http://localhost:8000/api/cv/upload_frame \
   }'
 ```
 
-#### 方法 2：使用模拟器测试
+#### 方法 3：使用模拟器测试
 
 ```bash
 cd server
@@ -222,17 +231,21 @@ deno run --allow-net --allow-read cv-client-simulator.ts
 
 ## 注意事项
 
-1. **UDP 支持**：由于 Deno 2.x 移除了 `Deno.listenDatagram` API，当前版本不支持 UDP 图传。建议使用 HTTP POST 方式上传图像。
+1. **UDP 支持**：
+   - Deno 2.x 支持 UDP，但需要使用 `--unstable-net` 标志
+   - 启动命令：`deno run --allow-net --allow-read --allow-write --unstable-net main.ts`
+   - UDP 图传适合高帧率场景，HTTP POST 适合低帧率或测试场景
 
 2. **性能考虑**：
    - MJPEG 流以 10fps 推送，适合大多数监控场景
    - 如需更高帧率，可调整 `cv.ts` 中的 interval 参数
    - 建议图像分辨率不超过 640x480 以确保流畅性
+   - UDP 方式支持更高帧率（30fps+）
 
 3. **网络要求**：
-   - CV 客户端需要能够访问服务器的 HTTP 端点
+   - CV 客户端需要能够访问服务器的 UDP 端口（8000）或 HTTP 端点
    - 浏览器需要能够访问服务器以接收 MJPEG 流
-   - 确保防火墙允许相应端口的通信
+   - 确保防火墙允许 UDP 和 TCP 端口 8000 的通信
 
 4. **客户端连接**：
    - CV 客户端需要先有对应的普通客户机连接到服务器

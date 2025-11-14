@@ -31,11 +31,12 @@
 ### 后端服务器
 ```bash
 cd server
-deno run --allow-net --allow-read simple-server.ts
+deno run --allow-net --allow-read --allow-write --unstable-net main.ts
 ```
 服务器将启动在 `http://localhost:8000`
 - WebSocket 端点: `ws://localhost:8000/ws`
 - API 端点: `http://localhost:8000/api`
+- UDP 图传端口: `udp://0.0.0.0:8000` （需要 --unstable-net 标志）
 
 ### 前端界面
 ```bash
