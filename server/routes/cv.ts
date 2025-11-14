@@ -16,68 +16,6 @@ import {
 export const cvRouter = new Router({ prefix: "/cv" });
 
 /**
- * 上传图像帧（替代UDP方式）
- * POST /api/cv/upload_frame
- * 
- * 请求体：
- * {
- *   "cvClientIp": "192.168.1.200",
- *   "frame": "base64_encoded_jpeg_data"  // 或直接发送二进制数据
- * }
- */
-cvRouter.post("/upload_frame", async (ctx) => {
-  try {
-    const contentType = ctx.request.headers.get("content-type") || "";
-    
-    let cvClientIp: string;
-    let frameData: Uint8Array;
-
-    if (contentType.includes("application/json")) {
-      // JSON 格式，包含 base64 编码的图像
-      const body = await ctx.request.body.json();
-      cvClientIp = body.cvClientIp;
-      
-      // 解码 base64
-      const base64Data = body.frame.replace(/^data:image\/jpeg;base64,/, "");
-      frameData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-    } else if (contentType.includes("multipart/form-data")) {
-      // Multipart 格式
-      const formData = await ctx.request.body.formData();
-      cvClientIp = formData.get("cvClientIp") as string;
-      const frameFile = formData.get("frame") as File;
-      frameData = new Uint8Array(await frameFile.arrayBuffer());
-    } else {
-      ctx.response.status = 400;
-      ctx.response.body = { success: false, error: "Unsupported content type" };
-      return;
-    }
-
-    // 查找关联此 CV 客户端的普通客户端
-    const client = Object.values(clientManager.clients).find(
-      (c) => c.cvClient?.ip === cvClientIp,
-    );
-
-    if (!client || !client.cvClient) {
-      ctx.response.status = 404;
-      ctx.response.body = { success: false, error: "CV client not found" };
-      return;
-    }
-
-    // 更新 latest_frame
-    client.cvClient.latest_frame = frameData;
-
-    ctx.response.body = {
-      success: true,
-      data: { frameSize: frameData.length },
-    };
-  } catch (error) {
-    console.error("[CV Upload] Error uploading frame:", error);
-    ctx.response.status = 500;
-    ctx.response.body = { success: false, error: "Internal server error" };
-  }
-});
-
-/**
  * MJPEG 流端点：实时显示 CV 客户端的图像流
  * GET /api/cv/stream/:cvClientIp
  */
@@ -144,8 +82,8 @@ cvRouter.get("/stream/:cvClientIp", (ctx) => {
  * 请求体：
  * {
  *   "cvClientIp": "192.168.1.200",
- *   "image": "base64_encoded_image_or_url",
- *   "result": {
+ *   "image?": "base64_encoded_image_or_url",
+ *   "result?": {
  *     "sleeves_num": 10,
  *     "cross_num": 2,
  *     "excopper_num": 1
@@ -182,10 +120,16 @@ cvRouter.post("/upload_wiring", async (ctx) => {
 
     const session = client.cvClient.session as EvaluateWiringSession;
 
+    const frame = image ? image : client.cvClient.latest_frame;
+    if (!result) {
+      /* TODO: 视觉客户端如果没有推理结果，自己调用 inference sdk 从云获取推理结果 */
+      
+    }
+
     // 添加新的拍摄记录
     const shot: WiringShot = {
       timestamp: getSecondTimestamp(),
-      image,
+      image: frame,
       result: {
         sleeves_num: result.sleeves_num || 0,
         cross_num: result.cross_num || 0,
@@ -263,10 +207,13 @@ cvRouter.post("/confirm_wiring", async (ctx) => {
       0,
     );
 
+    const OVERALL_SLEEVES_NEEDED = 20 * 3; // 总共需要标20个号码管，拍三张照片
+
     // 简单的评分算法（可根据实际需求调整）
     // 假设：每个未标号码管扣5分，每个交叉扣3分，每个露铜扣2分
     const totalPoints = 100;
-    const deduction = totalSleeves * 5 + totalCross * 3 + totalExcopper * 2;
+    const noSleevesDeduction = Math.max(0, OVERALL_SLEEVES_NEEDED - totalSleeves);
+    const deduction = noSleevesDeduction * 5 + totalCross * 20 + totalExcopper * 2;
     const scores = Math.max(0, totalPoints - deduction);
 
     session.finalResult = {

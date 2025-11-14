@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { Card, Tag, Empty } from 'ant-design-vue'
-import type { Client } from '../types'
+import type { Client, EvaluateWiringSession, FaceSigninSession } from '../types'
 import { useFakeDataMode, generateFakeData } from '../useFakeData'
 
 const clients = ref<Client[]>([])
@@ -22,6 +22,15 @@ const displayClients = computed(() => {
 const cvClients = computed(() => {
   return displayClients.value.filter(c => c.cvClient)
 })
+
+// 类型守卫函数
+function isEvaluateWiringSession(session: any): session is EvaluateWiringSession {
+  return session?.type === 'evaluate_wiring'
+}
+
+function isFaceSigninSession(session: any): session is FaceSigninSession {
+  return session?.type === 'face_signin'
+}
 
 async function fetchClients() {
   try {
@@ -187,6 +196,41 @@ onUnmounted(() => {
           </div>
           <div style="font-size: 12px; color: #666; margin-top: 4px;">
             <strong>开始时间:</strong> {{ new Date(client.cvClient.session.startTime * 1000).toLocaleString() }}
+          </div>
+
+          <!-- 装接评估会话详情 -->
+          <div v-if="isEvaluateWiringSession(client.cvClient.session)" style="margin-top: 8px;">
+            <div v-if="!client.cvClient.session.finalResult" style="font-size: 12px; color: #1890ff;">
+              📸 拍摄采集中... (已拍摄 {{ client.cvClient.session.shots?.length || 0 }} 张)
+            </div>
+            <div v-else style="font-size: 12px;">
+              <div style="color: #52c41a; margin-bottom: 4px;"><strong>✅ 评估完成</strong></div>
+              <div style="color: #666; margin-top: 4px;">
+                <strong>得分:</strong> {{ client.cvClient.session.finalResult.scores }} 分
+              </div>
+              <div style="color: #666; margin-top: 4px;">
+                <strong>已标号码管:</strong> {{ client.cvClient.session.finalResult.no_sleeves_num }} 个
+              </div>
+              <div style="color: #666; margin-top: 4px;">
+                <strong>交叉接线:</strong> {{ client.cvClient.session.finalResult.cross_num }} 处
+              </div>
+              <div style="color: #666; margin-top: 4px;">
+                <strong>露铜:</strong> {{ client.cvClient.session.finalResult.excopper_num }} 处
+              </div>
+            </div>
+          </div>
+
+          <!-- 人脸签到会话详情 -->
+          <div v-if="isFaceSigninSession(client.cvClient.session)" style="margin-top: 8px;">
+            <div v-if="!client.cvClient.session.finalResult" style="font-size: 12px; color: #1890ff;">
+              👤 人脸识别中...
+            </div>
+            <div v-else style="font-size: 12px;">
+              <div style="color: #52c41a; margin-bottom: 4px;"><strong>✅ 识别完成</strong></div>
+              <div style="color: #666; margin-top: 4px;">
+                <strong>识别为:</strong> {{ client.cvClient.session.finalResult.who }}
+              </div>
+            </div>
           </div>
         </div>
       </Card>

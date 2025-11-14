@@ -42,14 +42,49 @@ export interface TestLog {
   };
 }
 
+// CV会话基类接口
+export interface CvSession {
+  type: "evaluate_wiring" | "face_signin";
+  startTime: number;
+}
+
+// 拍摄记录接口
+export interface WiringShot {
+  timestamp: number; // 拍摄时间戳(秒)
+  image: string; // 图片数据（base64或URL）
+  result: {
+    sleeves_num: number; // 已标号码管数量
+    cross_num: number; // 交叉接线数量
+    excopper_num: number; // 露铜数量
+  };
+}
+
+// 装接评估会话
+export interface EvaluateWiringSession extends CvSession {
+  type: "evaluate_wiring";
+  shots: WiringShot[]; // 拍摄记录数组
+  finalResult?: {
+    no_sleeves_num: number; // 未标号码管总数
+    cross_num: number; // 交叉接线总数
+    excopper_num: number; // 露铜总数
+    scores: number; // 评分
+  };
+}
+
+// 人脸签到会话
+export interface FaceSigninSession extends CvSession {
+  type: "face_signin";
+  finalResult?: {
+    who: string; // 识别到的人员名称
+    image: string; // 识别时的照片(base64)
+  };
+}
+
 // CV客户端接口
 export interface CvClient {
   clientType: "esp32cam" | "jetson_nano";
   ip: string;
-  session?: {
-    type: "evaluate_wiring" | "face_signin";
-    startTime: number;
-  };
+  session?: EvaluateWiringSession | FaceSigninSession;
 }
 
 export interface Client {
