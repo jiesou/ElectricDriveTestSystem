@@ -16,6 +16,66 @@ import {
 export const cvRouter = new Router({ prefix: "/cv" });
 
 /**
+ * MJPEG 流端点：实时显示 CV 客户端的图像流
+ * GET /api/cv/stream/:cvClientIp
+ */
+cvRouter.get("/stream/:cvClientIp", (ctx) => {
+  const cvClientIp = ctx.params.cvClientIp;
+
+  // 查找关联此 CV 客户端的普通客户端
+  const client = Object.values(clientManager.clients).find(
+    (c) => c.cvClient?.ip === cvClientIp,
+  );
+
+  if (!client || !client.cvClient) {
+    ctx.response.status = 404;
+    ctx.response.body = "CV client not found";
+    return;
+  }
+
+  // 设置 MJPEG 流响应头
+  ctx.response.headers.set("Content-Type", "multipart/x-mixed-replace; boundary=frame");
+  ctx.response.headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
+  ctx.response.headers.set("Pragma", "no-cache");
+  ctx.response.headers.set("Expires", "0");
+
+  // 创建响应体流
+  const body = new ReadableStream({
+    async start(controller) {
+      const encoder = new TextEncoder();
+      
+      // 定期发送帧
+      const intervalId = setInterval(() => {
+        try {
+          const frame = client.cvClient?.latest_frame;
+          
+          if (frame && frame.length > 0) {
+            // 发送 MJPEG 帧
+            const header = encoder.encode(
+              `--frame\r\nContent-Type: image/jpeg\r\nContent-Length: ${frame.length}\r\n\r\n`
+            );
+            controller.enqueue(header);
+            controller.enqueue(frame);
+            controller.enqueue(encoder.encode("\r\n"));
+          }
+        } catch (error) {
+          console.error("[CV Stream] 发送帧失败:", error);
+        }
+      }, 100); // 每100ms发送一次，即10fps
+
+      // 清理逻辑（当客户端断开连接时）
+      // Note: Oak's ReadableStream doesn't have a cancel callback,
+      // but the interval will be cleaned up when the response ends
+      return () => {
+        clearInterval(intervalId);
+      };
+    },
+  });
+
+  ctx.response.body = body;
+});
+
+/**
  * 装接评估：接收图片和推理结果
  * POST /api/cv/upload_wiring
  * 

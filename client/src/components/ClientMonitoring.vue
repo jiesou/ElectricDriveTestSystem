@@ -4,6 +4,7 @@ import { Card, Popconfirm, Button, Tag, Timeline, Switch } from 'ant-design-vue'
 import { AimOutlined } from '@ant-design/icons-vue'
 import type { Client } from '../types'
 import ClientTable from './ClientTable.vue'
+import CvClientMonitor from './CvClientMonitor.vue'
 import AIAnalysisModal from './AIAnalysisModal.vue'
 import { useFakeDataMode, generateFakeData } from '../useFakeData'
 
@@ -115,6 +116,11 @@ onUnmounted(() => {
       </template>
       <ClientTable />
     </Card>
+
+    <!-- 实时视觉客户端 -->
+    <div style="margin-top: 20px;">
+      <CvClientMonitor />
+    </div>
 
 
     <!-- 显示已结束的测验 -->

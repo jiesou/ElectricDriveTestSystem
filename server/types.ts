@@ -102,6 +102,7 @@ export interface CvClient {
   clientType: "esp32cam" | "jetson_nano";
   ip: string;
   session?: EvaluateWiringSession | FaceSigninSession; // 当前会话
+  latest_frame?: Uint8Array; // 最新接收到的 JPEG 帧数据
 }
 
 // ESP32-CAM客户端

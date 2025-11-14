@@ -29,6 +29,11 @@ const columns = [
     key: 'ip'
   },
   {
+    title: '关联视觉客户端',
+    key: 'cvClient',
+    customRender: ({ record }: { record: Client }) => ({ record })
+  },
+  {
     title: '在线状态',
     key: 'online',
     customRender: ({ record }: { record: Client }) => ({ record })
@@ -130,6 +135,11 @@ onUnmounted(() => {
         <Tag :color="record.online ? 'green' : 'red'">
           {{ record.online ? '在线' : '离线' }}
         </Tag>
+      </template>
+
+      <template v-if="column.key === 'cvClient'">
+        <span v-if="record.cvClient">{{ record.cvClient.ip }}</span>
+        <span v-else style="color: #999;">无</span>
       </template>
 
       <template v-if="column.key === 'name'">
