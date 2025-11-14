@@ -1,6 +1,6 @@
 import { Client, TestLog, Question } from "./types.ts";
 import { Router } from "@oak/oak";
-import { manager } from "./TestSystemManager.ts";
+import { clientManager } from "./ClientManager.ts";
 
 interface OpenAIConfig {
   apiKey: string;
@@ -203,7 +203,7 @@ generatorRouter.post("/analyze", async (ctx) => {
 
     // Find clients and validate they have test sessions
     const clients = clientIds
-      .map((id) => manager.clients[id])
+      .map((id) => clientManager.clients[id])
       .filter((client) => client && client.testSession);
 
     if (clients.length === 0) {

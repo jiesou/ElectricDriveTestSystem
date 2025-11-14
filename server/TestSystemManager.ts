@@ -9,9 +9,13 @@ import {
   TROUBLES,
 } from "./types.ts";
 import { getSecondTimestamp } from "./types.ts";
+import { clientManager } from "./ClientManager.ts";
 
 export class TestSystemManager {
-  public clients: Record<string, Client> = {};
+  // 获取clients的便捷方法
+  private get clients(): Record<string, Client> {
+    return clientManager.clients || {};
+  }
   public tests: Test[] = [];
   private questionBank: Question[] = [
     {
@@ -51,12 +55,9 @@ export class TestSystemManager {
     /* 野鸡持久存储方案 */
     try {
       const data = JSON.parse(Deno.readTextFileSync("data.json"));
-      Object.assign(this, data);
-      // 恢复后将所有客户端设为离线（因为重启后WebSocket连接都断了）
-      for (const clientId in this.clients) {
-        this.clients[clientId].online = false;
-        delete this.clients[clientId].socket;
-      }
+      // 只恢复tests和questionBank
+      if (data.tests) this.tests = data.tests;
+      if (data.questionBank) this.questionBank = data.questionBank;
     } catch {
       // 文件不存在或解析失败，使用默认值
       console.log("未找到 data.json 数据库，自动使用全新默认数据");
@@ -66,18 +67,10 @@ export class TestSystemManager {
     // 自动保存
     setInterval(
       () => {
-        // 保存前移除 socket 对象（不能序列化）
+        // 只保存tests和questionBank，不保存clients（由ClientManager管理）
         const dataToSave = {
-          ...this,
-          clients: Object.fromEntries(
-            Object.entries(this.clients).map(([id, client]) => [
-              id,
-              {
-                ...client,
-                socket: undefined, // 移除 socket 引用
-              },
-            ]),
-          ),
+          tests: this.tests,
+          questionBank: this.questionBank,
         };
         Deno.writeTextFileSync("data.json", JSON.stringify(dataToSave));
       },
@@ -85,66 +78,7 @@ export class TestSystemManager {
     );
   }
 
-  // 连接或重连客户端
-  connectClient(ip: string, socket: WebSocket): Client {
-    // 先查找是否有相同IP的客户机
-    const existingClient = Object.values(this.clients).find(
-      (client) => client.ip === ip,
-    );
-
-    const timestamp = getSecondTimestamp();
-
-    if (existingClient) {
-      // 重连现有客户端
-      existingClient.online = true;
-      existingClient.socket = socket;
-      existingClient.lastPing = getSecondTimestamp();
-
-      // 如果在测验会话中，记录重连日志
-      if (existingClient.testSession) {
-        existingClient.testSession.logs.push({
-          timestamp,
-          action: "connect",
-          details: {},
-        });
-      }
-
-      console.log(`Client ${existingClient.id} (${ip}) reconnected`);
-      return existingClient;
-    } else {
-      // 创建新客户端
-      const clientId = crypto.randomUUID();
-      const client: Client = {
-        id: clientId,
-        name: ip, // Default name is IP address
-        ip,
-        online: true,
-        socket,
-        lastPing: getSecondTimestamp(),
-      };
-      this.clients[clientId] = client;
-      console.log(`New client ${clientId} (${ip}) connected`);
-      return client;
-    }
-  }
-
-  // 断开客户端连接
-  disconnectClient(client: Client) {
-    // 如果有测试会话，记录断开连接日志
-    if (client.testSession) {
-      client.testSession.logs.push({
-        timestamp: getSecondTimestamp(),
-        action: "disconnect",
-        details: {},
-      });
-    }
-
-    client.online = false;
-    delete client.socket;
-    delete client.lastPing;
-    console.log(`Client ${client.id} disconnected`);
-  }
-
+  // 创建测验会话
   createTestSession(clientId: string, test: Test): boolean {
     const client = this.clients[clientId];
     if (!client) return false;
@@ -312,27 +246,6 @@ export class TestSystemManager {
     this.broadcastInterval = setInterval(() => {
       this.broadcastTroubleStatus();
     }, 3000); // 轮查间隔
-
-    // Start application-layer heartbeat checker
-    setInterval(() => {
-      const now = getSecondTimestamp();
-      const TIMEOUT = 10; // seconds
-      for (const [_id, client] of Object.entries(this.clients)) {
-        if (!client.online) continue;
-        if (!client.lastPing) continue;
-        if (now - client.lastPing > TIMEOUT) {
-          console.log(`Client ${client.id} timed out (no ping for ${now - client.lastPing}s), disconnecting`);
-          if (client.socket && client.socket.readyState === WebSocket.OPEN) {
-            try {
-              client.socket.close(4000, "heartbeat timeout");
-            } catch (_e) {
-              // ignore
-            }
-          }
-          this.disconnectClient(client);
-        }
-      }
-    }, 2000);
   }
 
   private broadcastTroubleStatus() {
@@ -421,24 +334,6 @@ export class TestSystemManager {
     if (this.broadcastInterval) {
       clearInterval(this.broadcastInterval);
     }
-  }
-
-  clearClients(): number {
-    const clientsToClear = Object.values(this.clients);
-
-    for (const client of clientsToClear) {
-      if (client.socket && client.socket.readyState === WebSocket.OPEN) {
-        try {
-          client.socket.close(1000, "Cleared by administrator");
-        } catch (error) {
-          console.error(`Failed to close socket for client ${client.id}:`, error);
-        }
-      }
-    }
-
-    const clearedCount = clientsToClear.length;
-    this.clients = {};
-    return clearedCount;
   }
 }
 

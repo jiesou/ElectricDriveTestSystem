@@ -1,7 +1,21 @@
 import { Application, Router } from "@oak/oak";
-import { Client, getSecondTimestamp, AnswerResultMessage, FinishResultMessage, TROUBLES } from "./types.ts";
+import {
+  Client,
+  getSecondTimestamp,
+  AnswerResultMessage,
+  FinishResultMessage,
+  TROUBLES,
+  EvaluateWiringSession,
+  FaceSigninSession,
+} from "./types.ts";
 import { manager } from "./TestSystemManager.ts";
+import { clientManager } from "./ClientManager.ts";
 import { generatorRouter } from "./generator.ts";
+import { troublesRouter } from "./routes/troubles.ts";
+import { questionsRouter } from "./routes/questions.ts";
+import { clientsRouter } from "./routes/clients.ts";
+import { testsRouter } from "./routes/tests.ts";
+import { cvRouter } from "./routes/cv.ts";
 
 const app = new Application();
 
@@ -48,274 +62,55 @@ wsRouter.get("/ws", (ctx) => {
     idleTimeout: 60, // ping 超时时间，单位秒
   });
   const clientIp = ctx.request.ip;
-  const client = manager.connectClient(clientIp, socket);
+  const client = clientManager.connectClient(clientIp, socket);
+
   socket.onmessage = (event) => {
     try {
       const message = JSON.parse(event.data as string);
       console.log("Received message:", message);
-      // handle application-level ping: update lastPing timestamp
+
+      // 处理应用层ping消息
       if (message && typeof message.type === "string" && message.type === "ping") {
-        client.lastPing = getSecondTimestamp();
-        client.online = true;
-        client.socket = socket; // 更新 socket 引用
-        safeSend(socket, {
-          type: "pong",
-          timestamp: getSecondTimestamp(),
-        });
+        clientManager.handlePing(client, socket);
         return;
       }
 
-      handleWebSocketMessage(manager, client, socket, message);
+      handleWebSocketMessage(client, socket, message);
     } catch (error) {
-      console.error(`Error parsing message from ${client}:`, error);
+      console.error(`Error parsing message from ${client.id}:`, error);
     }
   };
 
-  // socket.onclose = () => {
-  //   manager.disconnectClient(clientId);
-  // };
-
   socket.onerror = (error) => {
-    console.error(`WebSocket error for ${client}:`, error);
-    manager.disconnectClient(client);
+    console.error(`WebSocket error for ${client.id}:`, error);
+    clientManager.disconnectClient(client);
   };
 
-  console.log(`WebSocket connection established for client ${client}`);
+  console.log(`WebSocket connection established for client ${client.id}`);
   ctx.response.with(response);
 });
 
 // API routes
 const apiRouter = new Router({ prefix: "/api" });
 
-apiRouter.get("/troubles", (ctx) => {
-  ctx.response.body = {
-    success: true,
-    data: manager.getTroubles(),
-  };
-});
+// 注册各个子路由
+apiRouter.use(troublesRouter.routes());
+apiRouter.use(troublesRouter.allowedMethods());
 
-apiRouter.get("/questions", (ctx) => {
-  ctx.response.body = {
-    success: true,
-    data: manager.questions,
-  };
-});
+apiRouter.use(questionsRouter.routes());
+apiRouter.use(questionsRouter.allowedMethods());
 
-apiRouter.post("/questions", async (ctx) => {
-  try {
-    const body = await ctx.request.body.json();
-    const { troubles } = body;
+apiRouter.use(clientsRouter.routes());
+apiRouter.use(clientsRouter.allowedMethods());
 
-    if (!Array.isArray(troubles) || troubles.length === 0) {
-      ctx.response.status = 400;
-      ctx.response.body = { success: false, error: "Invalid troubles array" };
-      return;
-    }
+apiRouter.use(testsRouter.routes());
+apiRouter.use(testsRouter.allowedMethods());
 
-    const newQuestion = manager.addQuestion({ troubles });
-    ctx.response.body = {
-      success: true,
-      data: newQuestion,
-    };
-  } catch (_error) {
-    ctx.response.status = 400;
-    ctx.response.body = { success: false, error: "Invalid request body" };
-  }
-});
+apiRouter.use(generatorRouter.routes());
+apiRouter.use(generatorRouter.allowedMethods());
 
-apiRouter.put("/questions/:id", async (ctx) => {
-  try {
-    const id = parseInt(ctx.params.id!);
-    const body = await ctx.request.body.json();
-    const success = manager.updateQuestion(id, body);
-
-    if (success) {
-      ctx.response.body = { success: true };
-    } else {
-      ctx.response.status = 404;
-      ctx.response.body = { success: false, error: "Question not found" };
-    }
-  } catch (_error) {
-    ctx.response.status = 400;
-    ctx.response.body = { success: false, error: "Invalid request" };
-  }
-});
-
-apiRouter.delete("/questions/:id", (ctx) => {
-  const id = parseInt(ctx.params.id!);
-  const success = manager.deleteQuestion(id);
-
-  if (success) {
-    ctx.response.body = { success: true };
-  } else {
-    ctx.response.status = 404;
-    ctx.response.body = { success: false, error: "Question not found" };
-  }
-});
-
-apiRouter.get("/clients", (ctx) => {
-  const clients = Object.values(manager.clients).map((client) => ({
-    id: client.id,
-    name: client.name,
-    ip: client.ip,
-    online: client.online,
-    testSession: client.testSession || null,
-  }));
-
-  ctx.response.body = {
-    success: true,
-    data: clients,
-  };
-});
-
-// 修改客户机名字
-apiRouter.put("/clients/:id", async (ctx) => {
-  try {
-    const id = ctx.params.id!;
-    const body = await ctx.request.body.json();
-    const { name } = body as { name?: string };
-
-    if (typeof name !== "string" || name.trim() === "") {
-      ctx.response.status = 400;
-      ctx.response.body = { success: false, error: "Invalid name" };
-      return;
-    }
-
-    const client = manager.clients[id];
-    if (!client) {
-      ctx.response.status = 404;
-      ctx.response.body = { success: false, error: "Client not found" };
-      return;
-    }
-
-    client.name = name.trim();
-
-    ctx.response.body = { success: true };
-  } catch (_error) {
-    ctx.response.status = 400;
-    ctx.response.body = { success: false, error: "Invalid request" };
-  }
-});
-
-apiRouter.post("/clients/forget", (ctx) => {
-  const clearedCount = manager.clearClients();
-
-  ctx.response.body = {
-    success: true,
-    data: { cleared: clearedCount },
-  };
-});
-
-apiRouter.get("/tests", (ctx) => {
-  ctx.response.body = {
-    success: true,
-    data: manager.tests,
-  };
-});
-
-apiRouter.post("/tests/finish-all", (ctx) => {
-  const finishTime = getSecondTimestamp();
-  for (const client of Object.values(manager.clients)) {
-    manager.finishTest(client, finishTime);
-  }
-
-  ctx.response.body = { success: true };
-});
-
-apiRouter.post("/tests/clear-all", (ctx) => {
-  for (const client of Object.values(manager.clients)) {
-    client.testSession = undefined;
-  }
-  manager.tests = [];
-
-  ctx.response.body = { success: true };
-});
-
-// 继电器功能测试广播：向每个在线客户端发送 relay_rainbow 消息
-apiRouter.post("/relay-rainbow", (ctx) => {
-  let sent = 0
-  for (const client of Object.values(manager.clients)) {
-    if (!client.online) continue
-    if (!client.socket) continue
-    if (!(client.socket.readyState === WebSocket.OPEN)) continue
-
-    try {
-      client.socket.send(JSON.stringify({ type: "relay_rainbow", timestamp: getSecondTimestamp() }))
-      sent++
-    } catch (error) {
-      console.error(`Failed to send relay_rainbow to client ${client.id}:`, error)
-    }
-  }
-
-  ctx.response.body = { success: true, data: { sent } }
-})
-
-// Create Test session
-apiRouter.post("/test-sessions", async (ctx) => {
-  try {
-    const body = await ctx.request.body.json();
-    const { clientIds, questionIds, startTime, durationTime } = body;
-
-    if (!Array.isArray(clientIds) || !Array.isArray(questionIds)) {
-      ctx.response.status = 400;
-      ctx.response.body = {
-        success: false,
-        error: "Invalid clientIds or questionIds",
-      };
-      return;
-    }
-
-    const allQuestions = manager.questions;
-    // 查找所含的题目，同时确保保持输入的顺序
-    const selectedQuestions = questionIds
-      .map((id) => allQuestions.find((q) => q.id === id))
-      .filter((q) => q !== undefined);
-
-    if (selectedQuestions.length !== questionIds.length) {
-      ctx.response.status = 400;
-      ctx.response.body = { success: false, error: "Some questions not found" };
-      return;
-    }
-
-    // Create a test first
-    const test = manager.createTest(
-      selectedQuestions,
-      startTime || getSecondTimestamp(),
-      durationTime || null,
-    );
-
-    const results: { clientId: string; success: boolean }[] = [];
-
-    // Create test sessions for each client
-    for (const clientId of clientIds) {
-      const success = manager.createTestSession(clientId, test);
-      results.push({ clientId, success });
-    }
-
-    ctx.response.body = {
-      success: true,
-      data: results,
-    };
-  } catch (_error) {
-    ctx.response.status = 400;
-    ctx.response.body = { success: false, error: "Invalid request body" };
-  }
-});
-
-apiRouter.get("/status", (ctx) => {
-  const clients = Object.values(manager.clients);
-
-  ctx.response.body = {
-    success: true,
-    data: {
-      timestamp: getSecondTimestamp(),
-      connectedClients: clients.filter((c) => c.online).length,
-      activeTests: clients.filter((c) => c.testSession).length,
-      totalQuestions: manager.questions.length,
-      totalTroubles: manager.getTroubles().length,
-    },
-  };
-});
+apiRouter.use(cvRouter.routes());
+apiRouter.use(cvRouter.allowedMethods());
 
 // Health check
 const healthRouter = new Router();
@@ -323,7 +118,7 @@ healthRouter.get("/health", (ctx) => {
   ctx.response.body = { status: "ok", timestamp: getSecondTimestamp() };
 });
 
-// Register routes
+// 静态文件服务
 app.use(async (ctx, next) => {
   const pathname = ctx.request.url.pathname;
   if (!pathname.startsWith("/api") && !pathname.startsWith("/ws")) {
@@ -336,26 +131,17 @@ app.use(async (ctx, next) => {
     await next();
   }
 });
+
+// 注册路由
 app.use(wsRouter.routes());
 app.use(apiRouter.routes());
 app.use(apiRouter.allowedMethods());
-apiRouter.use(generatorRouter.routes());
-apiRouter.use(generatorRouter.allowedMethods());
 app.use(healthRouter.routes());
 
-// Helper function to safely send WebSocket messages
-function safeSend(socket: WebSocket, message: Record<string, unknown>) {
-  if (socket.readyState === WebSocket.OPEN) {
-    try {
-      socket.send(JSON.stringify(message));
-    } catch (error) {
-      console.error("Failed to send WebSocket message:", error);
-    }
-  }
-}
-
+/**
+ * 处理WebSocket消息
+ */
 function handleWebSocketMessage(
-  mgr: typeof manager,
   client: Client,
   socket: WebSocket,
   message: Record<string, unknown>,
@@ -364,10 +150,10 @@ function handleWebSocketMessage(
 
   switch (message.type) {
     case "answer": {
-      // find the trouble object in the current question by id
+      // 处理答题
       const troubleId = message.trouble_id as number;
       if (!client.testSession) {
-        safeSend(socket, {
+        clientManager.safeSend(socket, {
           type: "error",
           message: "No active test session",
           timestamp: getSecondTimestamp(),
@@ -376,15 +162,15 @@ function handleWebSocketMessage(
       }
       const trouble = TROUBLES.find((t) => t.id === troubleId);
       if (!trouble) {
-        safeSend(socket, {
+        clientManager.safeSend(socket, {
           type: "error",
           message: "Trouble not found",
           timestamp: getSecondTimestamp(),
         });
         return;
       }
-      const isCorrect = mgr.handleAnswer(client, trouble);
-      safeSend(socket, {
+      const isCorrect = manager.handleAnswer(client, trouble);
+      clientManager.safeSend(socket, {
         type: "answer_result",
         timestamp: getSecondTimestamp(),
         result: isCorrect,
@@ -395,29 +181,88 @@ function handleWebSocketMessage(
 
     case "next_question":
     case "last_question": {
+      // 处理题目导航
       const direction = message.type === "next_question" ? "next" : "prev";
-      mgr.navigateQuestion(client, direction);
+      manager.navigateQuestion(client, direction);
       break;
     }
 
     case "finish": {
+      // 处理完成测验
       const timestamp = typeof message.timestamp === "number"
         ? message.timestamp
         : undefined;
-      
-      const finishedScore = mgr.finishTest(client, timestamp);
-      safeSend(socket, {
+
+      const finishedScore = manager.finishTest(client, timestamp);
+      clientManager.safeSend(socket, {
         type: "finish_result",
         finished_score: finishedScore,
         timestamp: getSecondTimestamp(),
       } as FinishResultMessage);
-
       break;
     }
+
+    case "evaluate_wiring_yolo_request": {
+      // 处理装接评估请求
+      if (!client.cvClient) {
+        clientManager.safeSend(socket, {
+          type: "error",
+          message: "No CV client configured",
+          timestamp: getSecondTimestamp(),
+        });
+        return;
+      }
+
+      // 创建装接评估会话
+      const session: EvaluateWiringSession = {
+        type: "evaluate_wiring",
+        startTime: getSecondTimestamp(),
+        shots: [],
+      };
+      client.cvClient.session = session;
+
+      console.log(
+        `[WebSocket] Started evaluate_wiring session for client ${client.id}`,
+      );
+
+      // 通知CV客户端开始拍照/推理
+      // 实际的CV客户端交互通过HTTP POST到 /api/cv/upload_wiring 实现
+      break;
+    }
+
+    case "face_signin_request": {
+      // 处理人脸签到请求
+      if (!client.cvClient) {
+        clientManager.safeSend(socket, {
+          type: "error",
+          message: "No CV client configured",
+          timestamp: getSecondTimestamp(),
+        });
+        return;
+      }
+
+      // 创建人脸签到会话
+      const session: FaceSigninSession = {
+        type: "face_signin",
+        startTime: getSecondTimestamp(),
+      };
+      client.cvClient.session = session;
+
+      console.log(
+        `[WebSocket] Started face_signin session for client ${client.id}`,
+      );
+
+      // 通知CV客户端开始人脸识别
+      // 实际的CV客户端交互通过HTTP POST到 /api/cv/upload_face 实现
+      break;
+    }
+
+    default:
+      console.warn(`Unknown message type: ${message.type}`);
   }
 }
 
-// Handle application errors silently
+// 处理应用错误
 app.addEventListener("error", (evt) => {
   console.log("Application error:", evt.error?.message || "Unknown");
 });

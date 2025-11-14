@@ -53,6 +53,65 @@ export interface Client {
   socket?: WebSocket; // Optional since offline clients don't have socket
   lastPing?: number; // timestamp in seconds of last application-layer ping
   testSession?: TestSession;
+  cvClient?: CvClient; // 关联的CV客户端
+}
+
+// ==================== CV机器视觉相关类型 ====================
+
+// CV会话基类接口
+export interface CvSession {
+  type: "evaluate_wiring" | "face_signin";
+  startTime: number; // 会话开始时间戳(秒)
+  finalResult?: unknown; // 最终结果，类型由具体会话决定
+}
+
+// 装接评估会话中的单次拍摄记录
+export interface WiringShot {
+  timestamp: number; // 拍摄时间戳(秒)
+  image: string; // 图片数据（base64或URL）
+  result: {
+    sleeves_num: number; // 已标号码管数量
+    cross_num: number; // 交叉接线数量
+    excopper_num: number; // 露铜数量
+  };
+}
+
+// 装接评估会话
+export interface EvaluateWiringSession extends CvSession {
+  type: "evaluate_wiring";
+  shots: WiringShot[]; // 拍摄记录数组
+  finalResult?: {
+    no_sleeves_num: number; // 未标号码管总数
+    cross_num: number; // 交叉接线总数
+    excopper_num: number; // 露铜总数
+    scores: number; // 评分
+  };
+}
+
+// 人脸签到会话
+export interface FaceSigninSession extends CvSession {
+  type: "face_signin";
+  finalResult?: {
+    who: string; // 识别到的人员名称
+    image: string; // 识别时的照片
+  };
+}
+
+// CV客户端基类接口
+export interface CvClient {
+  clientType: "esp32cam" | "jetson_nano";
+  ip: string;
+  session?: EvaluateWiringSession | FaceSigninSession; // 当前会话
+}
+
+// ESP32-CAM客户端
+export interface ESPCAMClient extends CvClient {
+  clientType: "esp32cam";
+}
+
+// Jetson Nano客户端
+export interface JetsonNanoClient extends CvClient {
+  clientType: "jetson_nano";
 }
 
 // WebSocket message types
@@ -102,6 +161,36 @@ export interface FinishMessage extends WSMessage {
 export interface FinishResultMessage extends WSMessage {
   type: "finish_result";
   finished_score: number;
+}
+
+// ==================== CV机器视觉WebSocket消息类型 ====================
+
+// ESP32客户端请求装接评估
+export interface EvaluateWiringYoloRequestMessage extends WSMessage {
+  type: "evaluate_wiring_yolo_request";
+}
+
+// 服务器返回装接评估结果给ESP32客户端
+export interface EvaluateWiringYoloResponseMessage extends WSMessage {
+  type: "evaluate_wiring_yolo_response";
+  result: {
+    no_sleeves_num: number;
+    cross_num: number;
+    excopper_num: number;
+    scores: number;
+  };
+}
+
+// ESP32客户端请求人脸签到
+export interface FaceSigninRequestMessage extends WSMessage {
+  type: "face_signin_request";
+}
+
+// 服务器返回人脸签到结果给ESP32客户端
+export interface FaceSigninResponseMessage extends WSMessage {
+  type: "face_signin_response";
+  who: string;
+  image: string;
 }
 
 // Predefined troubles (hardcoded)
@@ -154,4 +243,55 @@ export const TROUBLES: Trouble[] = (() => {
   }
 
   return DEFAULT_TROUBLES;
+})();
+
+// ==================== CV客户端映射配置 ====================
+
+// CV客户端映射表配置项
+export interface CvClientMapConfig {
+  clientIp: string; // 普通客户端IP
+  cvClientIp: string; // CV客户端IP
+  cvClientType: "esp32cam" | "jetson_nano"; // CV客户端类型
+}
+
+// 默认CV客户端映射表（当cvClientMap.json不存在时使用）
+const DEFAULT_CV_CLIENT_MAP: CvClientMapConfig[] = [];
+
+// 从cvClientMap.json加载CV客户端映射表
+export const CV_CLIENT_MAP: CvClientMapConfig[] = (() => {
+  const tryLoad = (): CvClientMapConfig[] | null => {
+    try {
+      const filePath = `${Deno.cwd()}/cvClientMap.json`;
+
+      let text: string | undefined;
+
+      try {
+        text = Deno.readTextFileSync!(filePath);
+      } catch (_e) {
+        // 文件不存在或读取失败，返回 null 以使用默认值
+        return null;
+      }
+      if (!text) return null;
+
+      const parsed = JSON.parse(text);
+      if (!Array.isArray(parsed)) return null;
+
+      return parsed as CvClientMapConfig[];
+    } catch (_err) {
+      // 任何异常都回退到默认
+      return null;
+    }
+  };
+
+  const loaded = tryLoad();
+  if (loaded) {
+    try {
+      console.log('[types] Loaded CV_CLIENT_MAP from cvClientMap.json');
+    } catch (_e) {
+      // 忽略日志打印错误
+    }
+    return loaded;
+  }
+
+  return DEFAULT_CV_CLIENT_MAP;
 })();
