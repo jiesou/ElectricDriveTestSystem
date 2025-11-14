@@ -93,7 +93,7 @@ export interface FaceSigninSession extends CvSession {
   type: "face_signin";
   finalResult?: {
     who: string; // 识别到的人员名称
-    image: string; // 识别时的照片
+    image: Uint8Array; // 识别时的照片
   };
 }
 

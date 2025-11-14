@@ -7,6 +7,8 @@ import { useFakeDataMode, generateFakeData } from '../useFakeData'
 const clients = ref<Client[]>([])
 const loading = ref(false)
 const refreshTimer = ref<number | null>(null)
+// 跟踪每个CV客户端的图像加载状态
+const imageLoadedStates = ref<Record<string, boolean>>({})
 
 // 根据假数据模式返回实际显示的客户端列表
 const displayClients = computed(() => {
@@ -54,6 +56,33 @@ function getStreamUrl(cvClientIp: string): string {
   return `/api/cv/stream/${cvClientIp}`
 }
 
+function onImageLoad(cvClientIp: string) {
+  // MJPEG 流加载第一帧后会触发此事件
+  imageLoadedStates.value[cvClientIp] = true
+  console.log(`[CvClientMonitor] 图像加载成功: ${cvClientIp}`)
+}
+
+function onImageError(cvClientIp: string) {
+  imageLoadedStates.value[cvClientIp] = false
+  console.error(`[CvClientMonitor] 图像加载失败: ${cvClientIp}`)
+}
+
+function isImageLoaded(cvClientIp: string): boolean {
+  return imageLoadedStates.value[cvClientIp] === true
+}
+
+// 当新的 CV 客户端出现时，设置一个超时来自动隐藏占位符
+// 这是为了处理某些浏览器不触发 MJPEG 流 load 事件的情况
+function autoHidePlaceholder(cvClientIp: string) {
+  setTimeout(() => {
+    // 如果 2 秒后还没有触发 load 事件，就假设已经加载成功
+    if (!imageLoadedStates.value[cvClientIp]) {
+      console.log(`[CvClientMonitor] 自动隐藏占位符: ${cvClientIp}`)
+      imageLoadedStates.value[cvClientIp] = true
+    }
+  }, 2000)
+}
+
 function getSessionTypeText(sessionType: string | undefined): string {
   if (!sessionType) return '空闲'
   switch (sessionType) {
@@ -98,7 +127,7 @@ onUnmounted(() => {
         v-for="client in cvClients" 
         :key="client.id"
         size="small"
-        :title="`${client.name} - CV客户端`"
+        :title="`${client.name} - 视觉客户端`"
       >
         <template #extra>
           <Tag :color="getSessionColor(client.cvClient?.session?.type)">
@@ -111,25 +140,26 @@ onUnmounted(() => {
             <strong>客户机IP:</strong> {{ client.ip }}
           </div>
           <div style="font-size: 12px; color: #666; margin-bottom: 8px;">
-            <strong>CV客户端IP:</strong> {{ client.cvClient?.ip }}
+            <strong>视觉客户端IP:</strong> {{ client.cvClient?.ip }}
           </div>
         </div>
 
         <!-- 图像显示区域 -->
         <div style="position: relative; width: 100%; padding-top: 75%; background: #f0f0f0; border-radius: 4px; overflow: hidden;">
           <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
+            <!-- MJPEG 流会自动处理，加载第一帧后就会触发 load 事件 -->
             <img 
               v-if="client.cvClient"
               :src="getStreamUrl(client.cvClient.ip)" 
               alt="实时图像"
-              style="width: 100%; height: 100%; object-fit: contain;"
-              @error="(e) => {
-                // 图像加载失败时显示占位符
-                (e.target as HTMLImageElement).style.display = 'none';
-              }"
+              style="width: 100%; object-fit: contain; background: #000;"
+              @load="onImageLoad(client.cvClient.ip)"
+              @error="onImageError(client.cvClient.ip)"
+              @loadstart="autoHidePlaceholder(client.cvClient.ip)"
             />
-            <!-- 占位符：摄像头连接中 -->
+            <!-- 占位符：摄像头连接中，仅在图像未加载时显示 -->
             <div 
+              v-if="client.cvClient && !isImageLoaded(client.cvClient.ip)"
               style="
                 position: absolute; 
                 top: 0; 
@@ -142,6 +172,7 @@ onUnmounted(() => {
                 background: #fafafa;
                 color: #999;
                 font-size: 14px;
+                z-index: 1;
               "
             >
               摄像头连接中...

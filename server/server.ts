@@ -16,7 +16,7 @@ import { questionsRouter } from "./routes/questions.ts";
 import { clientsRouter } from "./routes/clients.ts";
 import { testsRouter } from "./routes/tests.ts";
 import { cvRouter } from "./routes/cv.ts";
-import { udpCameraReceiver } from "./UdpCameraReceiver.ts";
+import { udpCameraServer } from "./UdpCameraServer.ts";
 
 const app = new Application();
 
@@ -273,6 +273,6 @@ console.log("WebSocket endpoint: ws://localhost:8000/ws");
 console.log("API endpoint: http://localhost:8000/api");
 
 // 启动 UDP 图传接收器
-await udpCameraReceiver.start(8000);
+udpCameraServer.start(8000);
 
 await app.listen({ port: 8000 });

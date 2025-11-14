@@ -1,8 +1,8 @@
 [
   {
-    "clientIp": "192.168.1.100",
-    "cvClientIp": "192.168.1.200",
-    "cvClientType": "esp32cam"
+    "clientIp": "127.0.0.1",
+    "cvClientIp": "192.168.11.242",
+    "cvClientType": "jetson_nano"
   },
   {
     "clientIp": "192.168.1.101",
