@@ -4,10 +4,10 @@ import { manager } from "../TestSystemManager.ts";
 /**
  * 题目管理路由
  */
-export const questionsRouter = new Router();
+export const questionsRouter = new Router({ prefix: "/questions" });
 
 // 获取题目列表
-questionsRouter.get("/questions", (ctx) => {
+questionsRouter.get("/", (ctx) => {
   ctx.response.body = {
     success: true,
     data: manager.questions,
@@ -15,7 +15,7 @@ questionsRouter.get("/questions", (ctx) => {
 });
 
 // 创建新题目
-questionsRouter.post("/questions", async (ctx) => {
+questionsRouter.post("/", async (ctx) => {
   try {
     const body = await ctx.request.body.json();
     const { troubles } = body;
@@ -38,7 +38,7 @@ questionsRouter.post("/questions", async (ctx) => {
 });
 
 // 更新题目
-questionsRouter.put("/questions/:id", async (ctx) => {
+questionsRouter.put("/:id", async (ctx) => {
   try {
     const id = parseInt(ctx.params.id!);
     const body = await ctx.request.body.json();
@@ -57,7 +57,7 @@ questionsRouter.put("/questions/:id", async (ctx) => {
 });
 
 // 删除题目
-questionsRouter.delete("/questions/:id", (ctx) => {
+questionsRouter.delete("/:id", (ctx) => {
   const id = parseInt(ctx.params.id!);
   const success = manager.deleteQuestion(id);
 

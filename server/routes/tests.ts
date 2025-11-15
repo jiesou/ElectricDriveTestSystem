@@ -6,10 +6,10 @@ import { getSecondTimestamp } from "../types.ts";
 /**
  * 测验管理路由
  */
-export const testsRouter = new Router();
+export const testsRouter = new Router( { prefix: "/tests" } );
 
 // 获取测验列表
-testsRouter.get("/tests", (ctx) => {
+testsRouter.get("/", (ctx) => {
   ctx.response.body = {
     success: true,
     data: manager.tests,
@@ -17,7 +17,7 @@ testsRouter.get("/tests", (ctx) => {
 });
 
 // 结束所有测验
-testsRouter.post("/tests/finish-all", (ctx) => {
+testsRouter.post("/finish-all", (ctx) => {
   const finishTime = getSecondTimestamp();
   for (const client of Object.values(clientManager.clients)) {
     manager.finishTest(client, finishTime);
@@ -27,7 +27,7 @@ testsRouter.post("/tests/finish-all", (ctx) => {
 });
 
 // 清除所有测验
-testsRouter.post("/tests/clear-all", (ctx) => {
+testsRouter.post("/clear-all", (ctx) => {
   for (const client of Object.values(clientManager.clients)) {
     client.testSession = undefined;
   }
@@ -107,20 +107,4 @@ testsRouter.post("/relay-rainbow", (ctx) => {
   }
 
   ctx.response.body = { success: true, data: { sent } };
-});
-
-// 获取系统状态
-testsRouter.get("/status", (ctx) => {
-  const clients = Object.values(clientManager.clients);
-
-  ctx.response.body = {
-    success: true,
-    data: {
-      timestamp: getSecondTimestamp(),
-      connectedClients: clients.filter((c) => c.online).length,
-      activeTests: clients.filter((c) => c.testSession).length,
-      totalQuestions: manager.questions.length,
-      totalTroubles: manager.getTroubles().length,
-    },
-  };
 });

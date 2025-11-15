@@ -131,19 +131,14 @@ onUnmounted(() => {
     <div v-if="cvClients.length === 0">
       <Empty description="暂无视觉客户端连接" />
     </div>
-    <div v-else style="display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 16px;">
-      <Card 
-        v-for="client in cvClients" 
-        :key="client.id"
-        size="small"
-        :title="`${client.name} - 视觉客户端`"
-      >
+    <div v-else style="display: grid; grid-template-columns: repeat(auto-fill, 600px); gap: 16px;">
+      <Card v-for="client in cvClients" :key="client.id" size="small" :title="`${client.name} - 视觉客户端`">
         <template #extra>
           <Tag :color="getSessionColor(client.cvClient?.session?.type)">
             {{ getSessionTypeText(client.cvClient?.session?.type) }}
           </Tag>
         </template>
-        
+
         <div style="margin-bottom: 12px;">
           <div style="font-size: 12px; color: #666; margin-bottom: 4px;">
             <strong>客户机IP:</strong> {{ client.ip }}
@@ -151,25 +146,16 @@ onUnmounted(() => {
           <div style="font-size: 12px; color: #666; margin-bottom: 8px;">
             <strong>视觉客户端IP:</strong> {{ client.cvClient?.ip }}
           </div>
-        </div>
 
-        <!-- 图像显示区域 -->
-        <div style="position: relative; width: 100%; padding-top: 75%; background: #f0f0f0; border-radius: 4px; overflow: hidden;">
-          <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
+          <!-- 图像显示区域 -->
+          <div
+            style="position: relative; width: 100%; background: #f0f0f0; border-radius: 4px; overflow: hidden; min-height: 160px;">
             <!-- MJPEG 流会自动处理，加载第一帧后就会触发 load 事件 -->
-            <img 
-              v-if="client.cvClient"
-              :src="getStreamUrl(client.cvClient.ip)" 
-              alt="实时图像"
-              style="width: 100%; object-fit: contain; background: #000;"
-              @load="onImageLoad(client.cvClient.ip)"
-              @error="onImageError(client.cvClient.ip)"
-              @loadstart="autoHidePlaceholder(client.cvClient.ip)"
-            />
+            <img v-if="client.cvClient" :src="getStreamUrl(client.cvClient.ip)" alt="实时图像"
+              style="width: 100%; object-fit: contain; background: #000;" @load="onImageLoad(client.cvClient.ip)"
+              @error="onImageError(client.cvClient.ip)" @loadstart="autoHidePlaceholder(client.cvClient.ip)" />
             <!-- 占位符：摄像头连接中，仅在图像未加载时显示 -->
-            <div 
-              v-if="client.cvClient && !isImageLoaded(client.cvClient.ip)"
-              style="
+            <div v-if="client.cvClient && !isImageLoaded(client.cvClient.ip)" style="
                 position: absolute; 
                 top: 0; 
                 left: 0; 
@@ -182,15 +168,15 @@ onUnmounted(() => {
                 color: #999;
                 font-size: 14px;
                 z-index: 1;
-              "
-            >
+              ">
               摄像头连接中...
             </div>
           </div>
         </div>
 
         <!-- 会话信息 -->
-        <div v-if="client.cvClient?.session" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0f0f0;">
+        <div v-if="client.cvClient?.session"
+          style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0f0f0;">
           <div style="font-size: 12px; color: #666;">
             <strong>当前会话:</strong> {{ getSessionTypeText(client.cvClient.session.type) }}
           </div>
@@ -209,13 +195,16 @@ onUnmounted(() => {
                 <strong>得分:</strong> {{ client.cvClient.session.finalResult.scores }} 分
               </div>
               <div style="color: #666; margin-top: 4px;">
-                <strong>已标号码管:</strong> {{ client.cvClient.session.finalResult.no_sleeves_num }} 个
+                <strong>未标号码管:</strong> {{ client.cvClient.session.finalResult.no_sleeves_num }} 个
               </div>
               <div style="color: #666; margin-top: 4px;">
                 <strong>交叉接线:</strong> {{ client.cvClient.session.finalResult.cross_num }} 处
               </div>
               <div style="color: #666; margin-top: 4px;">
                 <strong>露铜:</strong> {{ client.cvClient.session.finalResult.excopper_num }} 处
+              </div>
+              <div style="color: #666; margin-top: 4px;">
+                <strong>露端子:</strong> {{ client.cvClient.session.finalResult.exterminal_num }} 处
               </div>
             </div>
           </div>

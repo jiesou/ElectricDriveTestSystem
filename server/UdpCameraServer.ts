@@ -125,7 +125,7 @@ export class UdpCameraServer {
     }
     
     if (updatedCount === 0) {
-      console.warn(`[UdpCamera] 警告：没有找到对应 CV 客户端！当前连接的客户端: ${Object.keys(clientManager.clients).join(", ")}`);
+      console.warn(`[UdpCamera] 警告：没有找到对应 CV 客户端！当前连接的客户端: ${Array.from(Object.values(clientManager.clients).map(c => c.name)).join(", ")}`);
     }
   }
 

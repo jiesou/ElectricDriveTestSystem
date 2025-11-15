@@ -81,7 +81,6 @@ cvRouter.get("/stream/:cvClientIp", (ctx) => {
  * 
  * 请求体：
  * {
- *   "cvClientIp": "192.168.1.200",
  *   "image?": "base64_encoded_image_or_url",
  *   "result?": {
  *     "sleeves_num": 10,
@@ -93,7 +92,8 @@ cvRouter.get("/stream/:cvClientIp", (ctx) => {
 cvRouter.post("/upload_wiring", async (ctx) => {
   try {
     const body = await ctx.request.body.json();
-    const { cvClientIp, image, result } = body;
+    const { image, result } = body;
+    const cvClientIp: string = ctx.request.ip;
 
     // 查找关联此CV客户端的普通客户端
     const client = Object.values(clientManager.clients).find(
@@ -101,20 +101,20 @@ cvRouter.post("/upload_wiring", async (ctx) => {
     );
 
     if (!client) {
-      ctx.response.status = 404;
-      ctx.response.body = { success: false, error: "Client not found for CV client" };
+      ctx.response.status = 400;
+      ctx.response.body = { success: false, error: "找不到当前视觉客户端，所对应的普通客户端" };
       return;
     }
 
     if (!client.cvClient?.session) {
       ctx.response.status = 400;
-      ctx.response.body = { success: false, error: "No active CV session" };
+      ctx.response.body = { success: false, error: "当前视觉客户端没有活跃会话，没有要做的" };
       return;
     }
 
     if (client.cvClient.session.type !== "evaluate_wiring") {
       ctx.response.status = 400;
-      ctx.response.body = { success: false, error: "Wrong session type" };
+      ctx.response.body = { success: false, error: "错误会话类型，现在没在进行装接评估" };
       return;
     }
 
@@ -134,6 +134,7 @@ cvRouter.post("/upload_wiring", async (ctx) => {
         sleeves_num: result.sleeves_num || 0,
         cross_num: result.cross_num || 0,
         excopper_num: result.excopper_num || 0,
+        exterminal: result.exterminal || 0,
       },
     };
 
@@ -163,10 +164,9 @@ cvRouter.post("/upload_wiring", async (ctx) => {
  *   "cvClientIp": "192.168.1.200"
  * }
  */
-cvRouter.post("/confirm_wiring", async (ctx) => {
+cvRouter.post("/confirm_wiring", (ctx) => {
   try {
-    const body = await ctx.request.body.json();
-    const { cvClientIp } = body;
+    const cvClientIp: string = ctx.request.ip;
 
     // 查找关联此CV客户端的普通客户端
     const client = Object.values(clientManager.clients).find(
@@ -174,20 +174,20 @@ cvRouter.post("/confirm_wiring", async (ctx) => {
     );
 
     if (!client) {
-      ctx.response.status = 404;
-      ctx.response.body = { success: false, error: "Client not found for CV client" };
+      ctx.response.status = 400;
+      ctx.response.body = { success: false, error: "找不到当前视觉客户端，所对应的普通客户端" };
       return;
     }
 
     if (!client.cvClient?.session) {
       ctx.response.status = 400;
-      ctx.response.body = { success: false, error: "No active CV session" };
+      ctx.response.body = { success: false, error: "当前视觉客户端没有活跃会话，没有要做的" };
       return;
     }
 
     if (client.cvClient.session.type !== "evaluate_wiring") {
       ctx.response.status = 400;
-      ctx.response.body = { success: false, error: "Wrong session type" };
+      ctx.response.body = { success: false, error: "错误会话类型，现在没在进行装接评估" };
       return;
     }
 
@@ -206,6 +206,10 @@ cvRouter.post("/confirm_wiring", async (ctx) => {
       (sum, shot) => sum + shot.result.excopper_num,
       0,
     );
+    const totalExterminal = session.shots.reduce(
+      (sum, shot) => sum + shot.result.exterminal_num,
+      0,
+    );
 
     const OVERALL_SLEEVES_NEEDED = 20 * 3; // 总共需要标20个号码管，拍三张照片
 
@@ -213,13 +217,14 @@ cvRouter.post("/confirm_wiring", async (ctx) => {
     // 假设：每个未标号码管扣5分，每个交叉扣3分，每个露铜扣2分
     const totalPoints = 100;
     const noSleevesDeduction = Math.max(0, OVERALL_SLEEVES_NEEDED - totalSleeves);
-    const deduction = noSleevesDeduction * 5 + totalCross * 20 + totalExcopper * 2;
+    const deduction = noSleevesDeduction * 5 + totalCross * 20 + totalExcopper * 2 + totalExterminal * 2;
     const scores = Math.max(0, totalPoints - deduction);
 
     session.finalResult = {
-      no_sleeves_num: totalSleeves,
+      no_sleeves_num: noSleevesDeduction,
       cross_num: totalCross,
       excopper_num: totalExcopper,
+      exterminal_num: totalExterminal,
       scores,
     };
 
@@ -238,7 +243,7 @@ cvRouter.post("/confirm_wiring", async (ctx) => {
     }
 
     // 清除会话
-    client.cvClient.session = undefined;
+    // client.cvClient.session = undefined;
 
     ctx.response.body = {
       success: true,
@@ -307,8 +312,7 @@ cvRouter.post("/upload_face", async (ctx) => {
       const responseMsg: FaceSigninResponseMessage = {
         type: "face_signin_response",
         timestamp: getSecondTimestamp(),
-        who: session.finalResult.who,
-        image: session.finalResult.image,
+        who: session.finalResult.who
       };
       clientManager.safeSend(client.socket, responseMsg);
     }

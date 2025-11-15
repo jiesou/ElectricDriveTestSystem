@@ -1,12 +1,7 @@
 [
   {
-    "clientIp": "127.0.0.1",
+    "clientIp": "192.168.11.203",
     "cvClientIp": "192.168.11.242",
-    "cvClientType": "jetson_nano"
-  },
-  {
-    "clientIp": "192.168.1.101",
-    "cvClientIp": "192.168.1.201",
     "cvClientType": "jetson_nano"
   }
 ]

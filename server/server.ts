@@ -119,18 +119,14 @@ healthRouter.get("/health", (ctx) => {
   ctx.response.body = { status: "ok", timestamp: getSecondTimestamp() };
 });
 
-// 静态文件服务
+// logging middleware
 app.use(async (ctx, next) => {
-  const pathname = ctx.request.url.pathname;
-  if (!pathname.startsWith("/api") && !pathname.startsWith("/ws")) {
-    await ctx.send({
-      root: "./public",
-      path: pathname,
-      index: "index.html",
-    });
-  } else {
-    await next();
-  }
+  const start = Date.now();
+  await next();
+  const ms = Date.now() - start;
+  console.log(
+    `${ctx.request.method} ${ctx.request.url} - ${ctx.response.status} - ${ms}ms`,
+  );
 });
 
 // 注册路由
@@ -138,6 +134,28 @@ app.use(wsRouter.routes());
 app.use(apiRouter.routes());
 app.use(apiRouter.allowedMethods());
 app.use(healthRouter.routes());
+
+// 静态文件服务
+app.use(async (ctx, next) => {
+  const pathname = ctx.request.url.pathname;
+  if (!pathname.startsWith("/api") && !pathname.startsWith("/ws")) {
+    try {
+      await ctx.send({
+        root: "./public",
+        path: pathname,
+        index: "index.html",
+      });
+    } catch {
+      // 文件不存在时，也返回 index.html (SPA fallback)
+      await ctx.send({
+        root: "./public",
+        path: "/index.html",
+      });
+    }
+  } else {
+    await next();
+  }
+});
 
 /**
  * 处理WebSocket消息

@@ -118,7 +118,7 @@ async function handleCreateTest() {
       ? Math.floor(new Date(formState.startTime).getTime() / 1000)
       : getSecondTimestamp()
 
-    const response = await fetch('/api/test-sessions', {
+    const response = await fetch('/api/tests/test-sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -149,7 +149,7 @@ async function handleCreateTest() {
 async function handleRelayRainbowTest() {
   try {
     loading.value = true
-    const response = await fetch('/api/relay-rainbow', { method: 'POST' })
+    const response = await fetch('/api/tests/relay-rainbow', { method: 'POST' })
     const result = await response.json()
     if (result && result.success) {
       message.success(`继电器测试广播已发送，在线客户机: ${result.data.sent || 0}`)

@@ -73,6 +73,7 @@ export interface WiringShot {
     sleeves_num: number; // 已标号码管数量
     cross_num: number; // 交叉接线数量
     excopper_num: number; // 露铜数量
+    exterminal_num: number; // 露端子数量
   };
 }
 
@@ -84,6 +85,7 @@ export interface EvaluateWiringSession extends CvSession {
     no_sleeves_num: number; // 未标号码管总数
     cross_num: number; // 交叉接线总数
     excopper_num: number; // 露铜总数
+    exterminal_num: number; // 露端子总数
     scores: number; // 评分
   };
 }
@@ -178,6 +180,7 @@ export interface EvaluateWiringYoloResponseMessage extends WSMessage {
     no_sleeves_num: number;
     cross_num: number;
     excopper_num: number;
+    exterminal_num: number;
     scores: number;
   };
 }
@@ -191,7 +194,6 @@ export interface FaceSigninRequestMessage extends WSMessage {
 export interface FaceSigninResponseMessage extends WSMessage {
   type: "face_signin_response";
   who: string;
-  image: string;
 }
 
 // Predefined troubles (hardcoded)
