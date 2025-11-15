@@ -95,14 +95,23 @@ cvRouter.post("/upload_wiring", async (ctx) => {
   let imageBuffer: Uint8Array | null = null;
   
   try {
-    // 尝试解析 JSON body
-    try {
-      body = await ctx.request.body.json();
-    } catch (jsonError) {
-      // JSON 解析失败，尝试作为二进制 JPEG 读取
-      console.log("[CV Upload] JSON 解析失败，尝试作为二进制 JPEG 处理");
-      const rawBody = ctx.request.body;
-      imageBuffer = await rawBody.arrayBuffer().then((buf) => new Uint8Array(buf));
+    // 先读取原始 body 数据
+    const contentType = ctx.request.headers.get("content-type") || "";
+    
+    if (contentType.includes("application/json")) {
+      // 尝试解析 JSON
+      try {
+        body = await ctx.request.body.json();
+      } catch (jsonError) {
+        console.log("[CV Upload] JSON 解析失败");
+        ctx.response.status = 400;
+        ctx.response.body = { success: false, error: "无效的 JSON 格式" };
+        return;
+      }
+    } else {
+      // 作为二进制数据读取（假设是 JPEG）
+      console.log("[CV Upload] 接收二进制 JPEG 数据");
+      imageBuffer = await ctx.request.body.arrayBuffer().then((buf) => new Uint8Array(buf));
     }
     
     const cvClientIp: string = ctx.request.ip;
