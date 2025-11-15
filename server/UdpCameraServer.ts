@@ -98,7 +98,6 @@ export class UdpCameraServer {
         // 更新所有 cvClient 的 latest_frame
         // 注意：这里假设所有 cvClient 都接收同一个图像流
         // 如果需要区分不同的 cvClient，需要在包头中包含 cvClientIp 或其他标识
-        console.log(`[UdpCamera] 成功组装帧 ${frameIndex}，总大小: ${totalLength} 字节`);
         this.updateAllCvClients(latestFrame);
 
         // 清理已处理的帧缓存
@@ -125,9 +124,8 @@ export class UdpCameraServer {
       }
     }
     
-    console.log(`[UdpCamera] 更新了 ${updatedCount} 个 CV 客户端的帧，大小: ${frame.length} 字节`);
     if (updatedCount === 0) {
-      console.warn(`[UdpCamera] 警告：没有找到任何 CV 客户端！当前连接的客户端: ${Object.keys(clientManager.clients).join(", ")}`);
+      console.warn(`[UdpCamera] 警告：没有找到对应 CV 客户端！当前连接的客户端: ${Object.keys(clientManager.clients).join(", ")}`);
     }
   }
 

@@ -134,6 +134,17 @@ class ESP32Simulator {
     this.socket?.send(JSON.stringify(message));
   }
 
+  requestWiringEvaluation() {
+    setTimeout(() => {
+      const message = { 
+        type: "evaluate_wiring_yolo_request", 
+        timestamp: getSecondTimestamp()
+      };
+      console.log("📤 SENDING: evaluate_wiring_yolo_request");
+      this.socket?.send(JSON.stringify(message));
+    }, 1000);
+  }
+
   ping() {
     if (!this.isConnected) return;
     
@@ -162,6 +173,11 @@ async function runSimulation() {
     const pingInterval = setInterval(() => {
       simulator.ping();
     }, 10000);
+
+    setTimeout(() => {
+      console.log("\n📡 === Testing wiring evaluation request ===");
+      simulator.requestWiringEvaluation();
+    }, 1000);
     
     // Simulate some interactions
     setTimeout(() => {
