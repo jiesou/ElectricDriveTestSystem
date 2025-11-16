@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { Card, Tag, Empty } from 'ant-design-vue'
+import { ref, onMounted, onUnmounted, computed, h } from 'vue'
+import { Card, Tag, Empty, Button, message } from 'ant-design-vue'
+import { CloseOutlined } from '@ant-design/icons-vue'
 import type { Client, EvaluateWiringSession, FaceSigninSession } from '../types'
 import { useFakeDataMode, generateFakeData } from '../useFakeData'
 
@@ -116,6 +117,36 @@ function getSessionColor(sessionType: string | undefined): string {
   }
 }
 
+// 结束 CV 会话
+async function handleEndSession(clientId: string) {
+  // 假数据模式下不执行真实操作
+  if (useFakeDataMode.value) {
+    message.success('假数据模式下无法结束会话')
+    return
+  }
+
+  try {
+    const response = await fetch('/api/cv/end_session', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ clientId }),
+    })
+    const result = await response.json()
+
+    if (result.success) {
+      message.success('会话已结束')
+      fetchClients()
+    } else {
+      message.error(`结束会话失败: ${result.error}`)
+    }
+  } catch (error) {
+    console.error('Failed to end session:', error)
+    message.error('结束会话失败')
+  }
+}
+
 onMounted(() => {
   fetchClients()
   startAutoRefresh()
@@ -134,9 +165,20 @@ onUnmounted(() => {
     <div v-else style="display: grid; grid-template-columns: repeat(auto-fill, 600px); gap: 16px;">
       <Card v-for="client in cvClients" :key="client.id" size="small" :title="`${client.name} - 视觉客户端`">
         <template #extra>
-          <Tag :color="getSessionColor(client.cvClient?.session?.type)">
-            {{ getSessionTypeText(client.cvClient?.session?.type) }}
-          </Tag>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <Tag :color="getSessionColor(client.cvClient?.session?.type)">
+              {{ getSessionTypeText(client.cvClient?.session?.type) }}
+            </Tag>
+            <Button 
+              v-if="client.cvClient?.session" 
+              type="text" 
+              danger 
+              size="small"
+              :icon="h(CloseOutlined)"
+              @click="handleEndSession(client.id)"
+              title="结束会话"
+            />
+          </div>
         </template>
 
         <div style="margin-bottom: 12px;">

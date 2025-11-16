@@ -6,7 +6,7 @@ import type { Client } from '../types'
 import { useFakeDataMode, generateFakeData } from '../useFakeData'
 
 const clients = ref<Client[]>([])
-const loading = ref(false)
+const loading = ref<boolean | { delay: number }>(false)
 const refreshTimer = ref<number | null>(null)
 
 // 根据假数据模式返回实际显示的客户端列表
@@ -91,7 +91,7 @@ function startEdit(record: any) {
 
 async function fetchClients() {
   try {
-    loading.value = true
+    loading.value = { delay: 2000 }
     const response = await fetch('/api/clients')
     const result = await response.json()
     

@@ -330,3 +330,49 @@ cvRouter.post("/upload_face", async (ctx) => {
     ctx.response.body = { success: false, error: "Internal server error" };
   }
 });
+
+/**
+ * 结束CV会话
+ * POST /api/cv/end_session
+ * 
+ * 请求体：
+ * {
+ *   "clientId": "client-192.168.1.100"
+ * }
+ */
+cvRouter.post("/end_session", async (ctx) => {
+  try {
+    const body = await ctx.request.body.json();
+    const { clientId } = body;
+
+    const client = clientManager.clients[clientId];
+
+    if (!client) {
+      ctx.response.status = 404;
+      ctx.response.body = { success: false, error: "Client not found" };
+      return;
+    }
+
+    if (!client.cvClient?.session) {
+      ctx.response.status = 400;
+      ctx.response.body = { success: false, error: "No active CV session" };
+      return;
+    }
+
+    console.log(
+      `[CV Session] Ending session for client ${client.id}, type: ${client.cvClient.session.type}`,
+    );
+
+    // 清除会话
+    client.cvClient.session = undefined;
+
+    ctx.response.body = {
+      success: true,
+      message: "CV session ended successfully",
+    };
+  } catch (error) {
+    console.error("[CV Session] Error ending session:", error);
+    ctx.response.status = 500;
+    ctx.response.body = { success: false, error: "Internal server error" };
+  }
+});
