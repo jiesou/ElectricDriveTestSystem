@@ -5,6 +5,7 @@
 
 import * as ort from "npm:onnxruntime-node@1.19.2";
 import sharp from "npm:sharp@0.33.5";
+import { Buffer } from "node:buffer";
 
 // YOLO11 类别标签（用于装接评估）
 // 这里使用自定义类别：0: sleeve (号码管), 1: cross (交叉), 2: excopper (露铜), 3: exterminal (露端子)
@@ -231,11 +232,78 @@ function countDetections(boxes: number[][]): {
 }
 
 /**
- * 对图像进行目标检测
+ * 在图像上绘制检测框
+ * @param imageBuffer 原始图像数据
+ * @param boxes 检测框列表 [x1, y1, x2, y2, class_id, prob]
+ * @returns 带标注的图像 JPEG buffer
+ */
+async function drawBoxes(
+  imageBuffer: Uint8Array,
+  boxes: number[][],
+): Promise<Uint8Array> {
+  // 类别颜色映射（RGB）
+  const classColors: Record<number, { r: number; g: number; b: number }> = {
+    0: { r: 0, g: 255, b: 0 },    // sleeve - 绿色
+    1: { r: 255, g: 0, b: 0 },    // cross - 红色
+    2: { r: 255, g: 165, b: 0 },  // excopper - 橙色
+    3: { r: 255, g: 255, b: 0 },  // exterminal - 黄色
+  };
+
+  const classNames = ["sleeve", "cross", "excopper", "exterminal"];
+
+  // 加载原始图像
+  let image = sharp(imageBuffer);
+  const metadata = await image.metadata();
+  const width = metadata.width || 640;
+  const height = metadata.height || 640;
+
+  // 创建 SVG 覆盖层
+  const svgElements: string[] = [];
+
+  for (const box of boxes) {
+    const [x1, y1, x2, y2, classId, prob] = box;
+    const color = classColors[classId] || { r: 255, g: 255, b: 255 };
+    const className = classNames[classId] || `class${classId}`;
+    const label = `${className} ${(prob * 100).toFixed(0)}%`;
+
+    // 绘制矩形框
+    svgElements.push(
+      `<rect x="${x1}" y="${y1}" width="${x2 - x1}" height="${y2 - y1}" ` +
+      `fill="none" stroke="rgb(${color.r},${color.g},${color.b})" stroke-width="3"/>`
+    );
+
+    // 绘制标签背景
+    const labelBg = `<rect x="${x1}" y="${y1 - 20}" width="${label.length * 8}" height="20" ` +
+      `fill="rgb(${color.r},${color.g},${color.b})"/>`;
+    svgElements.push(labelBg);
+
+    // 绘制标签文本
+    const labelText = `<text x="${x1 + 5}" y="${y1 - 5}" ` +
+      `font-family="Arial" font-size="14" font-weight="bold" fill="black">${label}</text>`;
+    svgElements.push(labelText);
+  }
+
+  const svg = `<svg width="${width}" height="${height}">${svgElements.join('')}</svg>`;
+
+  // 合成图像
+  const annotatedBuffer = await image
+    .composite([{
+      input: Buffer.from(svg),
+      top: 0,
+      left: 0,
+    }])
+    .jpeg()
+    .toBuffer();
+
+  return annotatedBuffer;
+}
+
+/**
+ * 对图像进行目标检测并绘制检测框
  * @param imageBuffer JPEG 图像数据
  * @param confThreshold 置信度阈值（默认 0.1）
  * @param iouThreshold IoU 阈值（默认 0.3）
- * @returns 检测结果统计
+ * @returns 检测结果统计和带标注的图像
  */
 export async function detectObjects(
   imageBuffer: Uint8Array,
@@ -246,6 +314,7 @@ export async function detectObjects(
   cross_num: number;
   excopper_num: number;
   exterminal_num: number;
+  annotatedImage: Uint8Array;
 }> {
   try {
     // 准备输入
@@ -272,7 +341,13 @@ export async function detectObjects(
         `露铜=${result.excopper_num}, 露端子=${result.exterminal_num}`,
     );
 
-    return result;
+    // 绘制检测框
+    const annotatedImage = await drawBoxes(imageBuffer, boxes);
+
+    return {
+      ...result,
+      annotatedImage,
+    };
   } catch (error) {
     console.error("[YOLO] 推理失败:", error);
     throw error;

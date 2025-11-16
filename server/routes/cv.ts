@@ -158,6 +158,7 @@ cvRouter.post("/upload_wiring", async (ctx) => {
     const frame = image ? image : client.cvClient.latest_frame;
     
     // 如果没有 result，使用服务端推理
+    let annotatedImageBuffer: Uint8Array | undefined;
     if (!result) {
       console.log("[CV Upload] 没有推理结果，使用服务端 YOLO 推理");
       
@@ -182,14 +183,20 @@ cvRouter.post("/upload_wiring", async (ctx) => {
         throw new Error("无法获取图像数据进行推理");
       }
       
-      // 调用 YOLO 推理
-      result = await detectObjects(inferenceImageBuffer, 0.1, 0.3);
+      // 调用 YOLO 推理（返回结果和带标注的图像）
+      const detectionResult = await detectObjects(inferenceImageBuffer, 0.1, 0.3);
+      result = detectionResult;
+      annotatedImageBuffer = detectionResult.annotatedImage;
       console.log("[CV Upload] 服务端推理完成:", result);
     }
 
-    // 将图像转换为 string（如果需要）
+    // 将图像转换为 string - 优先使用带标注的图像
     let frameString: string;
-    if (typeof frame === "string") {
+    if (annotatedImageBuffer) {
+      // 使用带标注的图像
+      const base64 = btoa(String.fromCharCode(...annotatedImageBuffer));
+      frameString = `data:image/jpeg;base64,${base64}`;
+    } else if (typeof frame === "string") {
       frameString = frame;
     } else if (frame instanceof Uint8Array) {
       // 将 Uint8Array 转换为 base64
