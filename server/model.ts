@@ -12,7 +12,7 @@ import { Buffer } from "node:buffer";
 const YOLO_CLASSES = ["sleeve", "cross", "excopper", "exterminal"];
 
 // 推理配置
-const MODEL_PATH = "./yolo11n.onnx";
+const MODEL_PATH = "./electricdrivev1.01.onnx";
 const INPUT_SIZE = 640;
 
 // 全局模型实例（延迟加载）
