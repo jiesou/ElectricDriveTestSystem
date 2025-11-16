@@ -231,7 +231,29 @@ onUnmounted(() => {
             <div v-if="!client.cvClient.session.finalResult" style="font-size: 12px; color: #1890ff;">
               📸 拍摄采集中... (已拍摄 {{ client.cvClient.session.shots?.length || 0 }} 张)
             </div>
-            <div v-else style="font-size: 12px;">
+            
+            <!-- 显示拍摄的图像 -->
+            <div v-if="client.cvClient.session.shots && client.cvClient.session.shots.length > 0" 
+                 style="margin-top: 8px;">
+              <div style="font-size: 12px; color: #666; margin-bottom: 4px;">
+                <strong>拍摄记录:</strong>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px;">
+                <div v-for="(shot, idx) in client.cvClient.session.shots" :key="idx" 
+                     style="border: 1px solid #d9d9d9; border-radius: 4px; overflow: hidden;">
+                  <img v-if="shot.image" :src="shot.image" :alt="`拍摄 ${idx + 1}`" 
+                       style="width: 100%; display: block;" />
+                  <div style="padding: 4px; font-size: 11px; background: #fafafa;">
+                    <div>🏷️ 号码管: {{ shot.result.sleeves_num }}</div>
+                    <div>❌ 交叉: {{ shot.result.cross_num }}</div>
+                    <div>🔶 露铜: {{ shot.result.excopper_num }}</div>
+                    <div>📌 露端子: {{ shot.result.exterminal_num }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div v-if="client.cvClient.session.finalResult" style="font-size: 12px; margin-top: 8px;">
               <div style="color: #52c41a; margin-bottom: 4px;"><strong>✅ 评估完成</strong></div>
               <div style="color: #666; margin-top: 4px;">
                 <strong>得分:</strong> {{ client.cvClient.session.finalResult.scores }} 分

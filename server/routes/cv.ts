@@ -8,6 +8,7 @@ import {
   EvaluateWiringYoloResponseMessage,
   FaceSigninResponseMessage,
 } from "../types.ts";
+import { detectObjects } from "../model.ts";
 
 /**
  * CV上传路由
@@ -90,9 +91,29 @@ cvRouter.get("/stream/:cvClientIp", (ctx) => {
  * }
  */
 cvRouter.post("/upload_wiring", async (ctx) => {
+  let body: { image?: string; result?: any } | null = null;
+  let imageBuffer: Uint8Array | null = null;
+  
   try {
-    const body = await ctx.request.body.json();
-    const { image, result } = body;
+    // 先读取原始 body 数据
+    const contentType = ctx.request.headers.get("content-type") || "";
+    
+    if (contentType.includes("application/json")) {
+      // 尝试解析 JSON
+      try {
+        body = await ctx.request.body.json();
+      } catch (jsonError) {
+        console.log("[CV Upload] JSON 解析失败");
+        ctx.response.status = 400;
+        ctx.response.body = { success: false, error: "无效的 JSON 格式" };
+        return;
+      }
+    } else {
+      // 作为二进制数据读取（假设是 JPEG）
+      console.log("[CV Upload] 接收二进制 JPEG 数据");
+      imageBuffer = await ctx.request.body.arrayBuffer().then((buf) => new Uint8Array(buf));
+    }
+    
     const cvClientIp: string = ctx.request.ip;
 
     // 查找关联此CV客户端的普通客户端
@@ -120,21 +141,80 @@ cvRouter.post("/upload_wiring", async (ctx) => {
 
     const session = client.cvClient.session as EvaluateWiringSession;
 
+    // 获取图像和推理结果
+    let image: string | undefined;
+    let result: any;
+
+    if (body) {
+      // JSON 格式的请求
+      image = body.image;
+      result = body.result;
+    } else {
+      // 二进制 JPEG 格式的请求
+      image = undefined; // 将使用 latest_frame
+      result = undefined; // 需要服务端推理
+    }
+
     const frame = image ? image : client.cvClient.latest_frame;
+    
+    // 如果没有 result，使用服务端推理
+    let annotatedImageBuffer: Uint8Array | undefined;
     if (!result) {
-      /* TODO: 视觉客户端如果没有推理结果，自己调用 inference sdk 从云获取推理结果 */
+      console.log("[CV Upload] 没有推理结果，使用服务端 YOLO 推理");
       
+      // 确定图像数据源
+      let inferenceImageBuffer: Uint8Array;
+      
+      if (imageBuffer) {
+        // 使用二进制请求体
+        inferenceImageBuffer = imageBuffer;
+      } else if (frame && frame instanceof Uint8Array) {
+        // 使用 latest_frame (Uint8Array 格式)
+        inferenceImageBuffer = frame;
+      } else if (typeof frame === "string") {
+        // 如果是 base64 字符串，解码为 Uint8Array
+        const base64Data = frame.replace(/^data:image\/\w+;base64,/, '');
+        const binaryString = atob(base64Data);
+        inferenceImageBuffer = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          inferenceImageBuffer[i] = binaryString.charCodeAt(i);
+        }
+      } else {
+        throw new Error("无法获取图像数据进行推理");
+      }
+      
+      // 调用 YOLO 推理（返回结果和带标注的图像）
+      const detectionResult = await detectObjects(inferenceImageBuffer, 0.1, 0.3);
+      result = detectionResult;
+      annotatedImageBuffer = detectionResult.annotatedImage;
+      console.log("[CV Upload] 服务端推理完成:", result);
+    }
+
+    // 将图像转换为 string - 优先使用带标注的图像
+    let frameString: string;
+    if (annotatedImageBuffer) {
+      // 使用带标注的图像
+      const base64 = btoa(String.fromCharCode(...annotatedImageBuffer));
+      frameString = `data:image/jpeg;base64,${base64}`;
+    } else if (typeof frame === "string") {
+      frameString = frame;
+    } else if (frame instanceof Uint8Array) {
+      // 将 Uint8Array 转换为 base64
+      const base64 = btoa(String.fromCharCode(...frame));
+      frameString = `data:image/jpeg;base64,${base64}`;
+    } else {
+      frameString = ""; // 默认空字符串
     }
 
     // 添加新的拍摄记录
     const shot: WiringShot = {
       timestamp: getSecondTimestamp(),
-      image: frame,
+      image: frameString,
       result: {
         sleeves_num: result.sleeves_num || 0,
         cross_num: result.cross_num || 0,
         excopper_num: result.excopper_num || 0,
-        exterminal: result.exterminal || 0,
+        exterminal_num: result.exterminal_num || 0,
       },
     };
 
