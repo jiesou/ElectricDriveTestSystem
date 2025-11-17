@@ -145,20 +145,20 @@ async function handleCreateTest() {
   }
 }
 
-// 继电器功能测试：调用后端广播 RelayRainbowMessage 给所有 client
+// 继电器功能测试（系统自检）：调用后端广播 RelayRainbowMessage 给所有 client
 async function handleRelayRainbowTest() {
   try {
     loading.value = true
     const response = await fetch('/api/tests/relay-rainbow', { method: 'POST' })
     const result = await response.json()
     if (result && result.success) {
-      message.success(`继电器测试广播已发送，在线客户机: ${result.data.sent || 0}`)
+      message.success(`系统自检广播已发送，在线客户机: ${result.data.sent || 0}`)
     } else {
-      message.error(result.error || '继电器测试失败')
+      message.error(result.error || '系统自检测试失败')
     }
   } catch (err) {
     console.error('relay rainbow failed', err)
-    message.error('继电器测试请求失败')
+    message.error('系统自检请求失败')
   } finally {
     loading.value = false
   }
@@ -278,7 +278,7 @@ onMounted(() => {
         </Button>
       </Popconfirm>
       <Button style="margin-left: 10px;" @click="handleRelayRainbowTest">
-        ⚡ 继电器功能测试
+        ⚡ 系统自检
       </Button>
     </Card>
 

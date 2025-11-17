@@ -88,7 +88,7 @@ testsRouter.post("/test-sessions", async (ctx) => {
   }
 });
 
-// 继电器功能测试广播
+// 继电器功能测试（系统自检）广播
 testsRouter.post("/relay-rainbow", (ctx) => {
   let sent = 0;
   for (const client of Object.values(clientManager.clients)) {

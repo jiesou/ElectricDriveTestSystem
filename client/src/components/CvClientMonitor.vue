@@ -168,11 +168,11 @@ onUnmounted(() => {
               </template>
 
         <div style="margin-bottom: 12px;">
-          <div style="font-size: 12px; color: #666; margin-bottom: 4px;">
-            <strong>客户机IP:</strong> {{ client.ip }}
-          </div>
           <div style="font-size: 12px; color: #666; margin-bottom: 8px;">
-            <strong>视觉客户端IP:</strong> {{ client.cvClient?.ip }}
+            <strong>IP:</strong> {{ client.cvClient?.ip }}
+          </div>
+          <div style="font-size: 12px; color: #666; margin-bottom: 4px;">
+            <strong>关联客户机IP:</strong> {{ client.ip }}
           </div>
 
           <!-- 图像显示区域 -->

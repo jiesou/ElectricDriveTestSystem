@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { Table, Tag, Input, message } from 'ant-design-vue'
 import { EditOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons-vue'
 import type { Client } from '../types'
@@ -87,6 +87,13 @@ async function saveClientName(clientId: string) {
 function startEdit(record: any) {
   editingNames.value[record.id] = record.name || ''
   editingId.value = record.id
+  nextTick(() => {
+    const input = document.querySelector(`input[value="${editingNames.value[record.id]}"]`) as HTMLInputElement
+    if (input) {
+      input.focus()
+      input.select()
+    }
+  })
 }
 
 async function fetchClients() {
@@ -145,7 +152,17 @@ onUnmounted(() => {
       <template v-if="column.key === 'name'">
         <div style="display:flex;align-items:center;gap:8px">
           <template v-if="editingId === record.id">
-            <Input v-model:value="editingNames[record.id]" size="small" style="width: 200px" />
+            <!--
+              - 按 Enter 调用 saveClientName 保存当前名字
+              - 按 Esc 取消编辑（退出编辑模式）
+            -->
+            <Input
+              v-model:value="editingNames[record.id]"
+              size="small"
+              style="width: 200px"
+              @keydown.enter.prevent="saveClientName(record.id)"
+              @keydown.esc.prevent="editingId = null"
+            />
             <CheckOutlined @click="saveClientName(record.id)" />
             <CloseOutlined @click="editingId = null" />
           </template>

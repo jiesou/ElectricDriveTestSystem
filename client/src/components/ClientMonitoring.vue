@@ -157,9 +157,9 @@ onUnmounted(() => {
     <!-- AI 分析结果模态框 -->
     <AIAnalysisModal v-model:open="aiAnalysisModal" :client-id="currentAnalysisClientId" />
 
-    <!-- 已结束的装接功能评估 -->
+    <!-- 已结束的装接评估 -->
     <div style="margin-top: 20px;" v-if="displayClients.filter(c => c.evaluateBoard && c.evaluateBoard.function_steps.every(s => s.finished)).length > 0">
-      <Card title="已结束的装接功能评估">
+      <Card title="已结束的装接评估">
         <div v-for="client in displayClients.filter(c => c.evaluateBoard && c.evaluateBoard.function_steps.every(s => s.finished))"
           :key="`finished-eval-${client.id}`"
           style="margin-bottom: 16px; padding: 12px; border: 1px solid #f0f0f0; border-radius: 6px;">
@@ -177,10 +177,10 @@ onUnmounted(() => {
             </div>
           </div>
           <div style="margin-top: 8px; font-size: 12px; color: #666;">
-            电路: {{ client.evaluateBoard!.description }}
+            评估板: {{ client.evaluateBoard!.description }}
             <br>
             完成步骤: {{ client.evaluateBoard!.function_steps.filter(s => s.finished).length }}/{{ client.evaluateBoard!.function_steps.length }}
-            | 通过步骤: {{ client.evaluateBoard!.function_steps.filter(s => s.passed).length }}/{{ client.evaluateBoard!.function_steps.length }}
+            | 功能实现: {{ client.evaluateBoard!.function_steps.filter(s => s.passed).length }}/{{ client.evaluateBoard!.function_steps.length }}
             <span v-if="client.cvClient && client.cvClient.session">
               <br>
               视觉评估: {{ client.cvClient.session.type === 'evaluate_wiring' ? '装接评估' : '人脸签到' }}
