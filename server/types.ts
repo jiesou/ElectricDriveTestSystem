@@ -77,13 +77,18 @@ export interface WiringShot {
   };
 }
 
+export interface EvaluateBoard {
+  description: string;
+  function_steps: EvaluateFuncationStep[];
+}
+
 export interface EvaluateFuncationStep {
-    description: string;
-    can_wait_for_ms: number;
-    waited_for_ms: number;
-    
-    passed: boolean;
-    finished: boolean;
+  description: string;
+  can_wait_for_ms: number;
+  waited_for_ms: number;
+
+  passed: boolean;
+  finished: boolean;
 };
 
 // 装接评估会话
