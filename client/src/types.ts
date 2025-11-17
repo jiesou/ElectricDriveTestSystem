@@ -82,6 +82,20 @@ export interface FaceSigninSession extends CvSession {
   };
 }
 
+// 装接评估功能板和步骤类型
+export interface EvaluateBoard {
+  description: string;
+  function_steps: EvaluateFuncationStep[];
+}
+
+export interface EvaluateFuncationStep {
+  description: string;
+  can_wait_for_ms: number;
+  waited_for_ms: number;
+  passed: boolean;
+  finished: boolean;
+}
+
 // CV客户端接口
 export interface CvClient {
   clientType: "esp32cam" | "jetson_nano";
@@ -96,6 +110,7 @@ export interface Client {
   online: boolean;
   testSession?: TestSession;
   cvClient?: CvClient;
+  evaluateBoard?: EvaluateBoard; // 装接评估功能板状态
 }
 
 // Utility function to get integer second timestamp

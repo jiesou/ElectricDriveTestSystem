@@ -54,6 +54,7 @@ export interface Client {
   lastPing?: number; // timestamp in seconds of last application-layer ping
   testSession?: TestSession;
   cvClient?: CvClient; // 关联的CV客户端
+  evaluateBoard?: EvaluateBoard; // 装接评估功能板状态
 }
 
 // ==================== CV机器视觉相关类型 ====================

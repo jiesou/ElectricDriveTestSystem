@@ -7,6 +7,7 @@ import {
   TROUBLES,
   EvaluateWiringSession,
   FaceSigninSession,
+  EvaluateBoard,
 } from "./types.ts";
 import { manager } from "./TestSystemManager.ts";
 import { clientManager } from "./ClientManager.ts";
@@ -222,8 +223,34 @@ function handleWebSocketMessage(
     }
 
     case "evaluate_function_board_update": {
-      // TODO: 装接评估-功能部分 步骤更新
+      // 处理装接评估功能板状态更新
+      console.log(`[WebSocket] Received evaluate_function_board_update from ${client.id}:`, message);
+      
+      // 验证消息格式
+      if (!message.description || !Array.isArray(message.function_steps)) {
+        console.error(`[WebSocket] Invalid evaluate_function_board_update message format from ${client.id}`);
+        clientManager.safeSend(socket, {
+          type: "error",
+          message: "Invalid evaluate_function_board_update message format",
+          timestamp: getSecondTimestamp(),
+        });
+        return;
+      }
 
+      // 更新客户端的评估板状态
+      client.evaluateBoard = {
+        description: message.description as string,
+        function_steps: message.function_steps as Array<{
+          description: string;
+          can_wait_for_ms: number;
+          waited_for_ms: number;
+          passed: boolean;
+          finished: boolean;
+        }>,
+      };
+
+      console.log(`[WebSocket] Updated evaluateBoard for client ${client.id}:`, client.evaluateBoard);
+      break;
     }
 
     case "evaluate_wiring_yolo_request": {
