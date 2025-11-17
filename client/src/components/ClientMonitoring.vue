@@ -218,5 +218,53 @@ onUnmounted(() => {
       </div>
     </div>
 
+    <!-- 装接评估详情 -->
+    <div style="margin-top: 20px;" v-if="displayClients.filter(c => c.evaluateBoard).length > 0">
+      <div v-for="client in displayClients.filter(c => c.evaluateBoard)" :key="`eval-${client.id}`" style="margin-bottom: 20px;">
+        <Card :title="`装接评估详情 - ${client.name} (${client.ip})`">
+          <div v-if="client.evaluateBoard">
+            <div style="margin-bottom: 16px;">
+              <p><strong>电路名称:</strong> {{ client.evaluateBoard.description }}</p>
+              <p><strong>连接状态:</strong>
+                <Tag style="margin-left: 4px;" :color="client.online ? 'green' : 'red'">
+                  {{ client.online ? '在线' : '离线' }}
+                </Tag>
+              </p>
+              <p><strong>评估进度:</strong> {{ client.evaluateBoard.function_steps.filter(s => s.finished).length }}/{{
+                client.evaluateBoard.function_steps.length }} 步完成</p>
+              
+              <div v-if="client.evaluateBoard.function_steps && client.evaluateBoard.function_steps.length > 0">
+                <strong>功能测试步骤</strong>
+                <Timeline style="margin-top: 12px;">
+                  <Timeline.Item
+                    v-for="(step, index) in client.evaluateBoard.function_steps"
+                    :key="index" 
+                    :color="step.finished ? (step.passed ? 'green' : 'red') : 'blue'">
+                    <div>
+                      <Tag 
+                        :color="step.finished ? (step.passed ? 'green' : 'red') : 'blue'" 
+                        size="small">
+                        {{ step.finished ? (step.passed ? '通过' : '失败') : '进行中' }}
+                      </Tag>
+                      <div style="margin-top: 4px;">
+                        <strong>{{ step.description }}</strong>
+                      </div>
+                      <div style="font-size: 12px; color: #666; margin-top: 4px;">
+                        等待时间: {{ (step.waited_for_ms / 1000).toFixed(1) }}s / {{ (step.can_wait_for_ms / 1000).toFixed(1) }}s
+                        <span v-if="step.finished">
+                          - {{ step.passed ? '✓ 成功' : '✗ 超时或失败' }}
+                        </span>
+                      </div>
+                    </div>
+                  </Timeline.Item>
+                </Timeline>
+              </div>
+
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
+
   </div>
 </template>

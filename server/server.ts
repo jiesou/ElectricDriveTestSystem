@@ -7,6 +7,8 @@ import {
   TROUBLES,
   EvaluateWiringSession,
   FaceSigninSession,
+  EvaluateFunctionBoardUpdateMessage,
+  EvaluateBoard,
 } from "./types.ts";
 import { manager } from "./TestSystemManager.ts";
 import { clientManager } from "./ClientManager.ts";
@@ -222,8 +224,21 @@ function handleWebSocketMessage(
     }
 
     case "evaluate_function_board_update": {
-      // TODO: 装接评估-功能部分 步骤更新
-
+      // 装接评估-功能部分 步骤更新
+      const msg = message as EvaluateFunctionBoardUpdateMessage;
+      
+      const board: EvaluateBoard = {
+        description: msg.description,
+        function_steps: msg.function_steps
+      };
+      
+      client.evaluateBoard = board;
+      
+      console.log(
+        `[WebSocket] Updated evaluate board for client ${client.id}: ${board.description}, steps: ${board.function_steps.length}`,
+      );
+      
+      break;
     }
 
     case "evaluate_wiring_yolo_request": {

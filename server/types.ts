@@ -54,6 +54,7 @@ export interface Client {
   lastPing?: number; // timestamp in seconds of last application-layer ping
   testSession?: TestSession;
   cvClient?: CvClient; // 关联的CV客户端
+  evaluateBoard?: EvaluateBoard; // 装接评估-功能部分的当前Board状态
 }
 
 // ==================== CV机器视觉相关类型 ====================
@@ -180,6 +181,13 @@ export interface FinishResultMessage extends WSMessage {
 }
 
 // ==================== CV机器视觉WebSocket消息类型 ====================
+
+// ESP32客户端更新装接评估-功能部分的Board状态
+export interface EvaluateFunctionBoardUpdateMessage extends WSMessage {
+  type: "evaluate_function_board_update";
+  description: string;
+  function_steps: EvaluateFuncationStep[];
+}
 
 // ESP32客户端请求装接评估
 export interface EvaluateWiringYoloRequestMessage extends WSMessage {

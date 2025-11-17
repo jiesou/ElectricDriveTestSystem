@@ -42,6 +42,21 @@ export interface TestLog {
   };
 }
 
+// 装接评估-功能部分的步骤
+export interface EvaluateFunctionStep {
+  description: string;
+  can_wait_for_ms: number;
+  waited_for_ms: number;
+  passed: boolean;
+  finished: boolean;
+}
+
+// 装接评估-功能部分的Board
+export interface EvaluateBoard {
+  description: string;
+  function_steps: EvaluateFunctionStep[];
+}
+
 // CV会话基类接口
 export interface CvSession {
   type: "evaluate_wiring" | "face_signin";
@@ -96,6 +111,7 @@ export interface Client {
   online: boolean;
   testSession?: TestSession;
   cvClient?: CvClient;
+  evaluateBoard?: EvaluateBoard; // 装接评估-功能部分的当前Board状态
 }
 
 // Utility function to get integer second timestamp
