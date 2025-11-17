@@ -73,7 +73,7 @@ function handleForgetClients() {
   if (useFakeDataMode.value) {
     return
   }
-  
+
   fetch('/api/clients/forget', { method: 'POST' })
     .then(res => res.json())
     .then(data => {
@@ -124,7 +124,8 @@ onUnmounted(() => {
 
 
     <!-- 显示已结束的测验 -->
-    <div style="margin-top: 20px;" v-if="displayClients.filter(c => c.testSession && c.testSession.finishTime).length > 0">
+    <div style="margin-top: 20px;"
+      v-if="displayClients.filter(c => c.testSession && c.testSession.finishTime).length > 0">
       <Card title="已结束的测验">
         <div v-for="client in displayClients.filter(c => c.testSession && c.testSession.finishTime)"
           :key="`finished-${client.id}`"
@@ -143,7 +144,7 @@ onUnmounted(() => {
             </div>
           </div>
           <div style="margin-top: 8px; font-size: 12px; color: #666;">
-            完成时间: {{ formatTime(client.testSession!.finishTime!) }} | 
+            完成时间: {{ formatTime(client.testSession!.finishTime!) }} |
             用时: {{ Math.floor((client.testSession!.finishTime! - client.testSession!.test.startTime) / 60) }}分钟
             <br>
             分数: {{ client.testSession!.finishedScore }}
@@ -154,10 +155,7 @@ onUnmounted(() => {
     </div>
 
     <!-- AI 分析结果模态框 -->
-    <AIAnalysisModal 
-      v-model:open="aiAnalysisModal" 
-      :client-id="currentAnalysisClientId"
-    />
+    <AIAnalysisModal v-model:open="aiAnalysisModal" :client-id="currentAnalysisClientId" />
 
     <!-- 已结束的装接功能评估 -->
     <div style="margin-top: 20px;" v-if="displayClients.filter(c => c.evaluateBoard && c.evaluateBoard.function_steps.every(s => s.finished)).length > 0">
@@ -239,8 +237,8 @@ onUnmounted(() => {
                       <div style="font-size: 12px; color: #666;">
                         {{ formatTime(log.timestamp) }}
                         <span v-if="index > 0">
-                          (经过 {{ (log.timestamp - client.testSession.logs.filter(l => showConnectionEvents || (l.action
-                          !== 'connect' && l.action !== 'disconnect'))[index - 1]!.timestamp) }} 秒)
+                          (经过 {{(log.timestamp - client.testSession.logs.filter(l => showConnectionEvents || (l.action
+                            !== 'connect' && l.action !== 'disconnect'))[index - 1]!.timestamp)}} 秒)
                         </span>
                       </div>
                     </div>
@@ -255,52 +253,52 @@ onUnmounted(() => {
     </div>
 
     <!-- 装接评估详情 -->
-    <div style="margin-top: 20px;" v-if="displayClients.filter(c => c.evaluateBoard && !c.evaluateBoard.function_steps.every(s => s.finished)).length > 0">
-      <div v-for="client in displayClients.filter(c => c.evaluateBoard && !c.evaluateBoard.function_steps.every(s => s.finished))" :key="`eval-${client.id}`" style="margin-bottom: 20px;">
-        <Card :title="`装接评估详情 - ${client.name} (${client.ip})`">
-          <div v-if="client.evaluateBoard">
-            <div style="margin-bottom: 16px;">
-              <p><strong>电路名称:</strong> {{ client.evaluateBoard.description }}</p>
-              <p><strong>连接状态:</strong>
-                <Tag style="margin-left: 4px;" :color="client.online ? 'green' : 'red'">
-                  {{ client.online ? '在线' : '离线' }}
-                </Tag>
-              </p>
-              <p><strong>评估进度:</strong> {{ client.evaluateBoard.function_steps.filter(s => s.finished).length }}/{{
-                client.evaluateBoard.function_steps.length }} 步完成</p>
-              
-              <div v-if="client.evaluateBoard.function_steps && client.evaluateBoard.function_steps.length > 0">
-                <strong>功能测试步骤</strong>
-                <Timeline style="margin-top: 12px;">
-                  <Timeline.Item
-                    v-for="(step, index) in client.evaluateBoard.function_steps"
-                    :key="index" 
-                    :color="step.finished ? (step.passed ? 'green' : 'red') : 'blue'">
-                    <div>
-                      <Tag 
-                        :color="step.finished ? (step.passed ? 'green' : 'red') : 'blue'" 
-                        size="small">
-                        {{ step.finished ? (step.passed ? '通过' : '失败') : '进行中' }}
-                      </Tag>
-                      <div style="margin-top: 4px;">
-                        <strong>{{ step.description }}</strong>
-                      </div>
-                      <div style="font-size: 12px; color: #666; margin-top: 4px;">
-                        等待时间: {{ (step.waited_for_ms / 1000).toFixed(1) }}s / {{ (step.can_wait_for_ms / 1000).toFixed(1) }}s
-                        <span v-if="step.finished">
-                          - {{ step.passed ? '✓ 成功' : '✗ 超时或失败' }}
-                        </span>
-                      </div>
-                    </div>
-                  </Timeline.Item>
-                </Timeline>
-              </div>
+    <div style="margin-top: 20px;" v-if="displayClients.filter(c => c.evaluateBoard).length > 0">
+      <div v-for="client in displayClients.filter(c => c.evaluateBoard)" :key="`eval-${client.id}`"
+        style="margin-bottom: 20px;">
 
-            </div>
-          </div>
-        </Card>
-      </div>
+      <Card v-if="client.evaluateBoard" :title="`装接评估详情 - ${client.name} (${client.ip})`">
+        <p><strong>评估板:</strong> {{ client.evaluateBoard.description }}</p>
+        <p><strong>连接状态:</strong>
+          <Tag style="margin-left: 4px;" :color="client.online ? 'green' : 'red'">
+            {{ client.online ? '在线' : '离线' }}
+          </Tag>
+        </p>
+        <p><strong>功能步骤进度:</strong> {{client.evaluateBoard.function_steps.filter(s => s.finished).length}}/{{
+          client.evaluateBoard.function_steps.length }} 完成</p>
+
+        <div v-if="client.evaluateBoard.function_steps && client.evaluateBoard.function_steps.length > 0">
+          <strong>功能步骤详情</strong>
+          <Timeline style="margin-top: 12px;">
+            <Timeline.Item v-for="(step, index) in client.evaluateBoard.function_steps" :key="index"
+              :color="step.finished ? (step.passed ? 'green' : 'red') : 'blue'">
+              <div>
+                <Tag :color="step.finished ? (step.passed ? 'green' : 'red') : 'blue'" size="small">
+                  步骤 {{ index + 1 }}
+                </Tag>
+                <span style="margin-top: 4px;">
+                  <strong>{{ step.description }}</strong>
+                  <span style="margin-left: 8px;">
+                    <span v-if="step.finished">
+                      <Tag :color="step.passed ? 'green' : 'red'" size="small">
+                        {{ step.passed ? '通过' : '失败' }}
+                      </Tag>
+                    </span>
+                    <span v-else>
+                      <Tag color="blue" size="small">进行中</Tag>
+                    </span>
+                  </span>
+                </span>
+                <br>
+                等待: {{ step.waited_for_ms / 1000 }}s / {{ step.can_wait_for_ms / 1000 }}s
+              </div>
+            </Timeline.Item>
+          </Timeline>
+        </div>
+      </Card>
+
     </div>
+  </div>
 
   </div>
 </template>
