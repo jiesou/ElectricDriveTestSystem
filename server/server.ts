@@ -221,7 +221,7 @@ function handleWebSocketMessage(
       break;
     }
 
-    case "evaluate_function_step_update": {
+    case "evaluate_function_board_update": {
       // TODO: 装接评估-功能部分 步骤更新
 
     }
