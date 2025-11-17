@@ -169,7 +169,7 @@ onUnmounted(() => {
                 font-size: 14px;
                 z-index: 1;
               ">
-              摄像头连接中...
+              视觉连接中...
             </div>
           </div>
         </div>

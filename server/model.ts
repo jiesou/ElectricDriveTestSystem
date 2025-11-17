@@ -3,13 +3,9 @@
  * 使用 ONNX Runtime 在服务端进行目标检测推理
  */
 
-import * as ort from "npm:onnxruntime-node@1.19.2";
-import sharp from "npm:sharp@0.33.5";
+import * as ort from "onnxruntime-node";
+import sharp from "sharp";
 import { Buffer } from "node:buffer";
-
-// YOLO11 类别标签（用于装接评估）
-// 这里使用自定义类别：0: sleeve (号码管), 1: cross (交叉), 2: excopper (露铜), 3: exterminal (露端子)
-const YOLO_CLASSES = ["sleeve", "cross", "excopper", "exterminal"];
 
 // 推理配置
 const MODEL_PATH = "./electricdrivev1.01.onnx";
@@ -108,6 +104,16 @@ function iou(box1: number[], box2: number[]): number {
   return union > 0 ? intersection / union : 0;
 }
 
+interface DetectionBox {
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  /* 0: exterminal, 1: excopper, 2: cross, 3: sleeve */
+  class_id: 0 | 1 | 2 | 3,
+  conf: number
+};
+
 /**
  * 处理模型输出，提取检测框
  * YOLO11 输出格式为 [1, 84, 8400] (需要转置)
@@ -125,9 +131,9 @@ function processOutput(
   imgWidth: number,
   imgHeight: number,
   confThreshold: number = 0.1,
-  iouThreshold: number = 0.3,
-): number[][] {
-  const boxes: number[][] = [];
+  // iouThreshold: number = 0.3,
+): DetectionBox[] {
+  const boxes: DetectionBox[] = [];
 
   // YOLO11 输出为转置格式：[1, 84, 8400]
   // 84 = 4 (bbox) + 80 (classes)
@@ -138,19 +144,19 @@ function processOutput(
   // 遍历所有检测
   for (let i = 0; i < numDetections; i++) {
     // 查找最大置信度的类别
-    let maxProb = 0;
+    let maxConf = 0;
     let maxClassId = 0;
 
     for (let c = 0; c < numClasses; c++) {
       const prob = output[numDetections * (c + 4) + i];
-      if (prob > maxProb) {
-        maxProb = prob;
+      if (prob > maxConf) {
+        maxConf = prob;
         maxClassId = c;
       }
     }
 
     // 过滤低置信度检测
-    if (maxProb < confThreshold) {
+    if (maxConf < confThreshold) {
       continue;
     }
 
@@ -166,30 +172,37 @@ function processOutput(
     const x2 = ((xc + w / 2) / INPUT_SIZE) * imgWidth;
     const y2 = ((yc + h / 2) / INPUT_SIZE) * imgHeight;
 
-    boxes.push([x1, y1, x2, y2, maxClassId, maxProb]);
+    boxes.push(DetectionBox(
+      x1,
+      y1,
+      x2,
+      y2,
+      maxClassId,
+      maxConf,
+    ));
   }
 
   // 按置信度降序排序
-  boxes.sort((a, b) => b[5] - a[5]);
+  boxes.sort((a, b) => b.conf - a.conf);
 
-  // 非极大值抑制 (NMS)
-  const result: number[][] = [];
-  while (boxes.length > 0) {
-    result.push(boxes[0]);
-    boxes.splice(0, 1);
+  // // 非极大值抑制 (NMS)
+  // const result: DetectionBox[] = [];
+  // while (boxes.length > 0) {
+  //   result.push(boxes[0]);
+  //   boxes.splice(0, 1);
 
-    // 移除与当前框 IoU 过高的框
-    const filtered: number[][] = [];
-    for (const box of boxes) {
-      if (iou(result[result.length - 1], box) < iouThreshold) {
-        filtered.push(box);
-      }
-    }
-    boxes.length = 0;
-    boxes.push(...filtered);
-  }
+  //   // 移除与当前框 IoU 过高的框
+  //   const filtered: number[][] = [];
+  //   for (const box of boxes) {
+  //     if (iou(result[result.length - 1], box) < iouThreshold) {
+  //       filtered.push(box);
+  //     }
+  //   }
+  //   boxes.length = 0;
+  //   boxes.push(...filtered);
+  // }
 
-  return result;
+  return boxes;
 }
 
 /**
@@ -198,29 +211,28 @@ function processOutput(
  * @param boxes 检测框列表
  * @returns 各类别的数量统计
  */
-function countDetections(boxes: number[][]): {
+function countDetections(boxes: DetectionBox[]): {
   sleeves_num: number;
   cross_num: number;
   excopper_num: number;
   exterminal_num: number;
 } {
   // 自定义类别 ID 映射
-  const SLEEVE_ID = 0; // 假设训练模型时 sleeve 是类别 0
-  const CROSS_ID = 1; // cross 是类别 1
-  const EXCOPPER_ID = 2; // excopper 是类别 2
-  const EXTERMINAL_ID = 3; // exterminal 是类别 3
-
   let sleeves = 0;
   let cross = 0;
   let excopper = 0;
   let exterminal = 0;
 
   for (const box of boxes) {
-    const classId = box[4];
-    if (classId === SLEEVE_ID) sleeves++;
-    else if (classId === CROSS_ID) cross++;
-    else if (classId === EXCOPPER_ID) excopper++;
-    else if (classId === EXTERMINAL_ID) exterminal++;
+    if (box.class_id === 3) {
+      sleeves += 1;
+    } else if (box.class_id === 2) {
+      cross += 1;
+    } else if (box.class_id === 1) {
+      excopper += 1;
+    } else if (box.class_id === 0) {
+      exterminal += 1;
+    }
   }
 
   return {
@@ -239,7 +251,7 @@ function countDetections(boxes: number[][]): {
  */
 async function drawBoxes(
   imageBuffer: Uint8Array,
-  boxes: number[][],
+  boxes: DetectionBox[],
 ): Promise<Uint8Array> {
   // 类别颜色映射（RGB）
   const classColors: Record<number, { r: number; g: number; b: number }> = {
@@ -249,10 +261,8 @@ async function drawBoxes(
     3: { r: 255, g: 255, b: 0 },  // exterminal - 黄色
   };
 
-  const classNames = ["sleeve", "cross", "excopper", "exterminal"];
-
   // 加载原始图像
-  let image = sharp(imageBuffer);
+  const image = sharp(imageBuffer);
   const metadata = await image.metadata();
   const width = metadata.width || 640;
   const height = metadata.height || 640;
@@ -261,24 +271,26 @@ async function drawBoxes(
   const svgElements: string[] = [];
 
   for (const box of boxes) {
-    const [x1, y1, x2, y2, classId, prob] = box;
-    const color = classColors[classId] || { r: 255, g: 255, b: 255 };
-    const className = classNames[classId] || `class${classId}`;
-    const label = `${className} ${(prob * 100).toFixed(0)}%`;
+    const color = classColors[box.class_id] || { r: 255, g: 255, b: 255 };
+    const className = box.class_id === 3 ? "sleeve" :
+                      box.class_id === 2 ? "cross" :
+                      box.class_id === 1 ? "excopper" :
+                      "exterminal";
+    const label = `${className} ${(box.conf * 100).toFixed(0)}%`;
 
     // 绘制矩形框
     svgElements.push(
-      `<rect x="${x1}" y="${y1}" width="${x2 - x1}" height="${y2 - y1}" ` +
+      `<rect x="${box.x1}" y="${box.y1}" width="${box.x2 - box.x1}" height="${box.y2 - box.y1}" ` +
       `fill="none" stroke="rgb(${color.r},${color.g},${color.b})" stroke-width="3"/>`
     );
 
     // 绘制标签背景
-    const labelBg = `<rect x="${x1}" y="${y1 - 20}" width="${label.length * 8}" height="20" ` +
+    const labelBg = `<rect x="${box.x1}" y="${box.y1 - 20}" width="${label.length * 8}" height="20" ` +
       `fill="rgb(${color.r},${color.g},${color.b})"/>`;
     svgElements.push(labelBg);
 
     // 绘制标签文本
-    const labelText = `<text x="${x1 + 5}" y="${y1 - 5}" ` +
+    const labelText = `<text x="${box.x1 + 5}" y="${box.y1 - 5}" ` +
       `font-family="Arial" font-size="14" font-weight="bold" fill="black">${label}</text>`;
     svgElements.push(labelText);
   }
@@ -306,9 +318,7 @@ async function drawBoxes(
  * @returns 检测结果统计和带标注的图像
  */
 export async function detectObjects(
-  imageBuffer: Uint8Array,
-  confThreshold: number = 0.1,
-  iouThreshold: number = 0.3,
+  imageBuffer: Uint8Array
 ): Promise<{
   sleeves_num: number;
   cross_num: number;
@@ -327,9 +337,7 @@ export async function detectObjects(
     const boxes = processOutput(
       output,
       imgWidth,
-      imgHeight,
-      confThreshold,
-      iouThreshold,
+      imgHeight
     );
 
     // 统计结果

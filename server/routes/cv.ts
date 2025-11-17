@@ -92,7 +92,7 @@ cvRouter.get("/stream/:cvClientIp", (ctx) => {
  */
 cvRouter.post("/upload_wiring", async (ctx) => {
   let body: { image?: string; result?: any } | null = null;
-  let imageBuffer: Uint8Array | null = null;
+  let inputImageBuffer: Uint8Array | null = null;
   
   try {
     // 先读取原始 body 数据
@@ -111,7 +111,7 @@ cvRouter.post("/upload_wiring", async (ctx) => {
     } else {
       // 作为二进制数据读取（假设是 JPEG）
       console.log("[CV Upload] 接收二进制 JPEG 数据");
-      imageBuffer = await ctx.request.body.arrayBuffer().then((buf) => new Uint8Array(buf));
+      inputImageBuffer = await ctx.request.body.arrayBuffer().then((buf) => new Uint8Array(buf));
     }
     
     const cvClientIp: string = ctx.request.ip;
@@ -142,32 +142,22 @@ cvRouter.post("/upload_wiring", async (ctx) => {
     const session = client.cvClient.session as EvaluateWiringSession;
 
     // 获取图像和推理结果
-    let image: string | undefined;
-    let result: any;
+    const inputImage = body?.image;
+    let inputResult = body?.result;
 
-    if (body) {
-      // JSON 格式的请求
-      image = body.image;
-      result = body.result;
-    } else {
-      // 二进制 JPEG 格式的请求
-      image = undefined; // 将使用 latest_frame
-      result = undefined; // 需要服务端推理
-    }
-
-    const frame = image ? image : client.cvClient.latest_frame;
+    const frame = inputImage ? inputImage : client.cvClient.latest_frame;
     
     // 如果没有 result，使用服务端推理
     let annotatedImageBuffer: Uint8Array | undefined;
-    if (!result) {
+    if (!inputResult) {
       console.log("[CV Upload] 没有推理结果，使用服务端 YOLO 推理");
       
       // 确定图像数据源
       let inferenceImageBuffer: Uint8Array;
       
-      if (imageBuffer) {
+      if (inputImageBuffer) {
         // 使用二进制请求体
-        inferenceImageBuffer = imageBuffer;
+        inferenceImageBuffer = inputImageBuffer;
       } else if (frame && frame instanceof Uint8Array) {
         // 使用 latest_frame (Uint8Array 格式)
         inferenceImageBuffer = frame;
@@ -180,14 +170,14 @@ cvRouter.post("/upload_wiring", async (ctx) => {
           inferenceImageBuffer[i] = binaryString.charCodeAt(i);
         }
       } else {
-        throw new Error("无法获取图像数据进行推理");
+        throw new Error("[CV Upload] 无法解析图像数据进行推理");
       }
       
       // 调用 YOLO 推理（返回结果和带标注的图像）
-      const detectionResult = await detectObjects(inferenceImageBuffer, 0.1, 0.3);
-      result = detectionResult;
+      const detectionResult = await detectObjects(inferenceImageBuffer);
+      inputResult = detectionResult;
       annotatedImageBuffer = detectionResult.annotatedImage;
-      console.log("[CV Upload] 服务端推理完成:", result);
+      console.log("[CV Upload] 服务端推理完成:", inputResult);
     }
 
     // 将图像转换为 string - 优先使用带标注的图像
@@ -211,10 +201,10 @@ cvRouter.post("/upload_wiring", async (ctx) => {
       timestamp: getSecondTimestamp(),
       image: frameString,
       result: {
-        sleeves_num: result.sleeves_num || 0,
-        cross_num: result.cross_num || 0,
-        excopper_num: result.excopper_num || 0,
-        exterminal_num: result.exterminal_num || 0,
+        sleeves_num: inputResult.sleeves_num || 0,
+        cross_num: inputResult.cross_num || 0,
+        excopper_num: inputResult.excopper_num || 0,
+        exterminal_num: inputResult.exterminal_num || 0,
       },
     };
 
@@ -322,9 +312,6 @@ cvRouter.post("/confirm_wiring", (ctx) => {
       clientManager.safeSend(client.socket, responseMsg);
     }
 
-    // 清除会话
-    // client.cvClient.session = undefined;
-
     ctx.response.body = {
       success: true,
       data: session.finalResult,
@@ -396,9 +383,6 @@ cvRouter.post("/upload_face", async (ctx) => {
       };
       clientManager.safeSend(client.socket, responseMsg);
     }
-
-    // 清除会话
-    client.cvClient.session = undefined;
 
     ctx.response.body = {
       success: true,
