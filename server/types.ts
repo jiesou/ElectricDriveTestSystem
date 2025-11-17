@@ -77,6 +77,11 @@ export interface WiringShot {
   };
 }
 
+export interface EvaluateFuncationStep {
+    description: string;
+    passed: boolean;
+};
+
 // 装接评估会话
 export interface EvaluateWiringSession extends CvSession {
   type: "evaluate_wiring";

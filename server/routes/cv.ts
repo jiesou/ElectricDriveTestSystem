@@ -141,6 +141,12 @@ cvRouter.post("/upload_wiring", async (ctx) => {
 
     const session = client.cvClient.session as EvaluateWiringSession;
 
+    if (session.shots.length >= 3) {
+      ctx.response.status = 400;
+      ctx.response.body = { success: false, error: "已经接收了3张照片，不能再接收更多" };
+      return;
+    }
+
     // 获取图像和推理结果
     const inputImage = body?.image;
     let inputResult = body?.result;
@@ -337,7 +343,9 @@ cvRouter.post("/confirm_wiring", (ctx) => {
 cvRouter.post("/upload_face", async (ctx) => {
   try {
     const body = await ctx.request.body.json();
-    const { cvClientIp, who, image } = body;
+    const { who, image } = body;
+
+    const cvClientIp: string = ctx.request.ip;
 
     // 查找关联此CV客户端的普通客户端
     const client = Object.values(clientManager.clients).find(
@@ -367,7 +375,6 @@ cvRouter.post("/upload_face", async (ctx) => {
     // 设置最终结果
     session.finalResult = {
       who,
-      image,
     };
 
     console.log(
@@ -390,6 +397,50 @@ cvRouter.post("/upload_face", async (ctx) => {
     };
   } catch (error) {
     console.error("[CV Upload] Error processing face signin:", error);
+    ctx.response.status = 500;
+    ctx.response.body = { success: false, error: "Internal server error" };
+  }
+});
+
+/**
+ * 清除 CV 客户端上的会话
+ * POST /api/cv/clear_session/:cvClientIp
+ */
+cvRouter.post("/clear_session/:cvClientIp", (ctx) => {
+  try {
+    const cvClientIp = ctx.params.cvClientIp;
+
+    if (!cvClientIp) {
+      ctx.response.status = 400;
+      ctx.response.body = { success: false, error: "需要 cvClientIp" };
+      return;
+    }
+
+    // 查找关联此 CV 客户端的普通客户端
+    const client = Object.values(clientManager.clients).find(
+      (c) => c.cvClient?.ip === cvClientIp,
+    );
+
+    if (!client) {
+      ctx.response.status = 404;
+      ctx.response.body = { success: false, error: "找不到对应的普通客户端" };
+      return;
+    }
+
+    if (!client.cvClient?.session) {
+      ctx.response.status = 400;
+      ctx.response.body = { success: false, error: "当前视觉客户端没有活跃会话" };
+      return;
+    }
+
+    // 删除会话（清空当前 session）
+    delete client.cvClient.session;
+
+    console.log(`[CV] Cleared session for CV client ${cvClientIp} (client ${client.id})`);
+
+    ctx.response.body = { success: true };
+  } catch (error) {
+    console.error("[CV] Error clearing session:", error);
     ctx.response.status = 500;
     ctx.response.body = { success: false, error: "Internal server error" };
   }

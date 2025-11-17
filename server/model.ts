@@ -6,6 +6,7 @@
 import * as ort from "onnxruntime-node";
 import sharp from "sharp";
 import { Buffer } from "node:buffer";
+import { assert } from "node:console";
 
 // 推理配置
 const MODEL_PATH = "./electricdrivev1.01.onnx";
@@ -172,14 +173,20 @@ function processOutput(
     const x2 = ((xc + w / 2) / INPUT_SIZE) * imgWidth;
     const y2 = ((yc + h / 2) / INPUT_SIZE) * imgHeight;
 
-    boxes.push(DetectionBox(
+    const finalClassId: 0 | 1 | 2 | 3 =
+      maxClassId === 3 ? 3 :
+      maxClassId === 2 ? 2 :
+      maxClassId === 1 ? 1 :
+      0;
+
+    boxes.push({
       x1,
       y1,
       x2,
       y2,
-      maxClassId,
-      maxConf,
-    ));
+      class_id: finalClassId,
+      conf: maxConf,
+    });
   }
 
   // 按置信度降序排序
@@ -253,14 +260,6 @@ async function drawBoxes(
   imageBuffer: Uint8Array,
   boxes: DetectionBox[],
 ): Promise<Uint8Array> {
-  // 类别颜色映射（RGB）
-  const classColors: Record<number, { r: number; g: number; b: number }> = {
-    0: { r: 0, g: 255, b: 0 },    // sleeve - 绿色
-    1: { r: 255, g: 0, b: 0 },    // cross - 红色
-    2: { r: 255, g: 165, b: 0 },  // excopper - 橙色
-    3: { r: 255, g: 255, b: 0 },  // exterminal - 黄色
-  };
-
   // 加载原始图像
   const image = sharp(imageBuffer);
   const metadata = await image.metadata();
@@ -271,12 +270,15 @@ async function drawBoxes(
   const svgElements: string[] = [];
 
   for (const box of boxes) {
-    const color = classColors[box.class_id] || { r: 255, g: 255, b: 255 };
+    const color = box.class_id === 3 ? { r: 0, g: 255, b: 0 } : // 号码管 - 绿色
+                  box.class_id === 2 ? { r: 255, g: 0, b: 0 } : // 交叉 - 红色
+                  box.class_id === 1 ? { r: 255, g: 165, b: 0 } : // 露铜 - 橙色
+                  { r: 0, g: 0, b: 255 }; // 露端子 - 蓝色
     const className = box.class_id === 3 ? "sleeve" :
                       box.class_id === 2 ? "cross" :
                       box.class_id === 1 ? "excopper" :
                       "exterminal";
-    const label = `${className} ${(box.conf * 100).toFixed(0)}%`;
+    const label = `${className} ${(box.conf).toFixed(0)}`;
 
     // 绘制矩形框
     svgElements.push(

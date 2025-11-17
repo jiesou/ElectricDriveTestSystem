@@ -4,6 +4,9 @@ import { Table } from 'ant-design-vue'
 import type { Trouble } from '../types'
 import QuestionManagement from './QuestionManagement.vue'
 
+// 使用 Vite 兼容的方式获取静态资源路径
+const sch = new URL('../assets/sch.png', import.meta.url).href
+
 const troubles = ref<Trouble[]>([])
 
 const troubleColumns = [
@@ -33,18 +36,24 @@ onMounted(async () => {
 <template>
   <div>
     <h2>题库管理</h2>
-    
-    <div style="margin-bottom: 20px;">
-      <h3>可用故障列表</h3>
-      <Table 
-        :dataSource="troubles" 
-        :columns="troubleColumns" 
-        size="small"
-        :pagination="false"
-        rowKey="id"
-      />
-    </div>
 
+    <div style="display:flex; gap:20px; align-items:flex-start;">
+      <img :src="sch" alt="示意图" style="width:700px; height:auto; object-fit:contain;" />
+
+      <div style="flex:1;">
+        <div style="margin-bottom: 20px;">
+          <h3>可用故障列表</h3>
+          <Table 
+            :dataSource="troubles" 
+            :columns="troubleColumns" 
+            size="small"
+            :pagination="false"
+            rowKey="id"
+          />
+        </div>
+
+      </div>
+    </div>
     <QuestionManagement />
   </div>
 </template>

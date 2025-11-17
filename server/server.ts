@@ -207,7 +207,7 @@ function handleWebSocketMessage(
     }
 
     case "finish": {
-      // 处理完成测验
+      // 排故测验 完成
       const timestamp = typeof message.timestamp === "number"
         ? message.timestamp
         : undefined;
@@ -219,6 +219,11 @@ function handleWebSocketMessage(
         timestamp: getSecondTimestamp(),
       } as FinishResultMessage);
       break;
+    }
+
+    case "evaluate_funcation_finish": {
+      // 装接评估-功能部分 完成
+      
     }
 
     case "evaluate_wiring_yolo_request": {
