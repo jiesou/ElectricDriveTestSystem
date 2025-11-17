@@ -55,9 +55,12 @@ export class TestSystemManager {
     /* 野鸡持久存储方案 */
     try {
       const data = JSON.parse(Deno.readTextFileSync("data.json"));
-      // 只恢复tests和questionBank
-      if (data.tests) this.tests = data.tests;
-      if (data.questionBank) this.questionBank = data.questionBank;
+      Object.assign(this, data);
+      // 恢复后将所有客户端设为离线（因为重启后WebSocket连接都断了）
+      for (const clientId in this.clients) {
+        this.clients[clientId].online = false;
+        delete this.clients[clientId].socket;
+      }
     } catch {
       // 文件不存在或解析失败，使用默认值
       console.log("未找到 data.json 数据库，自动使用全新默认数据");
@@ -67,10 +70,18 @@ export class TestSystemManager {
     // 自动保存
     setInterval(
       () => {
-        // 只保存tests和questionBank，不保存clients（由ClientManager管理）
+        // 保存前移除 socket 对象（不能序列化）
         const dataToSave = {
-          tests: this.tests,
-          questionBank: this.questionBank,
+          ...this,
+          clients: Object.fromEntries(
+            Object.entries(this.clients).map(([id, client]) => [
+              id,
+              {
+                ...client,
+                socket: undefined, // 移除 socket 引用
+              },
+            ]),
+          ),
         };
         Deno.writeTextFileSync("data.json", JSON.stringify(dataToSave));
       },

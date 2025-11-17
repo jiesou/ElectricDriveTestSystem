@@ -142,7 +142,7 @@ export class ClientManager {
 
     client.cvClient = cvClient;
     console.log(
-      `[ClientManager] Attached CV client (${mapping.cvClientType}) at ${mapping.cvClientIp} to client ${client.id}`,
+      `[ClientManager] 关联视觉客户端 ${mapping.cvClientIp} (${mapping.cvClientType}) 到普通客户端 ${client.id} ${client.ip}`,
     );
   }
 

@@ -77,6 +77,15 @@ export interface WiringShot {
   };
 }
 
+export interface EvaluateFuncationStep {
+    description: string;
+    can_wait_for_ms: number;
+    waited_for_ms: number;
+    
+    passed: boolean;
+    finished: boolean;
+};
+
 // 装接评估会话
 export interface EvaluateWiringSession extends CvSession {
   type: "evaluate_wiring";
@@ -95,7 +104,6 @@ export interface FaceSigninSession extends CvSession {
   type: "face_signin";
   finalResult?: {
     who: string; // 识别到的人员名称
-    image: Uint8Array; // 识别时的照片
   };
 }
 

@@ -8,6 +8,7 @@ import {
   EvaluateWiringYoloResponseMessage,
   FaceSigninResponseMessage,
 } from "../types.ts";
+import { detectObjects } from "../model.ts";
 
 /**
  * CV上传路由
@@ -90,9 +91,29 @@ cvRouter.get("/stream/:cvClientIp", (ctx) => {
  * }
  */
 cvRouter.post("/upload_wiring", async (ctx) => {
+  let body: { image?: string; result?: any } | null = null;
+  let inputImageBuffer: Uint8Array | null = null;
+  
   try {
-    const body = await ctx.request.body.json();
-    const { image, result } = body;
+    // 先读取原始 body 数据
+    const contentType = ctx.request.headers.get("content-type") || "";
+    
+    if (contentType.includes("application/json")) {
+      // 尝试解析 JSON
+      try {
+        body = await ctx.request.body.json();
+      } catch (jsonError) {
+        console.log("[CV Upload] JSON 解析失败");
+        ctx.response.status = 400;
+        ctx.response.body = { success: false, error: "无效的 JSON 格式" };
+        return;
+      }
+    } else {
+      // 作为二进制数据读取（假设是 JPEG）
+      console.log("[CV Upload] 接收二进制 JPEG 数据");
+      inputImageBuffer = await ctx.request.body.arrayBuffer().then((buf) => new Uint8Array(buf));
+    }
+    
     const cvClientIp: string = ctx.request.ip;
 
     // 查找关联此CV客户端的普通客户端
@@ -120,21 +141,76 @@ cvRouter.post("/upload_wiring", async (ctx) => {
 
     const session = client.cvClient.session as EvaluateWiringSession;
 
-    const frame = image ? image : client.cvClient.latest_frame;
-    if (!result) {
-      /* TODO: 视觉客户端如果没有推理结果，自己调用 inference sdk 从云获取推理结果 */
+    if (session.shots.length >= 3) {
+      ctx.response.status = 400;
+      ctx.response.body = { success: false, error: "已经接收了3张照片，不能再接收更多" };
+      return;
+    }
+
+    // 获取图像和推理结果
+    const inputImage = body?.image;
+    let inputResult = body?.result;
+
+    const frame = inputImage ? inputImage : client.cvClient.latest_frame;
+    
+    // 如果没有 result，使用服务端推理
+    let annotatedImageBuffer: Uint8Array | undefined;
+    if (!inputResult) {
+      console.log("[CV Upload] 没有推理结果，使用服务端 YOLO 推理");
       
+      // 确定图像数据源
+      let inferenceImageBuffer: Uint8Array;
+      
+      if (inputImageBuffer) {
+        // 使用二进制请求体
+        inferenceImageBuffer = inputImageBuffer;
+      } else if (frame && frame instanceof Uint8Array) {
+        // 使用 latest_frame (Uint8Array 格式)
+        inferenceImageBuffer = frame;
+      } else if (typeof frame === "string") {
+        // 如果是 base64 字符串，解码为 Uint8Array
+        const base64Data = frame.replace(/^data:image\/\w+;base64,/, '');
+        const binaryString = atob(base64Data);
+        inferenceImageBuffer = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          inferenceImageBuffer[i] = binaryString.charCodeAt(i);
+        }
+      } else {
+        throw new Error("[CV Upload] 无法解析图像数据进行推理");
+      }
+      
+      // 调用 YOLO 推理（返回结果和带标注的图像）
+      const detectionResult = await detectObjects(inferenceImageBuffer);
+      inputResult = detectionResult;
+      annotatedImageBuffer = detectionResult.annotatedImage;
+      console.log("[CV Upload] 服务端推理完成:", inputResult);
+    }
+
+    // 将图像转换为 string - 优先使用带标注的图像
+    let frameString: string;
+    if (annotatedImageBuffer) {
+      // 使用带标注的图像
+      const base64 = btoa(String.fromCharCode(...annotatedImageBuffer));
+      frameString = `data:image/jpeg;base64,${base64}`;
+    } else if (typeof frame === "string") {
+      frameString = frame;
+    } else if (frame instanceof Uint8Array) {
+      // 将 Uint8Array 转换为 base64
+      const base64 = btoa(String.fromCharCode(...frame));
+      frameString = `data:image/jpeg;base64,${base64}`;
+    } else {
+      frameString = ""; // 默认空字符串
     }
 
     // 添加新的拍摄记录
     const shot: WiringShot = {
       timestamp: getSecondTimestamp(),
-      image: frame,
+      image: frameString,
       result: {
-        sleeves_num: result.sleeves_num || 0,
-        cross_num: result.cross_num || 0,
-        excopper_num: result.excopper_num || 0,
-        exterminal: result.exterminal || 0,
+        sleeves_num: inputResult.sleeves_num || 0,
+        cross_num: inputResult.cross_num || 0,
+        excopper_num: inputResult.excopper_num || 0,
+        exterminal_num: inputResult.exterminal_num || 0,
       },
     };
 
@@ -242,9 +318,6 @@ cvRouter.post("/confirm_wiring", (ctx) => {
       clientManager.safeSend(client.socket, responseMsg);
     }
 
-    // 清除会话
-    // client.cvClient.session = undefined;
-
     ctx.response.body = {
       success: true,
       data: session.finalResult,
@@ -270,7 +343,9 @@ cvRouter.post("/confirm_wiring", (ctx) => {
 cvRouter.post("/upload_face", async (ctx) => {
   try {
     const body = await ctx.request.body.json();
-    const { cvClientIp, who, image } = body;
+    const { who, image } = body;
+
+    const cvClientIp: string = ctx.request.ip;
 
     // 查找关联此CV客户端的普通客户端
     const client = Object.values(clientManager.clients).find(
@@ -300,7 +375,6 @@ cvRouter.post("/upload_face", async (ctx) => {
     // 设置最终结果
     session.finalResult = {
       who,
-      image,
     };
 
     console.log(
@@ -317,9 +391,6 @@ cvRouter.post("/upload_face", async (ctx) => {
       clientManager.safeSend(client.socket, responseMsg);
     }
 
-    // 清除会话
-    client.cvClient.session = undefined;
-
     ctx.response.body = {
       success: true,
       data: session.finalResult,
@@ -332,47 +403,46 @@ cvRouter.post("/upload_face", async (ctx) => {
 });
 
 /**
- * 结束CV会话
- * POST /api/cv/end_session
- * 
- * 请求体：
- * {
- *   "clientId": "client-192.168.1.100"
- * }
+ * 清除 CV 客户端上的会话
+ * POST /api/cv/clear_session/:cvClientIp
  */
-cvRouter.post("/end_session", async (ctx) => {
+cvRouter.post("/clear_session/:cvClientIp", (ctx) => {
   try {
-    const body = await ctx.request.body.json();
-    const { clientId } = body;
+    const cvClientIp = ctx.params.cvClientIp;
 
-    const client = clientManager.clients[clientId];
+    if (!cvClientIp) {
+      ctx.response.status = 400;
+      ctx.response.body = { success: false, error: "需要 cvClientIp" };
+      return;
+    }
+
+    // 查找关联此 CV 客户端的普通客户端
+    const client = Object.values(clientManager.clients).find(
+      (c) => c.cvClient?.ip === cvClientIp,
+    );
 
     if (!client) {
       ctx.response.status = 404;
-      ctx.response.body = { success: false, error: "Client not found" };
+      ctx.response.body = { success: false, error: "找不到对应的普通客户端" };
       return;
     }
 
     if (!client.cvClient?.session) {
       ctx.response.status = 400;
-      ctx.response.body = { success: false, error: "No active CV session" };
+      ctx.response.body = { success: false, error: "当前视觉客户端没有活跃会话" };
       return;
     }
 
-    console.log(
-      `[CV Session] Ending session for client ${client.id}, type: ${client.cvClient.session.type}`,
-    );
+    // 删除会话（清空当前 session）
+    delete client.cvClient.session;
 
-    // 清除会话
-    client.cvClient.session = undefined;
+    console.log(`[CV] Cleared session for CV client ${cvClientIp} (client ${client.id})`);
 
-    ctx.response.body = {
-      success: true,
-      message: "CV session ended successfully",
-    };
+    ctx.response.body = { success: true };
   } catch (error) {
-    console.error("[CV Session] Error ending session:", error);
+    console.error("[CV] Error clearing session:", error);
     ctx.response.status = 500;
     ctx.response.body = { success: false, error: "Internal server error" };
   }
 });
+

@@ -61,7 +61,7 @@ onUnmounted(() => {
   <ConfigProvider :locale="zhCN">
   <Layout style="min-height: 100vh;">
     <Header style="background: #fff; padding: 0 20px; display: flex; justify-content: center; align-items: center;">
-      <h1 style="margin: 0; color: #001529;">电力拖动物联网测试系统</h1>
+      <h1 style="margin: 0; color: #001529;">电力拖动物联网云平台</h1>
     </Header>
     
     <Layout>

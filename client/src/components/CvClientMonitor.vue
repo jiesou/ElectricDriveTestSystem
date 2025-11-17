@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, h } from 'vue'
-import { Card, Tag, Empty, Button, message } from 'ant-design-vue'
-import { CloseOutlined } from '@ant-design/icons-vue'
-import type { Client, EvaluateWiringSession, FaceSigninSession } from '../types'
+import { Card, Tag, Empty, Button } from 'ant-design-vue'
+import type { Client, CvClient, EvaluateWiringSession, FaceSigninSession } from '../types'
 import { useFakeDataMode, generateFakeData } from '../useFakeData'
+import { CloseOutlined } from '@ant-design/icons-vue';
 
 const clients = ref<Client[]>([])
 const loading = ref(false)
@@ -117,33 +117,25 @@ function getSessionColor(sessionType: string | undefined): string {
   }
 }
 
-// 结束 CV 会话
-async function handleEndSession(clientId: string) {
-  // 假数据模式下不执行真实操作
-  if (useFakeDataMode.value) {
-    message.success('假数据模式下无法结束会话')
-    return
-  }
-
+// 清除指定 CV 客户端的会话（由页面上的叉叉触发）
+async function clearSession(cvClient: CvClient) {
+  if (!cvClient) return
   try {
-    const response = await fetch('/api/cv/end_session', {
+    const resp = await fetch(`/api/cv/clear_session/${cvClient.ip}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ clientId }),
+      headers: { 'Content-Type': 'application/json' },
     })
-    const result = await response.json()
-
-    if (result.success) {
-      message.success('会话已结束')
-      fetchClients()
+    const result = await resp.json()
+    if (result && result.success) {
+      // 刷新客户端列表以反映变化
+      await fetchClients()
     } else {
-      message.error(`结束会话失败: ${result.error}`)
+      console.error('[CvClientMonitor] 清除会话失败:', result)
+      window.alert(result?.error || '清除会话失败')
     }
   } catch (error) {
-    console.error('Failed to end session:', error)
-    message.error('结束会话失败')
+    console.error('[CvClientMonitor] 清除会话请求失败:', error)
+    window.alert('请求失败')
   }
 }
 
@@ -164,22 +156,16 @@ onUnmounted(() => {
     </div>
     <div v-else style="display: grid; grid-template-columns: repeat(auto-fill, 600px); gap: 16px;">
       <Card v-for="client in cvClients" :key="client.id" size="small" :title="`${client.name} - 视觉客户端`">
-        <template #extra>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <Tag :color="getSessionColor(client.cvClient?.session?.type)">
-              {{ getSessionTypeText(client.cvClient?.session?.type) }}
-            </Tag>
-            <Button 
-              v-if="client.cvClient?.session" 
-              type="text" 
-              danger 
-              size="small"
-              :icon="h(CloseOutlined)"
-              @click="handleEndSession(client.id)"
-              title="结束会话"
-            />
-          </div>
-        </template>
+              <template #extra>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <Tag :color="getSessionColor(client.cvClient?.session?.type)">
+                    {{ getSessionTypeText(client.cvClient?.session?.type) }}
+                  </Tag>
+                  <!-- 如果存在会话，显示叉叉按钮用于删除会话 -->
+                  <Button  v-if="client.cvClient?.session" danger shape="circle" @click="clearSession(client.cvClient)" :icon="h(CloseOutlined)">
+                  </Button>
+                </div>
+              </template>
 
         <div style="margin-bottom: 12px;">
           <div style="font-size: 12px; color: #666; margin-bottom: 4px;">
@@ -211,7 +197,7 @@ onUnmounted(() => {
                 font-size: 14px;
                 z-index: 1;
               ">
-              摄像头连接中...
+              视觉连接中...
             </div>
           </div>
         </div>
@@ -231,7 +217,29 @@ onUnmounted(() => {
             <div v-if="!client.cvClient.session.finalResult" style="font-size: 12px; color: #1890ff;">
               📸 拍摄采集中... (已拍摄 {{ client.cvClient.session.shots?.length || 0 }} 张)
             </div>
-            <div v-else style="font-size: 12px;">
+
+            <!-- 显示拍摄的图像 -->
+            <div v-if="client.cvClient.session.shots && client.cvClient.session.shots.length > 0"
+              style="margin-top: 8px;">
+              <div style="font-size: 12px; color: #666; margin-bottom: 4px;">
+                <strong>拍摄记录:</strong>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(auto-fill, 600px); gap: 8px;">
+                <div v-for="(shot, idx) in client.cvClient.session.shots" :key="idx"
+                  style="border: 1px solid #d9d9d9; border-radius: 4px; overflow: hidden;">
+                  <img v-if="shot.image" :src="shot.image" :alt="`拍摄 ${idx + 1}`"
+                    style="width: 100%; object-fit: contain; background: #000; display: block;" />
+                  <div style="padding: 4px; font-size: 11px; background: #fafafa;">
+                    <div>🏷️ 标记号码管: {{ shot.result.sleeves_num }}</div>
+                    <div>❌ 交叉: {{ shot.result.cross_num }}</div>
+                    <div>🔶 露铜: {{ shot.result.excopper_num }}</div>
+                    <div>📌 露端子: {{ shot.result.exterminal_num }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="client.cvClient.session.finalResult" style="font-size: 12px; margin-top: 8px;">
               <div style="color: #52c41a; margin-bottom: 4px;"><strong>✅ 评估完成</strong></div>
               <div style="color: #666; margin-top: 4px;">
                 <strong>得分:</strong> {{ client.cvClient.session.finalResult.scores }} 分
