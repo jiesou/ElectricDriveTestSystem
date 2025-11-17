@@ -16,6 +16,7 @@ clientsRouter.get("/clients", (ctx) => {
     online: client.online,
     testSession: client.testSession || null,
     cvClient: client.cvClient || null,
+    evaluateBoard: client.evaluateBoard || null,
   }));
 
   ctx.response.body = {
