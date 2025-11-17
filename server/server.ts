@@ -221,9 +221,9 @@ function handleWebSocketMessage(
       break;
     }
 
-    case "evaluate_funcation_finish": {
-      // 装接评估-功能部分 完成
-      
+    case "evaluate_function_step_update": {
+      // TODO: 装接评估-功能部分 步骤更新
+
     }
 
     case "evaluate_wiring_yolo_request": {

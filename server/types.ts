@@ -79,7 +79,11 @@ export interface WiringShot {
 
 export interface EvaluateFuncationStep {
     description: string;
+    can_wait_for_ms: number;
+    waited_for_ms: number;
+    
     passed: boolean;
+    finished: boolean;
 };
 
 // 装接评估会话

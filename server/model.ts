@@ -110,7 +110,7 @@ interface DetectionBox {
   y1: number,
   x2: number,
   y2: number,
-  /* 0: exterminal, 1: excopper, 2: cross, 3: sleeve */
+  /* 0: cross, 1: excopper, 2: exterminal, 3: sleeve */
   class_id: 0 | 1 | 2 | 3,
   conf: number
 };
@@ -234,11 +234,11 @@ function countDetections(boxes: DetectionBox[]): {
     if (box.class_id === 3) {
       sleeves += 1;
     } else if (box.class_id === 2) {
-      cross += 1;
+      exterminal += 1;
     } else if (box.class_id === 1) {
       excopper += 1;
     } else if (box.class_id === 0) {
-      exterminal += 1;
+      cross += 1;
     }
   }
 
@@ -271,13 +271,13 @@ async function drawBoxes(
 
   for (const box of boxes) {
     const color = box.class_id === 3 ? { r: 0, g: 255, b: 0 } : // 号码管 - 绿色
-                  box.class_id === 2 ? { r: 255, g: 0, b: 0 } : // 交叉 - 红色
-                  box.class_id === 1 ? { r: 255, g: 165, b: 0 } : // 露铜 - 橙色
-                  { r: 0, g: 0, b: 255 }; // 露端子 - 蓝色
+                  box.class_id === 2 ? { r: 0, g: 0, b: 255 } : // 露端子 - 蓝
+                  box.class_id === 1 ? { r: 255, g: 255, b: 0 } : // 露铜 - 黄色
+                  { r: 255, g: 0, b: 0 }; // 交叉 - 红色
     const className = box.class_id === 3 ? "sleeve" :
-                      box.class_id === 2 ? "cross" :
+                      box.class_id === 2 ? "exterminal" :
                       box.class_id === 1 ? "excopper" :
-                      "exterminal";
+                      "cross";
     const label = `${className} ${(box.conf).toFixed(0)}`;
 
     // 绘制矩形框
