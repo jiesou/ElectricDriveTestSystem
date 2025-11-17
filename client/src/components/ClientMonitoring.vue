@@ -159,6 +159,42 @@ onUnmounted(() => {
       :client-id="currentAnalysisClientId"
     />
 
+    <!-- 已结束的装接功能评估 -->
+    <div style="margin-top: 20px;" v-if="displayClients.filter(c => c.evaluateBoard && c.evaluateBoard.function_steps.every(s => s.finished)).length > 0">
+      <Card title="已结束的装接功能评估">
+        <div v-for="client in displayClients.filter(c => c.evaluateBoard && c.evaluateBoard.function_steps.every(s => s.finished))"
+          :key="`finished-eval-${client.id}`"
+          style="margin-bottom: 16px; padding: 12px; border: 1px solid #f0f0f0; border-radius: 6px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong>{{ client.name }} ({{ client.ip }})</strong>
+              <Tag :color="client.online ? 'green' : 'gray'" size="small" style="margin-left: 8px;">
+                {{ client.online ? '在线' : '离线' }}
+              </Tag>
+            </div>
+            <div style="text-align: right;">
+              <Button type="primary" size="small" :icon="h(AimOutlined)" @click="handleAIAnalysis(client.id)">
+                DeepSeek 汇总分析
+              </Button>
+            </div>
+          </div>
+          <div style="margin-top: 8px; font-size: 12px; color: #666;">
+            电路: {{ client.evaluateBoard!.description }}
+            <br>
+            完成步骤: {{ client.evaluateBoard!.function_steps.filter(s => s.finished).length }}/{{ client.evaluateBoard!.function_steps.length }}
+            | 通过步骤: {{ client.evaluateBoard!.function_steps.filter(s => s.passed).length }}/{{ client.evaluateBoard!.function_steps.length }}
+            <span v-if="client.cvClient && client.cvClient.session">
+              <br>
+              视觉评估: {{ client.cvClient.session.type === 'evaluate_wiring' ? '装接评估' : '人脸签到' }}
+              <span v-if="client.cvClient.session.type === 'evaluate_wiring' && client.cvClient.session.finalResult">
+                | 评分: {{ client.cvClient.session.finalResult.scores }}
+              </span>
+            </span>
+          </div>
+        </div>
+      </Card>
+    </div>
+
     <div style="margin-top: 20px;" v-if="displayClients.filter(c => c.testSession).length > 0">
       <div v-for="client in displayClients.filter(c => c.testSession)" :key="client.id" style="margin-bottom: 20px;">
         <Card :title="`活跃测验详情 - ${client.name} (${client.ip})`">
@@ -219,8 +255,8 @@ onUnmounted(() => {
     </div>
 
     <!-- 装接评估详情 -->
-    <div style="margin-top: 20px;" v-if="displayClients.filter(c => c.evaluateBoard).length > 0">
-      <div v-for="client in displayClients.filter(c => c.evaluateBoard)" :key="`eval-${client.id}`" style="margin-bottom: 20px;">
+    <div style="margin-top: 20px;" v-if="displayClients.filter(c => c.evaluateBoard && !c.evaluateBoard.function_steps.every(s => s.finished)).length > 0">
+      <div v-for="client in displayClients.filter(c => c.evaluateBoard && !c.evaluateBoard.function_steps.every(s => s.finished))" :key="`eval-${client.id}`" style="margin-bottom: 20px;">
         <Card :title="`装接评估详情 - ${client.name} (${client.ip})`">
           <div v-if="client.evaluateBoard">
             <div style="margin-bottom: 16px;">
