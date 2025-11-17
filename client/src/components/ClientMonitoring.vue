@@ -218,5 +218,59 @@ onUnmounted(() => {
       </div>
     </div>
 
+    <!-- 装接评估详情 -->
+    <div style="margin-top: 20px;" v-if="displayClients.filter(c => c.evaluateBoard).length > 0">
+      <div v-for="client in displayClients.filter(c => c.evaluateBoard)" :key="`eval-${client.id}`" style="margin-bottom: 20px;">
+        <Card :title="`装接评估详情 - ${client.name} (${client.ip})`">
+          <div v-if="client.evaluateBoard">
+            <div style="margin-bottom: 16px;">
+              <p><strong>评估板:</strong> {{ client.evaluateBoard.description }}</p>
+              <p><strong>连接状态:</strong>
+                <Tag style="margin-left: 4px;" :color="client.online ? 'green' : 'red'">
+                  {{ client.online ? '在线' : '离线' }}
+                </Tag>
+              </p>
+              <p><strong>功能步骤进度:</strong> {{ client.evaluateBoard.function_steps.filter(s => s.finished).length }}/{{ client.evaluateBoard.function_steps.length }} 完成</p>
+            </div>
+            
+            <div v-if="client.evaluateBoard.function_steps && client.evaluateBoard.function_steps.length > 0">
+              <strong>功能步骤详情</strong>
+              <Timeline style="margin-top: 12px;">
+                <Timeline.Item
+                  v-for="(step, index) in client.evaluateBoard.function_steps"
+                  :key="index"
+                  :color="step.finished ? (step.passed ? 'green' : 'red') : 'blue'">
+                  <div>
+                    <Tag :color="step.finished ? (step.passed ? 'green' : 'red') : 'blue'" size="small">
+                      步骤 {{ index + 1 }}
+                    </Tag>
+                    <div style="margin-top: 4px;">
+                      <strong>{{ step.description }}</strong>
+                      <div style="margin-top: 4px; font-size: 12px; color: #666;">
+                        状态: 
+                        <span v-if="step.finished">
+                          <Tag :color="step.passed ? 'green' : 'red'" size="small">
+                            {{ step.passed ? '通过' : '失败' }}
+                          </Tag>
+                        </span>
+                        <span v-else>
+                          <Tag color="blue" size="small">进行中</Tag>
+                        </span>
+                        <br>
+                        等待时间: {{ step.waited_for_ms }}ms / {{ step.can_wait_for_ms }}ms
+                        <span v-if="step.finished && step.waited_for_ms > step.can_wait_for_ms" style="color: #ff4d4f;">
+                          (超时 {{ step.waited_for_ms - step.can_wait_for_ms }}ms)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </Timeline.Item>
+              </Timeline>
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
+
   </div>
 </template>

@@ -1,6 +1,6 @@
 // 假数据功能：用于演示时按 Home 键显示固定的测试数据
 import { ref } from 'vue'
-import type { Client, Test, TestSession, TestLog, Trouble, Question } from './types'
+import type { Client, Test, TestSession, TestLog, Trouble, Question, EvaluateBoard, EvaluateFuncationStep } from './types'
 import { getSecondTimestamp } from './types'
 
 // 是否启用假数据模式
@@ -118,13 +118,49 @@ export function generateFakeData(): Client[] {
     logs: logs
   }
   
+  // 创建装接评估假数据
+  const evaluateBoard: EvaluateBoard = {
+    description: "YY-三角 双速正转电路",
+    function_steps: [
+      {
+        description: "按下 SB1，电机低速",
+        can_wait_for_ms: 4000,
+        waited_for_ms: 1500,
+        passed: true,
+        finished: true,
+      },
+      {
+        description: "按下 SB3，电机停",
+        can_wait_for_ms: 8000,
+        waited_for_ms: 3000,
+        passed: false,
+        finished: false,
+      },
+      {
+        description: "按下 SB2，电机高速",
+        can_wait_for_ms: 4000,
+        waited_for_ms: 0,
+        passed: false,
+        finished: false,
+      },
+      {
+        description: "按下 SB3，电机停",
+        can_wait_for_ms: 10000,
+        waited_for_ms: 0,
+        passed: false,
+        finished: false,
+      }
+    ]
+  }
+
   // 创建45号机客户端
   const fakeClient: Client = {
     id: '45',
     name: '45号机',
     ip: '192.168.100.45',
     online: true,
-    testSession: testSession
+    testSession: testSession,
+    evaluateBoard: evaluateBoard // 添加装接评估数据
   }
   
   return [fakeClient]
