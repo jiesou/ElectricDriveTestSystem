@@ -173,13 +173,6 @@ function buildPrompt(clients: Client[]): string {
           markdown.push(`- **最终评分**: ${wiringSession.finalResult.scores}/100`);
           markdown.push("");
         }
-      } else if (cvSession.type === "face_signin") {
-        markdown.push("**评估类型**: 人脸签到\n");
-        const faceSession = cvSession;
-        if (faceSession.finalResult) {
-          markdown.push(`- 识别人员: ${faceSession.finalResult.who}`);
-        }
-        markdown.push("");
       }
     }
     
@@ -213,7 +206,7 @@ async function* streamGenerate(prompt: string): AsyncGenerator<string> {
       },
       body: JSON.stringify({
         model: config.model,
-        messages: [
+        messages: [ 
           {
             role: "user",
             content: prompt,

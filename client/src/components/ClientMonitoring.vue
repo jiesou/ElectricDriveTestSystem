@@ -94,6 +94,7 @@ function handleAIAnalysis(clientId: string) {
   aiAnalysisModal.value = true
 }
 
+
 onMounted(() => {
   fetchClients()
   startAutoRefresh()
