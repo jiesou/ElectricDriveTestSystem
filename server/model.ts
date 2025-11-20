@@ -9,7 +9,7 @@ import { Buffer } from "node:buffer";
 import { assert } from "node:console";
 
 // 推理配置
-const MODEL_PATH = "./electricdrivev1.01.onnx";
+const MODEL_PATH = "./electricdrivev2.0.onnx";
 const INPUT_SIZE = 640;
 
 // 全局模型实例（延迟加载）
