@@ -9,6 +9,17 @@ applyTo: '**'
 - 不要 Overengineering！不要 Overengineering！不要 Overengineering！保持代码实现简短简单。如果可能，减少代码的更改。
 - 中文注释。
 
+# 环境变量可用
+OPENAI_API_KEY="******"
+OPENAI_BASE_URL="https://dashscope.aliyuncs.com/compatible-mode/v1"
+OPENAI_MODEL="deepseek-r1-distill-llama-8b"
+
+# AiAnalyzeModel 的实现
+
+- 应当流式响应流式显示
+- 应当 fetch 后端 /api/generator/generator 接口，传入 clientId
+- AiAnalyzeModel 应当在 App.vue menuItems 中添加一个新的菜单项来打开
+
 # TypeScript 类型定义
 // Utility function to get integer second timestamp
 export function getSecondTimestamp(): number {

@@ -55,15 +55,28 @@ export class TestSystemManager {
     /* 野鸡持久存储方案 */
     try {
       const data = JSON.parse(Deno.readTextFileSync("data.json"));
-      Object.assign(this, data);
-      // 恢复后将所有客户端设为离线（因为重启后WebSocket连接都断了）
-      for (const clientId in this.clients) {
-        this.clients[clientId].online = false;
-        delete this.clients[clientId].socket;
+      this.tests = data.tests || [];
+      this.questionBank = data.questionBank || [];
+
+      // 恢复客户端数据到 clientManager
+      if (data.clients) {
+        for (const [clientId, clientDataRaw] of Object.entries(data.clients)) {
+          // 类型窄化：确保 clientData 是对象之后再进行展开
+          const clientData = clientDataRaw as Client | undefined;
+          if (!clientData || typeof clientData !== "object") {
+            continue;
+          }
+          // 恢复客户端状态，但保持离线状态（因为重启后WebSocket连接都断了）
+          const restoredClient: Client = {
+            ...clientData,
+            online: false,
+            socket: undefined, // 移除 socket 引用
+          };
+          clientManager.clients[clientId] = restoredClient;
+        }
       }
-    } catch {
-      // 文件不存在或解析失败，使用默认值
-      console.log("未找到 data.json 数据库，自动使用全新默认数据");
+    } catch (error) {
+      console.error("读取 data.json 数据库时出错，自动使用全新默认数据:", error);
     }
 
     this.startBroadcast();
