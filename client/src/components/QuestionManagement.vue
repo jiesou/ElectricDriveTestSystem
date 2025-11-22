@@ -155,6 +155,23 @@ async function createRandom3Questions() {
     }
 }
 
+async function createFilledQuestions() {
+    troubles.value.forEach(async trouble => {
+        const response = await fetch('/api/questions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ troubles: [trouble] })
+        })
+        const result = await response.json()
+        if (result.success) {
+            message.success('题库填充成功')
+            await fetchQuestions()
+        } else {
+            message.error(result.error || '填充失败')
+        }
+    });
+}
+
 onMounted(async () => {
     await fetchTroubles()
     await fetchQuestions()
@@ -173,6 +190,9 @@ defineExpose({
             <div style="display: flex; gap: 8px;">
                 <Button @click="createRandom3Questions">
                     ✨ 随机 3 个题目
+                </Button>
+                <Button @click="createFilledQuestions">
+                    ✨ 填充题库
                 </Button>
                 <Button type="primary" @click="openAddModal">
                     + 添加题目
