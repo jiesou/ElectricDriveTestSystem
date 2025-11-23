@@ -13,6 +13,9 @@ export class ClientManager {
   // 所有客户端的映射表 (clientId -> Client)
   public clients: Record<string, Client> = {};
   
+  // relay_rainbow 响应回调 (clientId -> resolve function)
+  public relayRainbowCallbacks: Map<string, (latencyMs: number) => void> = new Map();
+  
   private heartbeatInterval?: number;
   private readonly HEARTBEAT_TIMEOUT = 10; // 心跳超时时间（秒）
   private readonly HEARTBEAT_CHECK_INTERVAL = 2000; // 心跳检查间隔（毫秒）

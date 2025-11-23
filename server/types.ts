@@ -55,6 +55,7 @@ export interface Client {
   testSession?: TestSession;
   cvClient?: CvClient; // 关联的CV客户端
   evaluateBoard?: EvaluateBoard; // 装接评估-功能部分的当前Board状态
+  relayRainbowSentMs?: number; // relay_rainbow 发送时间戳（毫秒），用于计算回环延迟
 }
 
 // ==================== CV机器视觉相关类型 ====================
@@ -154,6 +155,10 @@ export interface PingMessage extends WSMessage {
 
 export interface RelayRainbowMessage extends WSMessage {
   type: "relay_rainbow";
+}
+
+export interface AckRelayRainbowMessage extends WSMessage {
+  type: "ack_relay_rainbow";
 }
 
 export interface AnswerMessage extends WSMessage {

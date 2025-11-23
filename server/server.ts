@@ -296,6 +296,34 @@ function handleWebSocketMessage(
       break;
     }
 
+    case "ack_relay_rainbow": {
+      // 处理 relay_rainbow 的 ack 响应，计算延迟
+      if (!client.relayRainbowSentMs) {
+        console.warn(
+          `[WebSocket] Received ack_relay_rainbow from ${client.id} but no sent timestamp recorded`,
+        );
+        return;
+      }
+
+      const nowMs = Date.now();
+      const latencyMs = nowMs - client.relayRainbowSentMs;
+      
+      console.log(
+        `[WebSocket] Relay rainbow latency for client ${client.id}: ${latencyMs}ms`,
+      );
+
+      // 清除发送时间戳（表示已响应）
+      delete client.relayRainbowSentMs;
+
+      // 调用回调函数（如果存在）
+      const callback = clientManager.relayRainbowCallbacks.get(client.id);
+      if (callback) {
+        callback(latencyMs);
+        clientManager.relayRainbowCallbacks.delete(client.id);
+      }
+      break;
+    }
+
     default:
       console.warn(`Unknown message type: ${message.type}`);
   }

@@ -116,6 +116,11 @@ class SimpleESP32Simulator {
       case "pong":
         break;
 
+      case "relay_rainbow":
+        console.log(`⚡ 收到系统自检消息，回复 ack`);
+        this.sendAckRelayRainbow();
+        break;
+
       default:
         console.log(`❓ 未知消息类型: ${message.type}`);
     }
@@ -161,6 +166,18 @@ class SimpleESP32Simulator {
     const message = { type: "ping" };
     const response = JSON.stringify(message);
     console.log("📤 发送心跳包:", response);
+    this.socket?.send(response);
+  }
+
+  sendAckRelayRainbow() {
+    if (!this.isConnected) return;
+
+    const message = {
+      type: "ack_relay_rainbow",
+      timestamp: getSecondTimestamp(),
+    };
+    const response = JSON.stringify(message);
+    console.log("📤 发送 ack_relay_rainbow:", response);
     this.socket?.send(response);
   }
 

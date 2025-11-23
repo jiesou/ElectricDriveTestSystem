@@ -89,22 +89,90 @@ testsRouter.post("/test-sessions", async (ctx) => {
 });
 
 // 继电器功能测试（系统自检）广播
-testsRouter.post("/relay-rainbow", (ctx) => {
+// 继电器功能测试（系统自检）广播 - 等待响应并返回延迟
+testsRouter.post("/relay-rainbow", async (ctx) => {
+  const sentMs = Date.now(); // 使用毫秒级时间戳
+  const clientPromises: Promise<{
+    clientId: string;
+    clientName: string;
+    latencyMs: number | null;
+    timeout: boolean;
+  }>[] = [];
+  
+  // 为每个在线客户端创建 Promise
+  for (const client of Object.values(clientManager.clients)) {
+    if (!client.online) continue;
+    if (!client.socket) continue;
+    if (!(client.socket.readyState === WebSocket.OPEN)) continue;
+    
+    // 记录发送时间戳到客户端（毫秒）
+    client.relayRainbowSentMs = sentMs;
+    
+    // 创建 Promise 等待响应
+    const clientPromise = new Promise<{
+      clientId: string;
+      clientName: string;
+      latencyMs: number | null;
+      timeout: boolean;
+    }>((resolve) => {
+      // 设置回调函数
+      clientManager.relayRainbowCallbacks.set(client.id, (latencyMs: number) => {
+        resolve({
+          clientId: client.id,
+          clientName: client.name,
+          latencyMs,
+          timeout: false,
+        });
+      });
+      
+      // 设置3秒超时
+      setTimeout(() => {
+        // 如果还没响应，清除回调并解析为超时
+        if (clientManager.relayRainbowCallbacks.has(client.id)) {
+          clientManager.relayRainbowCallbacks.delete(client.id);
+          delete client.relayRainbowSentMs;
+          resolve({
+            clientId: client.id,
+            clientName: client.name,
+            latencyMs: null,
+            timeout: true,
+          });
+        }
+      }, 3000);
+    });
+    
+    clientPromises.push(clientPromise);
+  }
+  
+  // 发送 relay_rainbow 消息给所有客户端
   let sent = 0;
   for (const client of Object.values(clientManager.clients)) {
     if (!client.online) continue;
     if (!client.socket) continue;
     if (!(client.socket.readyState === WebSocket.OPEN)) continue;
-
+    if (!client.relayRainbowSentMs) continue; // 只发送给有时间戳的客户端
+    
     try {
       client.socket.send(
-        JSON.stringify({ type: "relay_rainbow", timestamp: getSecondTimestamp() }),
+        JSON.stringify({ type: "relay_rainbow", timestamp: Math.floor(sentMs / 1000) }),
       );
       sent++;
     } catch (error) {
       console.error(`Failed to send relay_rainbow to client ${client.id}:`, error);
+      // 如果发送失败，清除回调和时间戳
+      clientManager.relayRainbowCallbacks.delete(client.id);
+      delete client.relayRainbowSentMs;
     }
   }
-
-  ctx.response.body = { success: true, data: { sent } };
+  
+  // 等待所有客户端响应或超时
+  const latencies = await Promise.all(clientPromises);
+  
+  ctx.response.body = {
+    success: true,
+    data: {
+      sent,
+      latencies,
+    },
+  };
 });

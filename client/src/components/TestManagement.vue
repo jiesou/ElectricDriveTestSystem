@@ -151,8 +151,20 @@ async function handleRelayRainbowTest() {
     loading.value = true
     const response = await fetch('/api/tests/relay-rainbow', { method: 'POST' })
     const result = await response.json()
+    
     if (result && result.success) {
       message.success(`系统自检广播已发送，在线客户机: ${result.data.sent || 0}`)
+      
+      // 直接显示返回的延迟结果
+      if (result.data.latencies && result.data.latencies.length > 0) {
+        result.data.latencies.forEach((item: { clientId: string; clientName: string; latencyMs: number | null; timeout: boolean }) => {
+          if (item.timeout) {
+            message.warning(`客户端 ${item.clientName} 响应超时`)
+          } else if (item.latencyMs !== null) {
+            message.success(`客户端 ${item.clientName} 回环延迟: ${item.latencyMs}ms`)
+          }
+        })
+      }
     } else {
       message.error(result.error || '系统自检测试失败')
     }
