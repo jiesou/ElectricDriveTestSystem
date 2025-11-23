@@ -89,48 +89,103 @@ testsRouter.post("/test-sessions", async (ctx) => {
 });
 
 // 继电器功能测试（系统自检）广播
-testsRouter.post("/relay-rainbow", (ctx) => {
-  let sent = 0;
+// 继电器功能测试（系统自检）广播 - 等待响应并返回延迟
+testsRouter.post("/relay-rainbow", async (ctx) => {
   const sentMs = Date.now(); // 使用毫秒级时间戳
+  const clientsToTest: { id: string; name: string; socket: WebSocket }[] = [];
   
+  // 收集所有在线的客户端
   for (const client of Object.values(clientManager.clients)) {
     if (!client.online) continue;
     if (!client.socket) continue;
     if (!(client.socket.readyState === WebSocket.OPEN)) continue;
-
+    
+    clientsToTest.push({
+      id: client.id,
+      name: client.name,
+      socket: client.socket,
+    });
+    
+    // 记录发送时间戳到客户端（毫秒）
+    client.relayRainbowSentMs = sentMs;
+  }
+  
+  // 发送 relay_rainbow 消息给所有客户端
+  let sent = 0;
+  for (const client of clientsToTest) {
     try {
-      // 记录发送时间戳到客户端（毫秒）
-      client.relayRainbowSentMs = sentMs;
-      
       client.socket.send(
         JSON.stringify({ type: "relay_rainbow", timestamp: Math.floor(sentMs / 1000) }),
       );
       sent++;
     } catch (error) {
       console.error(`Failed to send relay_rainbow to client ${client.id}:`, error);
+      // 如果发送失败，从 clientManager 中清除时间戳
+      const fullClient = clientManager.clients[client.id];
+      if (fullClient) {
+        delete fullClient.relayRainbowSentMs;
+      }
     }
   }
-
-  ctx.response.body = { success: true, data: { sent } };
-});
-
-// 获取 relay_rainbow 延迟结果
-testsRouter.get("/relay-rainbow-latency", (ctx) => {
-  const results = Object.values(clientManager.clients)
-    .filter(client => client.relayRainbowLatencyMs !== undefined)
-    .map(client => {
-      const result = {
-        clientId: client.id,
-        clientName: client.name,
-        latencyMs: client.relayRainbowLatencyMs!,
+  
+  // 等待最多3秒以收集所有响应
+  const timeout = 3000; // 3秒超时
+  const startWait = Date.now();
+  
+  while (Date.now() - startWait < timeout) {
+    // 检查是否所有客户端都已响应
+    let allResponded = true;
+    for (const testClient of clientsToTest) {
+      const client = clientManager.clients[testClient.id];
+      if (client && client.relayRainbowSentMs !== undefined) {
+        allResponded = false;
+        break;
+      }
+    }
+    
+    if (allResponded) {
+      break; // 所有客户端都已响应
+    }
+    
+    // 等待50ms后再检查
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  
+  // 收集延迟结果
+  const latencies = clientsToTest.map(testClient => {
+    const client = clientManager.clients[testClient.id];
+    if (!client) {
+      return null;
+    }
+    
+    // 如果还有 relayRainbowSentMs，说明超时未响应
+    if (client.relayRainbowSentMs !== undefined) {
+      delete client.relayRainbowSentMs;
+      return {
+        clientId: testClient.id,
+        clientName: testClient.name,
+        latencyMs: null, // 超时
+        timeout: true,
       };
-      // 清除已读取的延迟结果，避免返回过期数据
-      delete client.relayRainbowLatencyMs;
-      return result;
-    });
-
+    }
+    
+    // 从临时存储中获取延迟（在 ack 处理时设置）
+    const latencyMs = (client as any)._tempLatencyMs;
+    delete (client as any)._tempLatencyMs;
+    
+    return {
+      clientId: testClient.id,
+      clientName: testClient.name,
+      latencyMs: latencyMs ?? null,
+      timeout: false,
+    };
+  }).filter(item => item !== null);
+  
   ctx.response.body = {
     success: true,
-    data: results,
+    data: {
+      sent,
+      latencies,
+    },
   };
 });

@@ -312,10 +312,10 @@ function handleWebSocketMessage(
         `[WebSocket] Relay rainbow latency for client ${client.id}: ${latencyMs}ms`,
       );
 
-      // 存储延迟结果到客户端对象
-      client.relayRainbowLatencyMs = latencyMs;
+      // 临时存储延迟结果（供同步 API 读取）
+      (client as any)._tempLatencyMs = latencyMs;
 
-      // 清除发送时间戳
+      // 清除发送时间戳（表示已响应）
       delete client.relayRainbowSentMs;
       break;
     }

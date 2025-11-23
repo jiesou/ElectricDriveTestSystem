@@ -151,32 +151,20 @@ async function handleRelayRainbowTest() {
     loading.value = true
     const response = await fetch('/api/tests/relay-rainbow', { method: 'POST' })
     const result = await response.json()
+    
     if (result && result.success) {
       message.success(`系统自检广播已发送，在线客户机: ${result.data.sent || 0}`)
       
-      // 轮询获取延迟结果（最多等待3秒）
-      let attempts = 0
-      const maxAttempts = 6 // 6次 * 500ms = 3秒
-      const pollInterval = 500 // 每500ms轮询一次
-      
-      const pollResults = async () => {
-        attempts++
-        const latencyRes = await fetch('/api/tests/relay-rainbow-latency')
-        const latencyResult = await latencyRes.json()
-        
-        if (latencyResult.success && latencyResult.data.length > 0) {
-          // 显示所有客户端的延迟结果
-          latencyResult.data.forEach((item: { clientId: string; clientName: string; latencyMs: number }) => {
+      // 直接显示返回的延迟结果
+      if (result.data.latencies && result.data.latencies.length > 0) {
+        result.data.latencies.forEach((item: { clientId: string; clientName: string; latencyMs: number | null; timeout: boolean }) => {
+          if (item.timeout) {
+            message.warning(`客户端 ${item.clientName} 响应超时`)
+          } else if (item.latencyMs !== null) {
             message.success(`客户端 ${item.clientName} 回环延迟: ${item.latencyMs}ms`)
-          })
-        } else if (attempts < maxAttempts) {
-          // 继续轮询
-          setTimeout(pollResults, pollInterval)
-        }
+          }
+        })
       }
-      
-      // 延迟500ms后开始轮询，给ESP32一些响应时间
-      setTimeout(pollResults, pollInterval)
     } else {
       message.error(result.error || '系统自检测试失败')
     }
