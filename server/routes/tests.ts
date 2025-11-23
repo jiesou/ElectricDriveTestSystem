@@ -118,11 +118,16 @@ testsRouter.post("/relay-rainbow", (ctx) => {
 testsRouter.get("/relay-rainbow-latency", (ctx) => {
   const results = Object.values(clientManager.clients)
     .filter(client => client.relayRainbowLatencyMs !== undefined)
-    .map(client => ({
-      clientId: client.id,
-      clientName: client.name,
-      latencyMs: client.relayRainbowLatencyMs,
-    }));
+    .map(client => {
+      const result = {
+        clientId: client.id,
+        clientName: client.name,
+        latencyMs: client.relayRainbowLatencyMs!,
+      };
+      // 清除已读取的延迟结果，避免返回过期数据
+      delete client.relayRainbowLatencyMs;
+      return result;
+    });
 
   ctx.response.body = {
     success: true,

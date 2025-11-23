@@ -166,7 +166,7 @@ async function handleRelayRainbowTest() {
         
         if (latencyResult.success && latencyResult.data.length > 0) {
           // 显示所有客户端的延迟结果
-          latencyResult.data.forEach((item: any) => {
+          latencyResult.data.forEach((item: { clientId: string; clientName: string; latencyMs: number }) => {
             message.success(`客户端 ${item.clientName} 回环延迟: ${item.latencyMs}ms`)
           })
         } else if (attempts < maxAttempts) {
