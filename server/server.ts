@@ -312,14 +312,20 @@ function handleWebSocketMessage(
         `[WebSocket] Relay rainbow latency for client ${client.id}: ${latencySeconds}s`,
       );
 
-      // 发送延迟结果给客户端
-      clientManager.safeSend(socket, {
+      // 广播延迟结果给所有在线客户端（包括web前端）
+      const latencyMessage = {
         type: "relay_rainbow_latency",
         timestamp: now,
         latency: latencySeconds,
         clientId: client.id,
         clientName: client.name,
-      });
+      };
+
+      for (const c of Object.values(clientManager.clients)) {
+        if (c.online && c.socket && c.socket.readyState === WebSocket.OPEN) {
+          clientManager.safeSend(c.socket, latencyMessage);
+        }
+      }
 
       // 清除时间戳
       delete client.relayRainbowTimestamp;

@@ -38,11 +38,13 @@ function initWebSocket() {
   
   ws.onmessage = (event) => {
     try {
+      console.log('[TestManagement] Received WebSocket message:', event.data)
       const data = JSON.parse(event.data)
       
       // 处理 relay_rainbow 延迟结果
       if (data.type === 'relay_rainbow_latency') {
         const latencyMs = (data.latency || 0) * 1000 // 转换为毫秒
+        console.log('[TestManagement] Displaying latency:', latencyMs, 'ms')
         message.success(`客户端 ${data.clientName || data.clientId} 回环延迟: ${latencyMs}ms`)
       }
     } catch (error) {
