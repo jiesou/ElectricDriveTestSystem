@@ -91,7 +91,7 @@ testsRouter.post("/test-sessions", async (ctx) => {
 // 继电器功能测试（系统自检）广播
 testsRouter.post("/relay-rainbow", (ctx) => {
   let sent = 0;
-  const sendTimestamp = getSecondTimestamp();
+  const sentMs = Date.now(); // 使用毫秒级时间戳
   
   for (const client of Object.values(clientManager.clients)) {
     if (!client.online) continue;
@@ -99,11 +99,11 @@ testsRouter.post("/relay-rainbow", (ctx) => {
     if (!(client.socket.readyState === WebSocket.OPEN)) continue;
 
     try {
-      // 记录发送时间戳到客户端
-      client.relayRainbowTimestamp = sendTimestamp;
+      // 记录发送时间戳到客户端（毫秒）
+      client.relayRainbowSentMs = sentMs;
       
       client.socket.send(
-        JSON.stringify({ type: "relay_rainbow", timestamp: sendTimestamp }),
+        JSON.stringify({ type: "relay_rainbow", timestamp: Math.floor(sentMs / 1000) }),
       );
       sent++;
     } catch (error) {
@@ -112,4 +112,20 @@ testsRouter.post("/relay-rainbow", (ctx) => {
   }
 
   ctx.response.body = { success: true, data: { sent } };
+});
+
+// 获取 relay_rainbow 延迟结果
+testsRouter.get("/relay-rainbow-latency", (ctx) => {
+  const results = Object.values(clientManager.clients)
+    .filter(client => client.relayRainbowLatencyMs !== undefined)
+    .map(client => ({
+      clientId: client.id,
+      clientName: client.name,
+      latencyMs: client.relayRainbowLatencyMs,
+    }));
+
+  ctx.response.body = {
+    success: true,
+    data: results,
+  };
 });

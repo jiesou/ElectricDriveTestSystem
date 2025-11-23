@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, h } from 'vue'
+import { ref, reactive, onMounted, h } from 'vue'
 import { Table, Button, Modal, Form, Select, DatePicker, message, Card, Tag, InputNumber, Popconfirm } from 'ant-design-vue'
 import type { Question, Client, Test } from '../types'
 import { getSecondTimestamp } from '../types'
@@ -11,9 +11,6 @@ const tests = ref<Test[]>([])
 const clients = ref<Client[]>([]) // Only used for modal selection
 const loading = ref(false)
 
-// WebSocket 连接，用于接收 relay_rainbow 延迟结果
-let ws: WebSocket | null = null
-
 const createTestModalVisible = ref(false)
 const questionManagementModalVisible = ref(false)
 const questionManagementRef = ref<InstanceType<typeof QuestionManagement> | null>(null)
@@ -24,48 +21,6 @@ const formState = reactive({
   startTime: '' as string,
   durationTime: undefined as number | undefined
 })
-
-// 初始化 WebSocket 连接
-function initWebSocket() {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const wsUrl = `${protocol}//${window.location.host}/ws`
-  
-  ws = new WebSocket(wsUrl)
-  
-  ws.onopen = () => {
-    console.log('WebSocket connected for TestManagement')
-  }
-  
-  ws.onmessage = (event) => {
-    try {
-      console.log('[TestManagement] Received WebSocket message:', event.data)
-      const data = JSON.parse(event.data)
-      
-      // 处理 relay_rainbow 延迟结果
-      if (data.type === 'relay_rainbow_latency') {
-        if (typeof data.latency === 'number') {
-          const latencyMs = data.latency * 1000 // 转换为毫秒
-          console.log('[TestManagement] Displaying latency:', latencyMs, 'ms')
-          message.success(`客户端 ${data.clientName || data.clientId} 回环延迟: ${latencyMs}ms`)
-        } else {
-          console.warn('[TestManagement] Received relay_rainbow_latency without valid latency value')
-        }
-      }
-    } catch (error) {
-      console.error('Failed to parse WebSocket message:', error)
-    }
-  }
-  
-  ws.onerror = (error) => {
-    console.error('WebSocket error:', error)
-  }
-  
-  ws.onclose = () => {
-    console.log('WebSocket closed, reconnecting...')
-    // 5秒后重连
-    setTimeout(initWebSocket, 5000)
-  }
-}
 
 async function fetchData() {
   try {
@@ -198,6 +153,30 @@ async function handleRelayRainbowTest() {
     const result = await response.json()
     if (result && result.success) {
       message.success(`系统自检广播已发送，在线客户机: ${result.data.sent || 0}`)
+      
+      // 轮询获取延迟结果（最多等待3秒）
+      let attempts = 0
+      const maxAttempts = 6 // 6次 * 500ms = 3秒
+      const pollInterval = 500 // 每500ms轮询一次
+      
+      const pollResults = async () => {
+        attempts++
+        const latencyRes = await fetch('/api/tests/relay-rainbow-latency')
+        const latencyResult = await latencyRes.json()
+        
+        if (latencyResult.success && latencyResult.data.length > 0) {
+          // 显示所有客户端的延迟结果
+          latencyResult.data.forEach((item: any) => {
+            message.success(`客户端 ${item.clientName} 回环延迟: ${item.latencyMs}ms`)
+          })
+        } else if (attempts < maxAttempts) {
+          // 继续轮询
+          setTimeout(pollResults, pollInterval)
+        }
+      }
+      
+      // 延迟500ms后开始轮询，给ESP32一些响应时间
+      setTimeout(pollResults, pollInterval)
     } else {
       message.error(result.error || '系统自检测试失败')
     }
@@ -288,16 +267,6 @@ onMounted(() => {
   fetchData()
   // Refresh data every 5 seconds
   setInterval(fetchData, 5000)
-  // 初始化 WebSocket 连接
-  initWebSocket()
-})
-
-onUnmounted(() => {
-  // 组件卸载时关闭 WebSocket
-  if (ws) {
-    ws.close()
-    ws = null
-  }
 })
 </script>
 

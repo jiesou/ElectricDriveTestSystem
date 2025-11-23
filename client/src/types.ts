@@ -112,7 +112,7 @@ export interface Client {
   testSession?: TestSession;
   cvClient?: CvClient;
   evaluateBoard?: EvaluateBoard; // 装接评估-功能部分的当前Board状态
-  relayRainbowTimestamp?: number; // relay_rainbow 发送时间戳，用于计算回环延迟
+  relayRainbowLatencyMs?: number; // 最近一次 relay_rainbow 的回环延迟（毫秒）
 }
 
 // Utility function to get integer second timestamp

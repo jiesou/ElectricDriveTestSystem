@@ -298,37 +298,25 @@ function handleWebSocketMessage(
 
     case "ack_relay_rainbow": {
       // 处理 relay_rainbow 的 ack 响应，计算延迟
-      if (!client.relayRainbowTimestamp) {
+      if (!client.relayRainbowSentMs) {
         console.warn(
-          `[WebSocket] Received ack_relay_rainbow from ${client.id} but no timestamp recorded`,
+          `[WebSocket] Received ack_relay_rainbow from ${client.id} but no sent timestamp recorded`,
         );
         return;
       }
 
-      const now = getSecondTimestamp();
-      const latencySeconds = now - client.relayRainbowTimestamp;
+      const nowMs = Date.now();
+      const latencyMs = nowMs - client.relayRainbowSentMs;
       
       console.log(
-        `[WebSocket] Relay rainbow latency for client ${client.id}: ${latencySeconds}s`,
+        `[WebSocket] Relay rainbow latency for client ${client.id}: ${latencyMs}ms`,
       );
 
-      // 广播延迟结果给所有在线客户端（包括web前端）
-      const latencyMessage = {
-        type: "relay_rainbow_latency",
-        timestamp: now,
-        latency: latencySeconds,
-        clientId: client.id,
-        clientName: client.name,
-      };
+      // 存储延迟结果到客户端对象
+      client.relayRainbowLatencyMs = latencyMs;
 
-      for (const c of Object.values(clientManager.clients)) {
-        if (c.online && c.socket && c.socket.readyState === WebSocket.OPEN) {
-          clientManager.safeSend(c.socket, latencyMessage);
-        }
-      }
-
-      // 清除时间戳
-      delete client.relayRainbowTimestamp;
+      // 清除发送时间戳
+      delete client.relayRainbowSentMs;
       break;
     }
 
