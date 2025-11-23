@@ -312,11 +312,15 @@ function handleWebSocketMessage(
         `[WebSocket] Relay rainbow latency for client ${client.id}: ${latencyMs}ms`,
       );
 
-      // 临时存储延迟结果（供同步 API 读取）
-      (client as any)._tempLatencyMs = latencyMs;
-
       // 清除发送时间戳（表示已响应）
       delete client.relayRainbowSentMs;
+
+      // 调用回调函数（如果存在）
+      const callback = clientManager.relayRainbowCallbacks.get(client.id);
+      if (callback) {
+        callback(latencyMs);
+        clientManager.relayRainbowCallbacks.delete(client.id);
+      }
       break;
     }
 

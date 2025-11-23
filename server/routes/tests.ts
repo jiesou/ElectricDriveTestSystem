@@ -92,27 +92,66 @@ testsRouter.post("/test-sessions", async (ctx) => {
 // 继电器功能测试（系统自检）广播 - 等待响应并返回延迟
 testsRouter.post("/relay-rainbow", async (ctx) => {
   const sentMs = Date.now(); // 使用毫秒级时间戳
-  const clientsToTest: { id: string; name: string; socket: WebSocket }[] = [];
+  const clientPromises: Promise<{
+    clientId: string;
+    clientName: string;
+    latencyMs: number | null;
+    timeout: boolean;
+  }>[] = [];
   
-  // 收集所有在线的客户端
+  // 为每个在线客户端创建 Promise
   for (const client of Object.values(clientManager.clients)) {
     if (!client.online) continue;
     if (!client.socket) continue;
     if (!(client.socket.readyState === WebSocket.OPEN)) continue;
     
-    clientsToTest.push({
-      id: client.id,
-      name: client.name,
-      socket: client.socket,
-    });
-    
     // 记录发送时间戳到客户端（毫秒）
     client.relayRainbowSentMs = sentMs;
+    
+    // 创建 Promise 等待响应
+    const clientPromise = new Promise<{
+      clientId: string;
+      clientName: string;
+      latencyMs: number | null;
+      timeout: boolean;
+    }>((resolve) => {
+      // 设置回调函数
+      clientManager.relayRainbowCallbacks.set(client.id, (latencyMs: number) => {
+        resolve({
+          clientId: client.id,
+          clientName: client.name,
+          latencyMs,
+          timeout: false,
+        });
+      });
+      
+      // 设置3秒超时
+      setTimeout(() => {
+        // 如果还没响应，清除回调并解析为超时
+        if (clientManager.relayRainbowCallbacks.has(client.id)) {
+          clientManager.relayRainbowCallbacks.delete(client.id);
+          delete client.relayRainbowSentMs;
+          resolve({
+            clientId: client.id,
+            clientName: client.name,
+            latencyMs: null,
+            timeout: true,
+          });
+        }
+      }, 3000);
+    });
+    
+    clientPromises.push(clientPromise);
   }
   
   // 发送 relay_rainbow 消息给所有客户端
   let sent = 0;
-  for (const client of clientsToTest) {
+  for (const client of Object.values(clientManager.clients)) {
+    if (!client.online) continue;
+    if (!client.socket) continue;
+    if (!(client.socket.readyState === WebSocket.OPEN)) continue;
+    if (!client.relayRainbowSentMs) continue; // 只发送给有时间戳的客户端
+    
     try {
       client.socket.send(
         JSON.stringify({ type: "relay_rainbow", timestamp: Math.floor(sentMs / 1000) }),
@@ -120,66 +159,14 @@ testsRouter.post("/relay-rainbow", async (ctx) => {
       sent++;
     } catch (error) {
       console.error(`Failed to send relay_rainbow to client ${client.id}:`, error);
-      // 如果发送失败，从 clientManager 中清除时间戳
-      const fullClient = clientManager.clients[client.id];
-      if (fullClient) {
-        delete fullClient.relayRainbowSentMs;
-      }
-    }
-  }
-  
-  // 等待最多3秒以收集所有响应
-  const timeout = 3000; // 3秒超时
-  const startWait = Date.now();
-  
-  while (Date.now() - startWait < timeout) {
-    // 检查是否所有客户端都已响应
-    let allResponded = true;
-    for (const testClient of clientsToTest) {
-      const client = clientManager.clients[testClient.id];
-      if (client && client.relayRainbowSentMs !== undefined) {
-        allResponded = false;
-        break;
-      }
-    }
-    
-    if (allResponded) {
-      break; // 所有客户端都已响应
-    }
-    
-    // 等待50ms后再检查
-    await new Promise(resolve => setTimeout(resolve, 50));
-  }
-  
-  // 收集延迟结果
-  const latencies = clientsToTest.map(testClient => {
-    const client = clientManager.clients[testClient.id];
-    if (!client) {
-      return null;
-    }
-    
-    // 如果还有 relayRainbowSentMs，说明超时未响应
-    if (client.relayRainbowSentMs !== undefined) {
+      // 如果发送失败，清除回调和时间戳
+      clientManager.relayRainbowCallbacks.delete(client.id);
       delete client.relayRainbowSentMs;
-      return {
-        clientId: testClient.id,
-        clientName: testClient.name,
-        latencyMs: null, // 超时
-        timeout: true,
-      };
     }
-    
-    // 从临时存储中获取延迟（在 ack 处理时设置）
-    const latencyMs = (client as any)._tempLatencyMs;
-    delete (client as any)._tempLatencyMs;
-    
-    return {
-      clientId: testClient.id,
-      clientName: testClient.name,
-      latencyMs: latencyMs ?? null,
-      timeout: false,
-    };
-  }).filter(item => item !== null);
+  }
+  
+  // 等待所有客户端响应或超时
+  const latencies = await Promise.all(clientPromises);
   
   ctx.response.body = {
     success: true,
