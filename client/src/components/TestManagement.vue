@@ -43,9 +43,13 @@ function initWebSocket() {
       
       // 处理 relay_rainbow 延迟结果
       if (data.type === 'relay_rainbow_latency') {
-        const latencyMs = (data.latency || 0) * 1000 // 转换为毫秒
-        console.log('[TestManagement] Displaying latency:', latencyMs, 'ms')
-        message.success(`客户端 ${data.clientName || data.clientId} 回环延迟: ${latencyMs}ms`)
+        if (typeof data.latency === 'number') {
+          const latencyMs = data.latency * 1000 // 转换为毫秒
+          console.log('[TestManagement] Displaying latency:', latencyMs, 'ms')
+          message.success(`客户端 ${data.clientName || data.clientId} 回环延迟: ${latencyMs}ms`)
+        } else {
+          console.warn('[TestManagement] Received relay_rainbow_latency without valid latency value')
+        }
       }
     } catch (error) {
       console.error('Failed to parse WebSocket message:', error)
