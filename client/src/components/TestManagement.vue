@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, h } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, h } from 'vue'
 import { Table, Button, Modal, Form, Select, DatePicker, message, Card, Tag, InputNumber, Popconfirm } from 'ant-design-vue'
 import type { Question, Client, Test } from '../types'
 import { getSecondTimestamp } from '../types'
@@ -11,6 +11,9 @@ const tests = ref<Test[]>([])
 const clients = ref<Client[]>([]) // Only used for modal selection
 const loading = ref(false)
 
+// WebSocket 连接，用于接收 relay_rainbow 延迟结果
+let ws: WebSocket | null = null
+
 const createTestModalVisible = ref(false)
 const questionManagementModalVisible = ref(false)
 const questionManagementRef = ref<InstanceType<typeof QuestionManagement> | null>(null)
@@ -21,6 +24,42 @@ const formState = reactive({
   startTime: '' as string,
   durationTime: undefined as number | undefined
 })
+
+// 初始化 WebSocket 连接
+function initWebSocket() {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const wsUrl = `${protocol}//${window.location.host}/ws`
+  
+  ws = new WebSocket(wsUrl)
+  
+  ws.onopen = () => {
+    console.log('WebSocket connected for TestManagement')
+  }
+  
+  ws.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data)
+      
+      // 处理 relay_rainbow 延迟结果
+      if (data.type === 'relay_rainbow_latency') {
+        const latencyMs = (data.latency || 0) * 1000 // 转换为毫秒
+        message.success(`客户端 ${data.clientName || data.clientId} 回环延迟: ${latencyMs}ms`)
+      }
+    } catch (error) {
+      console.error('Failed to parse WebSocket message:', error)
+    }
+  }
+  
+  ws.onerror = (error) => {
+    console.error('WebSocket error:', error)
+  }
+  
+  ws.onclose = () => {
+    console.log('WebSocket closed, reconnecting...')
+    // 5秒后重连
+    setTimeout(initWebSocket, 5000)
+  }
+}
 
 async function fetchData() {
   try {
@@ -243,6 +282,16 @@ onMounted(() => {
   fetchData()
   // Refresh data every 5 seconds
   setInterval(fetchData, 5000)
+  // 初始化 WebSocket 连接
+  initWebSocket()
+})
+
+onUnmounted(() => {
+  // 组件卸载时关闭 WebSocket
+  if (ws) {
+    ws.close()
+    ws = null
+  }
 })
 </script>
 

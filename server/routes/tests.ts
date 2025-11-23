@@ -91,14 +91,19 @@ testsRouter.post("/test-sessions", async (ctx) => {
 // 继电器功能测试（系统自检）广播
 testsRouter.post("/relay-rainbow", (ctx) => {
   let sent = 0;
+  const sendTimestamp = getSecondTimestamp();
+  
   for (const client of Object.values(clientManager.clients)) {
     if (!client.online) continue;
     if (!client.socket) continue;
     if (!(client.socket.readyState === WebSocket.OPEN)) continue;
 
     try {
+      // 记录发送时间戳到客户端
+      client.relayRainbowTimestamp = sendTimestamp;
+      
       client.socket.send(
-        JSON.stringify({ type: "relay_rainbow", timestamp: getSecondTimestamp() }),
+        JSON.stringify({ type: "relay_rainbow", timestamp: sendTimestamp }),
       );
       sent++;
     } catch (error) {
