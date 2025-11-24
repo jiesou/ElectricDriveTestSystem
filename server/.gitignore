@@ -2,7 +2,6 @@ server.exe
 public/*
 data.json
 .env
-*.onnx
 node_modules/
 *.jpg
 test_*.ts
