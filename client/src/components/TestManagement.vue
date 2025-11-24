@@ -159,7 +159,7 @@ async function handleRelayRainbowTest() {
       if (result.data.latencies && result.data.latencies.length > 0) {
         result.data.latencies.forEach((item: { clientId: string; clientName: string; latencyMs: number | null; timeout: boolean }) => {
           if (item.timeout) {
-            message.warning(`客户端 ${item.clientName} 响应超时`)
+            message.warning(`客户端 ${item.clientName} 等待中`)
           } else if (item.latencyMs !== null) {
             message.success(`客户端 ${item.clientName} 回环延迟: ${item.latencyMs}ms`)
           }

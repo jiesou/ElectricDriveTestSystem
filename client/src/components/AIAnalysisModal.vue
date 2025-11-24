@@ -3,5 +3,4 @@
 </script>
 
 <template>
-  <div>AI Analysis Modal - Coming Soon</div>
 </template>
