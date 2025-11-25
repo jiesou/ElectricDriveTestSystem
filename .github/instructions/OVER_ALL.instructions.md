@@ -23,6 +23,7 @@ OPENAI_MODEL="deepseek-r1-distill-llama-8b"
 # TypeScript 类型定义
 > 应当基于 Client 类型定义，来拼接数据，拼接完整的分析提示词
 
+```ts
 // Types and interfaces
 export interface Trouble {
   id: number;
@@ -225,119 +226,196 @@ export interface EvaluateWiringYoloResponseMessage extends WSMessage {
     scores: number;
   };
 }
+```
 
-// ESP32客户端请求人脸签到
-export interface FaceSigninRequestMessage extends WSMessage {
-  type: "face_signin_request";
-}
 
-// 服务器返回人脸签到结果给ESP32客户端
-export interface FaceSigninResponseMessage extends WSMessage {
-  type: "face_signin_response";
-  who: string;
-}
+## generator 接口实现
+```ts
+// AI分析接口 - 支持流式响应
+generatorRouter.get("/analyze", (ctx) => {
+  const clientId = ctx.request.url.searchParams.get("clientId");
 
-// Predefined troubles (hardcoded)
-// 默认 troubles，当执行目录下没有 troubles.json 时使用
-const DEFAULT_TROUBLES: Trouble[] = [
-  { id: 1, description: "101 和 102 断路", from_wire: 101, to_wire: 102 },
-  { id: 2, description: "102 和 103 断路", from_wire: 102, to_wire: 103 },
-  { id: 3, description: "103 和 104 断路", from_wire: 103, to_wire: 104 },
-  { id: 4, description: "104 和 105 断路", from_wire: 104, to_wire: 105 },
-  { id: 5, description: "201 和 202 断路", from_wire: 201, to_wire: 202 },
-  { id: 6, description: "202 和 203 断路", from_wire: 202, to_wire: 203 },
-];
-
-// 尝试在运行时从执行目录加载 troubles.json；若失败则回退为 DEFAULT_TROUBLES。
-export const TROUBLES: Trouble[] = (() => {
-  const tryLoad = (): Trouble[] | null => {
-    try {
-      const filePath = `${Deno.cwd()}/troubles.json`;
-
-      let text: string | undefined;
-
-      try {
-        text = Deno.readTextFileSync!(filePath);
-      } catch (_e) {
-        // 文件不存在或读取失败，返回 null 以使用默认值
-        return null;
-      }
-    if (!text) return null;
-
-      const parsed = JSON.parse(text);
-      if (!Array.isArray(parsed)) return null;
-
-      return parsed as Trouble[];
-    } catch (_err) {
-      // 任何异常都回退到默认
-      return null;
-    }
-  };
-
-  const loaded = tryLoad();
-  if (loaded) {
-    // 运行时输出少量信息，方便排查（在服务器环境下通常可见）
-    try {
-      // 在一些环境中 console 可能不可用，但通常不会
-      console.log('[types] Loaded TROUBLES from troubles.json');
-    } catch (_e) {
-      // 忽略日志打印错误
-    }
-    return loaded;
+  if (!clientId) {
+    ctx.response.status = 400;
+    ctx.response.body = "clientId is required";
+    return;
   }
 
-  return DEFAULT_TROUBLES;
-})();
-
-// ==================== CV客户端映射配置 ====================
-
-// CV客户端映射表配置项
-export interface CvClientMapConfig {
-  clientIp: string; // 普通客户端IP
-  cvClientIp: string; // CV客户端IP
-  cvClientType: "esp32cam" | "jetson_nano"; // CV客户端类型
-}
-
-// 默认CV客户端映射表（当cvClientMap.json不存在时使用）
-const DEFAULT_CV_CLIENT_MAP: CvClientMapConfig[] = [];
-
-// 从cvClientMap.json加载CV客户端映射表
-export const CV_CLIENT_MAP: CvClientMapConfig[] = (() => {
-  const tryLoad = (): CvClientMapConfig[] | null => {
-    try {
-      const filePath = `${Deno.cwd()}/cvClientMap.json`;
-
-      let text: string | undefined;
-
-      try {
-        text = Deno.readTextFileSync!(filePath);
-      } catch (_e) {
-        // 文件不存在或读取失败，返回 null 以使用默认值
-        return null;
-      }
-      if (!text) return null;
-
-      const parsed = JSON.parse(text);
-      if (!Array.isArray(parsed)) return null;
-
-      return parsed as CvClientMapConfig[];
-    } catch (_err) {
-      // 任何异常都回退到默认
-      return null;
-    }
-  };
-
-  const loaded = tryLoad();
-  if (loaded) {
-    try {
-      console.log('[types] Loaded CV_CLIENT_MAP from cvClientMap.json');
-    } catch (_e) {
-      // 忽略日志打印错误
-    }
-    return loaded;
+  if (!openaiApiKey) {
+    ctx.response.status = 500;
+    ctx.response.body = "OpenAI API key not configured";
+    return;
   }
 
-  return DEFAULT_CV_CLIENT_MAP;
-})();
+  const prompt = buildPrompt(clientId);
 
+  const stream = new ReadableStream({
+    async start(controller) {
+      const encoder = new TextEncoder();
+
+      // 调用 OpenAI API
+      const response = await fetch(`${openaiApiBaseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${openaiApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: openaiModel,
+          messages: [
+            {
+              role: "system",
+              content:
+                "你是一个专业的电力拖动教学分析助手。请根据学生的测验表现，分析其知识掌握情况，指出薄弱点，并提供针对性的学习建议。回答要简洁明了，重点突出。",
+            },
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+          stream: true,
+          temperature: 0.7,
+        }),
+      });
+
+      // 处理流式响应
+      const reader = response.body?.getReader();
+      if (!reader) {
+        controller.enqueue(encoder.encode("无法读取响应流"));
+        controller.close();
+        return;
+      }
+
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6);
+            if (data === "[DONE]") {
+              controller.close();
+              return;
+            }
+
+            try {
+              const parsed = JSON.parse(data);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) {
+                controller.enqueue(encoder.encode(content));
+              }
+            } catch (e) {
+              // 忽略解析错误
+            }
+          }
+        }
+      }
+
+      controller.close();
+    },
+  });
+
+  ctx.response.body = stream;
+});
+```
+
+## 视觉客户端会话 html
+```html
+<!-- 图像显示区域 -->
+<div
+  style="position: relative; width: 100%; background: #f0f0f0; border-radius: 4px; overflow: hidden; min-height: 160px;">
+  <!-- MJPEG 流会自动处理，加载第一帧后就会触发 load 事件 -->
+  <img v-if="client.cvClient" :src="`/api/cv/stream/${client.cvClient.ip}`"
+    style="width: 100%; object-fit: contain; background: #000;"
+    @load="() => { if (client.cvClient) { setImageLoaded(client.cvClient.ip, true) } }" />
+  <!-- 占位符：摄像头连接中，仅在图像未加载时显示 -->
+  <div v-if="client.cvClient && !isImageLoaded(client.cvClient.ip)" style="
+        position: absolute; 
+        top: 0; 
+        left: 0; 
+        width: 100%; 
+        height: 100%; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center;
+      ">
+    视觉连接中...
+  </div>
+</div>
+<!-- 会话信息 -->
+<div v-if="client.cvClient?.session"
+  style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0f0f0;">
+  <div style="font-size: 12px; color: #666;">
+    <strong>当前会话:</strong> {{ getSessionTypeText(client.cvClient.session.type) }}
+  </div>
+  <div style="font-size: 12px; color: #666; margin-top: 4px;">
+    <strong>开始时间:</strong> {{ new Date(client.cvClient.session.startTime * 1000).toLocaleString() }}
+  </div>
+
+  <!-- 装接评估会话详情 -->
+  <div v-if="client.cvClient.session.type === 'evaluate_wiring'" style="margin-top: 8px;">
+    <div v-if="!client.cvClient.session.finalResult" style="font-size: 12px; color: #1890ff;">
+      📸 拍摄采集中... (已拍摄 {{ client.cvClient.session.shots?.length || 0 }} 张)
+    </div>
+
+    <!-- 显示拍摄的图像 -->
+    <div v-if="client.cvClient.session.shots && client.cvClient.session.shots.length > 0"
+      style="margin-top: 8px;">
+      <div style="font-size: 12px; color: #666; margin-bottom: 4px;">
+        <strong>拍摄记录:</strong>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, 600px); gap: 8px;">
+        <div v-for="(shot, idx) in client.cvClient.session.shots" :key="idx"
+          style="border: 1px solid #d9d9d9; border-radius: 4px; overflow: hidden;">
+          <img v-if="shot.image" :src="shot.image" :alt="`拍摄 ${idx + 1}`"
+            style="width: 100%; object-fit: contain; background: #000; display: block;" />
+          <div style="padding: 4px; font-size: 11px; background: #fafafa;">
+            <div>🏷️ 标记号码管: {{ shot.result.sleeves_num }}</div>
+            <div>❌ 交叉: {{ shot.result.cross_num }}</div>
+            <div>🔶 露铜: {{ shot.result.excopper_num }}</div>
+            <div>📌 露端子: {{ shot.result.exterminal_num }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="client.cvClient.session.finalResult" style="font-size: 12px; margin-top: 8px;">
+      <div style="color: #52c41a; margin-bottom: 4px;"><strong>✅ 评估完成</strong></div>
+      <div style="color: #666; margin-top: 4px;">
+        <strong>得分:</strong> {{ client.cvClient.session.finalResult.scores }} 分
+      </div>
+      <div style="color: #666; margin-top: 4px;">
+        <strong>未标号码管:</strong> {{ client.cvClient.session.finalResult.no_sleeves_num }} 个
+      </div>
+      <div style="color: #666; margin-top: 4px;">
+        <strong>交叉接线:</strong> {{ client.cvClient.session.finalResult.cross_num }} 处
+      </div>
+      <div style="color: #666; margin-top: 4px;">
+        <strong>露铜:</strong> {{ client.cvClient.session.finalResult.excopper_num }} 处
+      </div>
+      <div style="color: #666; margin-top: 4px;">
+        <strong>露端子:</strong> {{ client.cvClient.session.finalResult.exterminal_num }} 处
+      </div>
+    </div>
+  </div>
+
+  <!-- 人脸签到会话详情 -->
+  <div v-if="client.cvClient.session.type === 'face_signin'" style="margin-top: 8px;">
+    <div v-if="!client.cvClient.session.finalResult" style="font-size: 12px; color: #1890ff;">
+      👤 人脸识别中...
+    </div>
+    <div v-else style="font-size: 12px;">
+      <div style="color: #52c41a; margin-bottom: 4px;"><strong>✅ 识别完成</strong></div>
+      <div style="color: #666; margin-top: 4px;">
+        <strong>识别为:</strong> {{ client.cvClient.session.finalResult.who }}
+      </div>
+    </div>
+  </div>
+</div>
+```
 
