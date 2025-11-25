@@ -1,6 +1,6 @@
 [
-  { "id": 1, "description": "200 和 233 断路", "from_wire": 200, "to_wire": 233 },
-  { "id": 2, "description": "215 和 216 断路", "from_wire": 215, "to_wire": 216 },
-  { "id": 3, "description": "207 和 220 断路", "from_wire": 207, "to_wire": 220 },
-  { "id": 4, "description": "126 和 136 断路", "from_wire": 126, "to_wire": 136 }
+  { "id": 1, "description": "201 和 202 断路", "from_wire": 201, "to_wire": 202 },
+  { "id": 2, "description": "209 和 219 断路", "from_wire": 209, "to_wire": 219 },
+  { "id": 3, "description": "215 和 216 断路", "from_wire": 215, "to_wire": 216 },
+  { "id": 4, "description": "227 和 233 断路", "from_wire": 227, "to_wire": 233 }
 ]
