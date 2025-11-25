@@ -12,7 +12,7 @@ import {
 } from "./types.ts";
 import { manager } from "./TestSystemManager.ts";
 import { clientManager } from "./ClientManager.ts";
-import { generatorRouter } from "./generator.ts";
+import { generatorRouter } from "./routes/generator.ts";
 import { troublesRouter } from "./routes/troubles.ts";
 import { questionsRouter } from "./routes/questions.ts";
 import { clientsRouter } from "./routes/clients.ts";

@@ -1,32 +1,100 @@
 import { Router } from "@oak/oak";
 import { clientManager } from "../ClientManager.ts";
-export const generatorRoutes = new Router( {prefix: "/generator"} );
 
-function buildPrompt(clientId: string): string {
-    let prompt = "你需要根据以下测验情况分析用户的知识掌握情况，并给出改进建议：\n\n";
-    const client = clientManager.clients[clientId];
-    prompt += `用户I: ${client.name}\n`;
-    prompt += `测验时间: ${client.testSession?.finishTime ? new Date(client.testSession.finishTime).toLocaleString() : "未完成"}\n`;
-    prompt += `测验得分: ${client.testSession?.finishedScore ?? "未完成"}\n`;
-    prompt += `已解决的问题: ${client.testSession?.solvedTroubles.map(([q, _t]) => `Q${q}`).join(", ") || "未完成"}\n`;
-    prompt += `未解决的问题: ${client.testSession?.test.questions.map((q, i) => `Q${i + 1}`).filter(q => !client.testSession?.solvedTroubles.map(([q, _t]) => `Q${q}`).includes(q)).join(", ") || "未完成"}\n`;
+export const generatorRouter = new Router({ prefix: "/generator" });
 
-    console.log("Generated Prompt:", prompt);
-    return prompt;
-}
+const openaiApiKey = Deno.env.get("OPENAI_API_KEY") || "";
+const openaiApiBaseUrl = Deno.env.get("OPENAI_BASE_URL") || "https://api.openai.com/v1";
+const openaiModel = Deno.env.get("OPENAI_MODEL") || "gpt-3.5-turbo";
 
-generatorRoutes.post("/analyze", async (ctx) => {
-    const { clientId } = await ctx.request.body.json();
-    if (!clientId) {
-        ctx.response.status = 400;
-        ctx.response.body = { error: "Missing clientId parameter" };
+// AI分析接口 - 支持流式响应
+generatorRouter.get("/analyze", (ctx) => {
+  const clientId = ctx.request.url.searchParams.get("clientId");
+
+  if (!clientId) {
+    ctx.response.status = 400;
+    ctx.response.body = "clientId is required";
+    return;
+  }
+
+  if (!openaiApiKey) {
+    ctx.response.status = 500;
+    ctx.response.body = "OpenAI API key not configured";
+    return;
+  }
+
+  const prompt = buildPrompt(clientId);
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const encoder = new TextEncoder();
+
+      // 调用 OpenAI API
+      const response = await fetch(`${openaiApiBaseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${openaiApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: openaiModel,
+          messages: [
+            {
+              role: "system",
+              content:
+                "你是一个专业的电力拖动教学分析助手。请根据学生的测验表现，分析其知识掌握情况，指出薄弱点，并提供针对性的学习建议。回答要简洁明了，重点突出。",
+            },
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+          stream: true,
+          temperature: 0.7,
+        }),
+      });
+
+      // 处理流式响应
+      const reader = response.body?.getReader();
+      if (!reader) {
+        controller.enqueue(encoder.encode("无法读取响应流"));
+        controller.close();
         return;
-    }
+      }
 
-    const prompt = buildPrompt(clientId);
+      const decoder = new TextDecoder();
 
-    fetch(Deno.env.get("AI_API_URL") || "http://localhost:8000/generate", {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-    const stream = new ReadableStream();
-    ctx.response.body = stream;
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6);
+            if (data === "[DONE]") {
+              controller.close();
+              return;
+            }
+
+            try {
+              const parsed = JSON.parse(data);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) {
+                controller.enqueue(encoder.encode(content));
+              }
+            } catch (e) {
+              // 忽略解析错误
+            }
+          }
+        }
+      }
+
+      controller.close();
+    },
+  });
+
+  ctx.response.body = stream;
 });

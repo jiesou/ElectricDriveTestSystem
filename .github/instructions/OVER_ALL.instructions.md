@@ -16,15 +16,12 @@ OPENAI_MODEL="deepseek-r1-distill-llama-8b"
 
 # AiAnalyzeModel 的实现
 
-- 应当流式响应流式显示
-- 应当 fetch 后端 /api/generator/generator 接口，传入 clientId
-- AiAnalyzeModel 应当在 App.vue menuItems 中添加一个新的菜单项来打开
+- 应当流式响应，流式显示，使用 marked 渲染 Markdown
+- 应当 fetch 后端 /api/generator/analyze 接口，传入 clientId
+- AiAnalyzeModel 应当在 App.vue menuItems 中添加一个新的菜单项来打开（导航栏上打开分析功能）
 
 # TypeScript 类型定义
-// Utility function to get integer second timestamp
-export function getSecondTimestamp(): number {
-  return Math.floor(Date.now() / 1000);
-}
+> 应当基于 Client 类型定义，来拼接数据，拼接完整的分析提示词
 
 // Types and interfaces
 export interface Trouble {
