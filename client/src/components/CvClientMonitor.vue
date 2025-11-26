@@ -20,8 +20,8 @@ function stopAutoRefresh() {
 }
 // 跟踪每个CV客户端的图像加载状态
 const imageLoaded = ref<Record<string, boolean>>({})
-function isImageLoaded(ip: string): boolean {
-  return imageLoaded.value[ip] || false
+function isImageLoaded(ip: string | undefined): boolean {
+  return ip && imageLoaded.value[ip] || false
 }
 function setImageLoaded(ip: string, loaded: boolean) {
   imageLoaded.value[ip] = loaded
