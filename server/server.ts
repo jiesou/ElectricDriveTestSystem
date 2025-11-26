@@ -197,6 +197,7 @@ function handleWebSocketMessage(
         result: isCorrect,
         trouble,
       } as AnswerResultMessage);
+      manager.broadcastTroubleStatus();
       break;
     }
 
@@ -205,6 +206,7 @@ function handleWebSocketMessage(
       // 处理题目导航
       const direction = message.type === "next_question" ? "next" : "prev";
       manager.navigateQuestion(client, direction);
+      manager.broadcastTroubleStatus();
       break;
     }
 
