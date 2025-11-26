@@ -30,21 +30,15 @@ const columns = [
   },
   {
     title: '关联视觉客户端',
-    key: 'cvClient',
-    customRender: ({ record }: { record: Client }) => ({ record })
+    key: 'cvClient'
   },
   {
     title: '在线状态',
-    key: 'online',
-    customRender: ({ record }: { record: Client }) => ({ record })
+    key: 'online'
   },
   {
     title: '测验状态',
-    key: 'testStatus',
-    customRender: ({ record }: { record: Client }) => ({
-      hasSession: !!record.testSession,
-      session: record.testSession
-    })
+    key: 'testStatus'
   }
 ]
 
