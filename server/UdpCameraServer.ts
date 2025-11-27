@@ -63,6 +63,7 @@ export class UdpCameraServer {
     }
     this.frameBuffer.get(frameIndex)!.set(chunkIndex, chunkPayload);
     this.frameChunkCount.set(frameIndex, chunkTotal);
+    console.log(`[UdpCamera] 接收帧 ${frameIndex} 的分片 ${chunkIndex + 1}/${chunkTotal}，大小: ${chunkPayload.length} 字节`);
 
     // 清理旧的缓存
     this.cleanupBuffer();
@@ -98,7 +99,7 @@ export class UdpCameraServer {
         // 更新所有 cvClient 的 latest_frame
         // 注意：这里假设所有 cvClient 都接收同一个图像流
         // 如果需要区分不同的 cvClient，需要在包头中包含 cvClientIp 或其他标识
-        this.updateAllCvClients(latestFrame);
+        this.updateFrame(latestFrame);
 
         // 清理已处理的帧缓存
         this.frameBuffer.delete(frameIndex);
@@ -115,7 +116,7 @@ export class UdpCameraServer {
    * 更新所有 cvClient 的 latest_frame
    * @param frame JPEG 帧数据
    */
-  private updateAllCvClients(frame: Uint8Array): void {
+  private updateFrame(frame: Uint8Array): void {
     let updatedCount = 0;
     for (const client of Object.values(clientManager.clients)) {
       if (client.cvClient) {
@@ -125,7 +126,7 @@ export class UdpCameraServer {
     }
     
     if (updatedCount === 0) {
-      console.warn(`[UdpCamera] 警告：没有找到对应 CV 客户端！当前连接的客户端: ${Array.from(Object.values(clientManager.clients).map(c => c.name)).join(", ")}`);
+      console.warn(`[UdpCamera] 警告：没有找到存在的 CV 客户端！`);
     }
   }
 

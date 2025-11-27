@@ -68,7 +68,7 @@ cvRouter.get("/stream/:cvClientIp", (ctx) => {
         } catch (error) {
           console.error("[CV Stream] 发送帧失败:", error);
         }
-      }, 100); // 每100ms发送一次，即10fps
+      }, 200); // 每200ms发送一次，即5fps
 
       // 清理逻辑（当客户端断开连接时）
       // Note: Oak's ReadableStream doesn't have a cancel callback,
