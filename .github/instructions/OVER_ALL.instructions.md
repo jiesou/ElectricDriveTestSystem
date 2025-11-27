@@ -1,5 +1,6 @@
 ---
 applyTo: '**'
+trigger: always_on
 ---
 
 # 总体要求
