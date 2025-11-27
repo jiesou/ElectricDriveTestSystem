@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import { Modal, Skeleton, Spin } from 'ant-design-vue'
 import { marked } from 'marked'
+import { useFakeDataMode } from '../useFakeData'
 
 interface Props {
     open: boolean
@@ -83,9 +84,16 @@ async function handleAIAnalysis(clientId: string) {
         }
         console.error('AI analysis error:', error)
 
+        
+        if (!useFakeDataMode.value) {
+            aiAnalysisLoading.value = false
+            return
+        }
+        
         // 错误时延迟3秒后返回固定的分析结果
         await new Promise(resolve => setTimeout(resolve, 3000))
-
+        aiAnalysisLoading.value = false
+        
         // 固定的分析结果
         aiAnalysisContentMarkdown.value = `## 学生测验表现分析报告
 
@@ -109,8 +117,6 @@ async function handleAIAnalysis(clientId: string) {
 
 ### 结论
 学生在测验中的表现总体可圈录，有较高的答题速度，但第三题的错误提示他在某些故障类型上还需加强理解和练习。通过针对性的复习和训练，学生可以显著提升测验表现。`
-
-        aiAnalysisLoading.value = false
     }
 }
 
@@ -126,170 +132,9 @@ function handleClose() {
 <template>
     <Modal :open="open" title="大模型汇总分析" width="800px" :footer="null" @cancel="handleClose">
         <div v-if="aiAnalysisLoading" style="padding: 40px 0; text-align: center;">
-            <Spin size="large">
-                <template #tip>
-                    <div class="ai-tip-rotator" aria-hidden="true">
-                        <span class="rotitem">AI 深度思考中…</span>
-                        <span class="rotitem">线路连接重置中…</span>
-                        <span class="rotitem">知识联系挖掘中…</span>
-                        <span class="rotitem">答题行为汇总中…</span>
-                        <span class="rotitem">学生思维推演中…</span>
-                        <span class="rotitem">深度报告呈现中…</span>
-                        <!-- 头尾无缝衔接 -->
-                        <span class="rotitem">AI 深度思考中…</span>
-                    </div>
-                </template>
-                <Skeleton active :paragraph="{ rows: 8 }" />
-            </Spin>
+            <Skeleton active :paragraph="{ rows: 8 }" />
         </div>
         <div v-else v-html="marked(aiAnalysisContentMarkdown)" style="max-height: 75vh; overflow-y: auto;"
             class="markdown-content" />
     </Modal>
 </template>
-
-<style scoped>
-.markdown-content :deep(h1) {
-    font-size: 1.5em;
-    font-weight: bold;
-    margin-top: 1em;
-    margin-bottom: 0.5em;
-}
-
-.markdown-content :deep(h2) {
-    font-size: 1.3em;
-    font-weight: bold;
-    margin-top: 0.8em;
-    margin-bottom: 0.4em;
-}
-
-.markdown-content :deep(h3) {
-    font-size: 1.1em;
-    font-weight: bold;
-    margin-top: 0.6em;
-    margin-bottom: 0.3em;
-}
-
-.markdown-content :deep(h4) {
-    font-size: 1em;
-    font-weight: bold;
-    margin-top: 0.5em;
-    margin-bottom: 0.2em;
-}
-
-.markdown-content :deep(p) {
-    margin-bottom: 0.8em;
-}
-
-.markdown-content :deep(ul),
-.markdown-content :deep(ol) {
-    margin-left: 1.5em;
-    margin-bottom: 0.8em;
-}
-
-.markdown-content :deep(li) {
-    margin-bottom: 0.3em;
-}
-
-.markdown-content :deep(code) {
-    background-color: #f5f5f5;
-    padding: 2px 4px;
-    border-radius: 3px;
-    font-family: monospace;
-}
-
-.markdown-content :deep(pre) {
-    background-color: #f5f5f5;
-    padding: 10px;
-    border-radius: 5px;
-    overflow-x: auto;
-    margin-bottom: 0.8em;
-}
-
-.markdown-content :deep(strong) {
-    font-weight: bold;
-}
-
-.markdown-content :deep(em) {
-    font-style: italic;
-}
-
-.markdown-content :deep(blockquote) {
-    border-left: 4px solid #ddd;
-    padding-left: 1em;
-    margin-left: 0;
-    color: #666;
-}
-
-
-/* 轮换文字 */
-.ai-tip-rotator {
-    height: 0.95em;
-    line-height: 1em;
-    margin-top: 16px;
-    font-size: 3em;
-    overflow: hidden;
-}
-
-.ai-tip-rotator .rotitem {
-    display: block;
-    animation: scroll-up 16s ease-out infinite;
-}
-
-@keyframes scroll-up {
-
-    0%,
-    12.5% {
-        transform: translateY(0);
-    }
-
-    14.28% {
-        transform: translateY(-100%);
-    }
-
-    26.78%,
-    28.56% {
-        transform: translateY(-100%);
-    }
-
-    30.56% {
-        transform: translateY(-200%);
-    }
-
-    43.06%,
-    44.84% {
-        transform: translateY(-200%);
-    }
-
-    46.84% {
-        transform: translateY(-300%);
-    }
-
-    59.34%,
-    61.12% {
-        transform: translateY(-300%);
-    }
-
-    63.12% {
-        transform: translateY(-400%);
-    }
-
-    75.62%,
-    77.4% {
-        transform: translateY(-400%);
-    }
-
-    79.4% {
-        transform: translateY(-500%);
-    }
-
-    91.9%,
-    93.68% {
-        transform: translateY(-500%);
-    }
-
-    95.68%,
-    100% {
-        transform: translateY(-600%);
-    }
-}
-</style>

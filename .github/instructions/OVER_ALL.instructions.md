@@ -228,131 +228,82 @@ export interface EvaluateWiringYoloResponseMessage extends WSMessage {
 }
 ```
 
-
-## generator 接口实现
+## ai client 接口实现
 ```ts
-// AI分析接口 - 支持流式响应
-generatorRouter.get("/analyze", (ctx) => {
-  const clientId = ctx.request.url.searchParams.get("clientId");
+return new ReadableStream({
+  async start(controller) {
+    const encoder = new TextEncoder();
 
-  if (!clientId) {
-    ctx.response.status = 400;
-    ctx.response.body = "clientId is required";
-    return;
-  }
+    // 调用 DeepSeek API
+    const response = await fetch(`${apiBaseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [
+          {
+            role: "system",
+            content:
+              "你是一个专业的电力拖动教学分析助手。请分析学生的测验表现，并提供包含同学排故思路、操作效率、知识薄弱点的针对性的学习建议。回答要简洁明了，重点突出。",
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        stream: true,
+        temperature: 0.7,
+      }),
+    });
 
-  if (!openaiApiKey) {
-    ctx.response.status = 500;
-    ctx.response.body = "OpenAI API key not configured";
-    return;
-  }
+    // 处理流式响应
+    const reader = response.body?.getReader();
+    if (!reader) {
+      controller.enqueue(encoder.encode("无法读取响应流"));
+      controller.close();
+      return;
+    }
 
-  const prompt = buildPrompt(clientId);
+    const decoder = new TextDecoder();
 
-  const stream = new ReadableStream({
-    async start(controller) {
-      const encoder = new TextEncoder();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
 
-      // 调用 OpenAI API
-      const response = await fetch(`${openaiApiBaseUrl}/chat/completions`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${openaiApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: openaiModel,
-          messages: [
-            {
-              role: "system",
-              content:
-                "你是一个专业的电力拖动教学分析助手。请根据学生的测验表现，分析其知识掌握情况，指出薄弱点，并提供针对性的学习建议。回答要简洁明了，重点突出。",
-            },
-            {
-              role: "user",
-              content: prompt,
-            },
-          ],
-          stream: true,
-          temperature: 0.7,
-        }),
-      });
+      const chunk = decoder.decode(value);
+      const lines = chunk.split("\n");
 
-      // 处理流式响应
-      const reader = response.body?.getReader();
-      if (!reader) {
-        controller.enqueue(encoder.encode("无法读取响应流"));
-        controller.close();
-        return;
-      }
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) {
+          return;
+        }
+        const data = line.slice(6);
 
-      const decoder = new TextDecoder();
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6);
-            if (data === "[DONE]") {
-              controller.close();
-              return;
-            }
-
-            try {
-              const parsed = JSON.parse(data);
-              const content = parsed.choices?.[0]?.delta?.content;
-              if (content) {
-                controller.enqueue(encoder.encode(content));
-              }
-            } catch (e) {
-              // 忽略解析错误
-            }
+        try {
+          const parsed = JSON.parse(data);
+          const content = parsed.choices?.[0]?.delta?.content;
+          if (content) {
+            controller.enqueue(encoder.encode(content));
           }
+        } catch (_e) {
+          // 忽略解析错误
         }
       }
+    }
 
-      controller.close();
-    },
-  });
-
-  ctx.response.body = stream;
+    controller.close();
+  },
 });
 ```
 
-## 视觉客户端会话 html
+## 视觉客户端会话 vue
 ```html
-<!-- 图像显示区域 -->
-<div
-  style="position: relative; width: 100%; background: #f0f0f0; border-radius: 4px; overflow: hidden; min-height: 160px;">
-  <!-- MJPEG 流会自动处理，加载第一帧后就会触发 load 事件 -->
-  <img v-if="client.cvClient" :src="`/api/cv/stream/${client.cvClient.ip}`"
-    style="width: 100%; object-fit: contain; background: #000;"
-    @load="() => { if (client.cvClient) { setImageLoaded(client.cvClient.ip, true) } }" />
-  <!-- 占位符：摄像头连接中，仅在图像未加载时显示 -->
-  <div v-if="client.cvClient && !isImageLoaded(client.cvClient.ip)" style="
-        position: absolute; 
-        top: 0; 
-        left: 0; 
-        width: 100%; 
-        height: 100%; 
-        display: flex; 
-        align-items: center; 
-        justify-content: center;
-      ">
-    视觉连接中...
-  </div>
-</div>
 <!-- 会话信息 -->
 <div v-if="client.cvClient?.session"
   style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0f0f0;">
-  <div style="font-size: 12px; color: #666;">
-    <strong>当前会话:</strong> {{ getSessionTypeText(client.cvClient.session.type) }}
-  </div>
   <div style="font-size: 12px; color: #666; margin-top: 4px;">
     <strong>开始时间:</strong> {{ new Date(client.cvClient.session.startTime * 1000).toLocaleString() }}
   </div>
@@ -360,7 +311,7 @@ generatorRouter.get("/analyze", (ctx) => {
   <!-- 装接评估会话详情 -->
   <div v-if="client.cvClient.session.type === 'evaluate_wiring'" style="margin-top: 8px;">
     <div v-if="!client.cvClient.session.finalResult" style="font-size: 12px; color: #1890ff;">
-      📸 拍摄采集中... (已拍摄 {{ client.cvClient.session.shots?.length || 0 }} 张)
+      拍摄采集中... (已拍摄 {{ client.cvClient.session.shots?.length || 0 }} 张)
     </div>
 
     <!-- 显示拍摄的图像 -->
@@ -375,15 +326,16 @@ generatorRouter.get("/analyze", (ctx) => {
           <img v-if="shot.image" :src="shot.image" :alt="`拍摄 ${idx + 1}`"
             style="width: 100%; object-fit: contain; background: #000; display: block;" />
           <div style="padding: 4px; font-size: 11px; background: #fafafa;">
-            <div>🏷️ 标记号码管: {{ shot.result.sleeves_num }}</div>
-            <div>❌ 交叉: {{ shot.result.cross_num }}</div>
-            <div>🔶 露铜: {{ shot.result.excopper_num }}</div>
-            <div>📌 露端子: {{ shot.result.exterminal_num }}</div>
+            <div>标记号码管: {{ shot.result.sleeves_num }}</div>
+            <div>交叉: {{ shot.result.cross_num }}</div>
+            <div>露铜: {{ shot.result.excopper_num }}</div>
+            <div>露端子: {{ shot.result.exterminal_num }}</div>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- finalResult 不要忘记 -->
     <div v-if="client.cvClient.session.finalResult" style="font-size: 12px; margin-top: 8px;">
       <div style="color: #52c41a; margin-bottom: 4px;"><strong>✅ 评估完成</strong></div>
       <div style="color: #666; margin-top: 4px;">
@@ -400,19 +352,6 @@ generatorRouter.get("/analyze", (ctx) => {
       </div>
       <div style="color: #666; margin-top: 4px;">
         <strong>露端子:</strong> {{ client.cvClient.session.finalResult.exterminal_num }} 处
-      </div>
-    </div>
-  </div>
-
-  <!-- 人脸签到会话详情 -->
-  <div v-if="client.cvClient.session.type === 'face_signin'" style="margin-top: 8px;">
-    <div v-if="!client.cvClient.session.finalResult" style="font-size: 12px; color: #1890ff;">
-      👤 人脸识别中...
-    </div>
-    <div v-else style="font-size: 12px;">
-      <div style="color: #52c41a; margin-bottom: 4px;"><strong>✅ 识别完成</strong></div>
-      <div style="color: #666; margin-top: 4px;">
-        <strong>识别为:</strong> {{ client.cvClient.session.finalResult.who }}
       </div>
     </div>
   </div>

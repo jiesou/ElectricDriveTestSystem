@@ -1,12 +1,32 @@
 import { Router } from "@oak/oak";
 import { clientManager } from "../ClientManager.ts";
 import { TestLog, Client, Trouble, Question } from "../types.ts";
+let analyzeStream: (prompt: string) => ReadableStream<Uint8Array>;
+
+try {
+  // 使用动态导入
+  const aiClientModule = await import("./aiClient.ts");
+  // 显式检查 analyzeStream 是否存在且为函数，避免使用不存在的全局 assert
+  if (!aiClientModule || typeof aiClientModule.analyzeStream !== "function") {
+    throw new Error("aiClient.analyzeStream 未实现");
+  }
+  analyzeStream = aiClientModule.analyzeStream;
+} catch (e) {
+  // 提供默认实现
+  analyzeStream = () => {
+    return new ReadableStream({
+      start(controller) {
+        const encoder = new TextEncoder();
+        controller.enqueue(encoder.encode("DeepSeek 服务端连接失败"));
+        controller.close();
+      }
+    });
+  };
+  console.error("分析流功能未实现", e);
+}
 
 export const generatorRouter = new Router({ prefix: "/generator" });
 
-const openaiApiKey = Deno.env.get("OPENAI_API_KEY") || "";
-const openaiApiBaseUrl = Deno.env.get("OPENAI_BASE_URL") || "https://api.openai.com/v1";
-const openaiModel = Deno.env.get("OPENAI_MODEL") || "gpt-3.5-turbo";
 function formatLogEntry(log: TestLog, index: number): string {
   const time = new Date(log.timestamp * 1000).toLocaleString("zh-CN");
   let detail = "";
@@ -191,12 +211,6 @@ generatorRouter.get("/analyze", (ctx) => {
     return;
   }
 
-  if (!openaiApiKey) {
-    ctx.response.status = 500;
-    ctx.response.body = "OpenAI API key not configured";
-    return;
-  }
-
   const client = clientManager.clients[clientId];
 
   if (!client) {
@@ -207,72 +221,6 @@ generatorRouter.get("/analyze", (ctx) => {
 
   const prompt = buildPrompt(client);
 
-  const stream = new ReadableStream({
-    async start(controller) {
-      const encoder = new TextEncoder();
-
-      // 调用 OpenAI API
-      const response = await fetch(`${openaiApiBaseUrl}/chat/completions`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${openaiApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: openaiModel,
-          messages: [
-            {
-              role: "system",
-              content:
-                "你是一个专业的电力拖动教学分析助手。请分析学生的测验表现，并提供包含同学排故思路、操作效率、知识薄弱点的针对性的学习建议。回答要简洁明了，重点突出。",
-            },
-            {
-              role: "user",
-              content: prompt,
-            },
-          ],
-          stream: true,
-          temperature: 0.7,
-        }),
-      });
-
-      // 处理流式响应
-      const reader = response.body?.getReader();
-      if (!reader) {
-        controller.enqueue(encoder.encode("无法读取响应流"));
-        controller.close();
-        return;
-      }
-
-      const decoder = new TextDecoder();
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6);
-
-            try {
-              const parsed = JSON.parse(data);
-              const content = parsed.choices?.[0]?.delta?.content;
-              if (content) {
-                controller.enqueue(encoder.encode(content));
-              }
-            } catch (e) {
-              // 忽略解析错误
-            }
-          }
-        }
-      }
-
-      controller.close();
-    },
-  });
-
+  const stream = analyzeStream(prompt);
   ctx.response.body = stream;
 });

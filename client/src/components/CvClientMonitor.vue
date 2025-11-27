@@ -129,61 +129,7 @@ onUnmounted(() => {
             视觉连接中...
           </div>
         </div>
-        <!-- 会话信息 -->
-        <div v-if="client.cvClient?.session"
-          style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0f0f0;">
-          <div style="font-size: 12px; color: #666; margin-top: 4px;">
-            <strong>开始时间:</strong> {{ new Date(client.cvClient.session.startTime * 1000).toLocaleString() }}
-          </div>
-
-          <!-- 装接评估会话详情 -->
-          <div v-if="client.cvClient.session.type === 'evaluate_wiring'" style="margin-top: 8px;">
-            <div v-if="!client.cvClient.session.finalResult" style="font-size: 12px; color: #1890ff;">
-              拍摄采集中... (已拍摄 {{ client.cvClient.session.shots?.length || 0 }} 张)
-            </div>
-
-            <!-- 显示拍摄的图像 -->
-            <div v-if="client.cvClient.session.shots && client.cvClient.session.shots.length > 0"
-              style="margin-top: 8px;">
-              <div style="font-size: 12px; color: #666; margin-bottom: 4px;">
-                <strong>拍摄记录:</strong>
-              </div>
-              <div style="display: grid; grid-template-columns: repeat(auto-fill, 600px); gap: 8px;">
-                <div v-for="(shot, idx) in client.cvClient.session.shots" :key="idx"
-                  style="border: 1px solid #d9d9d9; border-radius: 4px; overflow: hidden;">
-                  <img v-if="shot.image" :src="shot.image" :alt="`拍摄 ${idx + 1}`"
-                    style="width: 100%; object-fit: contain; background: #000; display: block;" />
-                  <div style="padding: 4px; font-size: 11px; background: #fafafa;">
-                    <div>标记号码管: {{ shot.result.sleeves_num }}</div>
-                    <div>交叉: {{ shot.result.cross_num }}</div>
-                    <div>露铜: {{ shot.result.excopper_num }}</div>
-                    <div>露端子: {{ shot.result.exterminal_num }}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div v-if="client.cvClient.session.finalResult" style="font-size: 12px; margin-top: 8px;">
-              <div style="color: #52c41a; margin-bottom: 4px;"><strong>✅ 评估完成</strong></div>
-              <div style="color: #666; margin-top: 4px;">
-                <strong>得分:</strong> {{ client.cvClient.session.finalResult.scores }} 分
-              </div>
-              <div style="color: #666; margin-top: 4px;">
-                <strong>未标号码管:</strong> {{ client.cvClient.session.finalResult.no_sleeves_num }} 个
-              </div>
-              <div style="color: #666; margin-top: 4px;">
-                <strong>交叉接线:</strong> {{ client.cvClient.session.finalResult.cross_num }} 处
-              </div>
-              <div style="color: #666; margin-top: 4px;">
-                <strong>露铜:</strong> {{ client.cvClient.session.finalResult.excopper_num }} 处
-              </div>
-              <div style="color: #666; margin-top: 4px;">
-                <strong>露端子:</strong> {{ client.cvClient.session.finalResult.exterminal_num }} 处
-              </div>
-            </div>
-          </div>
-        </div>
-
+        
       </Card>
     </div>
   </Card>
