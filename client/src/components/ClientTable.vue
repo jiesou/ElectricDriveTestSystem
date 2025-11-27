@@ -3,16 +3,16 @@ import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { Table, Tag, Input, message } from 'ant-design-vue'
 import { EditOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons-vue'
 import type { Client } from '../types'
-import { useFakeDataMode, generateFakeData } from '../useFakeData'
+import { useMockDataService, generateMockData } from '../useMockData'
 
 const clients = ref<Client[]>([])
 const loading = ref<boolean | { delay: number }>(false)
 const refreshTimer = ref<number | null>(null)
 
-// 根据假数据模式返回实际显示的客户端列表
+// 根据模拟数据模式返回实际显示的客户端列表
 const displayClients = computed(() => {
-  if (useFakeDataMode.value) {
-    return generateFakeData()
+  if (useMockDataService.value) {
+    return generateMockData()
   }
   return clients.value
 })

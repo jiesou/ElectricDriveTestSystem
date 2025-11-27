@@ -1,13 +1,13 @@
-// 假数据功能：用于演示时按 Home 键显示固定的测试数据
+// 模拟数据功能：用于演示时按 Home 键显示固定的测试数据
 import { ref } from 'vue'
 import type { Client, Test, TestSession, TestLog, Trouble, Question } from './types'
 import { getSecondTimestamp } from './types'
 
-// 是否启用假数据模式
-export const useFakeDataMode = ref(false)
+// 是否启用模拟数据模式
+export const useMockDataService = ref(false)
 
-// 生成假数据
-export function generateFakeData(): Client[] {
+// 生成模拟数据
+export function generateMockData(): Client[] {
   const now = getSecondTimestamp()
   
   // 前三个故障（从 troubles.json）

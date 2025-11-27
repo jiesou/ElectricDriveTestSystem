@@ -6,7 +6,7 @@ import type { Client } from '../types'
 import ClientTable from './ClientTable.vue'
 import CvClientMonitor from './CvClientMonitor.vue'
 import AIAnalysisModal from './AIAnalysisModal.vue'
-import { useFakeDataMode, generateFakeData } from '../useFakeData'
+import { useMockDataService, generateMockData } from '../useMockData'
 
 const clients = ref<Client[]>([])
 const loading = ref(false)
@@ -15,10 +15,10 @@ const showConnectionEvents = ref(false)
 const aiAnalysisModal = ref(false)
 const currentAnalysisClientId = ref<string | undefined>(undefined)
 
-// 根据假数据模式返回实际显示的客户端列表
+// 根据模拟数据模式返回实际显示的客户端列表
 const displayClients = computed(() => {
-  if (useFakeDataMode.value) {
-    return generateFakeData()
+  if (useMockDataService.value) {
+    return generateMockData()
   }
   return clients.value
 })
@@ -69,8 +69,8 @@ function formatTime(timestamp: number): string {
 }
 
 function handleForgetClients() {
-  // 假数据模式下不执行真实操作
-  if (useFakeDataMode.value) {
+  // 模拟数据模式下不执行真实操作
+  if (useMockDataService.value) {
     return
   }
 

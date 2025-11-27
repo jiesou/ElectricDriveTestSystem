@@ -6,7 +6,7 @@ import TroubleManagement from './components/TroubleManagement.vue'
 import TestManagement from './components/TestManagement.vue'
 import ClientMonitoring from './components/ClientMonitoring.vue'
 import AIAnalysisModal from './components/AIAnalysisModal.vue'
-import { useFakeDataMode } from './useFakeData'
+import { useMockDataService } from '././useMockData.ts'
 import type { Client } from './types'
 
 const { Header, Content, Sider } = Layout
@@ -79,11 +79,11 @@ function handleAIAnalysis() {
   }
 }
 
-// 按 Home 键切换假数据模式
+// 按 Home 键切换模拟数据模式
 function handleKeyPress(event: KeyboardEvent) {
   if (event.key === 'Home') {
-    useFakeDataMode.value = !useFakeDataMode.value
-    console.log('假数据模式:', useFakeDataMode.value ? '开启' : '关闭')
+    useMockDataService.value = !useMockDataService.value
+    console.log('模拟数据服务:', useMockDataService.value ? '开启' : '关闭')
   }
 }
 
@@ -149,7 +149,7 @@ onUnmounted(() => {
         </Content>
       </Layout>
 
-      <div v-if="useFakeDataMode">.</div>
+      <div v-if="useMockDataService">.</div>
     </Layout>
   </ConfigProvider>
 

@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "nodemon --exec 'vite --host'",
     "build": "vue-tsc -b && vite build && cp -r dist/* ../server/public/",
     "preview": "vite preview"
   },
@@ -16,6 +16,7 @@
     "marked": "^12.0.0"
   },
   "devDependencies": {
+    "nodemon": "^3.1.11",
     "@vitejs/plugin-vue": "^6.0.1",
     "@vue/tsconfig": "^0.8.1",
     "typescript": "~5.8.3",

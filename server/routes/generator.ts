@@ -197,6 +197,7 @@ function buildPrompt(client: Client): string {
 
   const text = markdown.join("\n");
   console.log(text);
+  console.log("===以上为所构建的提示词===");
   return text;
 }
 
