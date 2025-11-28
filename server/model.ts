@@ -6,7 +6,6 @@
 import * as ort from "onnxruntime-node";
 import sharp from "sharp";
 import { Buffer } from "node:buffer";
-import { assert } from "node:console";
 
 // 推理配置
 const MODEL_PATH = "./electricdrivev2.0.onnx";
@@ -131,8 +130,8 @@ function processOutput(
   output: Float32Array,
   imgWidth: number,
   imgHeight: number,
-  confThreshold: number = 0.1,
-  // iouThreshold: number = 0.3,
+  confThreshold: number = 0.05,
+  iouThreshold: number = 0.3,
 ): DetectionBox[] {
   const boxes: DetectionBox[] = [];
 
@@ -192,24 +191,39 @@ function processOutput(
   // 按置信度降序排序
   boxes.sort((a, b) => b.conf - a.conf);
 
-  // // 非极大值抑制 (NMS)
-  // const result: DetectionBox[] = [];
-  // while (boxes.length > 0) {
-  //   result.push(boxes[0]);
-  //   boxes.splice(0, 1);
+  // 使用 IoU 阈值进行非极大值抑制 (NMS)
+  // 按类别分别进行 NMS，避免不同类别之间互相抑制
+  const finalBoxes: DetectionBox[] = [];
 
-  //   // 移除与当前框 IoU 过高的框
-  //   const filtered: number[][] = [];
-  //   for (const box of boxes) {
-  //     if (iou(result[result.length - 1], box) < iouThreshold) {
-  //       filtered.push(box);
-  //     }
-  //   }
-  //   boxes.length = 0;
-  //   boxes.push(...filtered);
-  // }
+  const byClass = new Map<number, DetectionBox[]>();
+  for (const box of boxes) {
+    const arr = byClass.get(box.class_id) || [];
+    arr.push(box);
+    byClass.set(box.class_id, arr);
+  }
 
-  return boxes;
+  // 对每一类单独做 NMS
+  for (const [, list] of byClass.entries()) {
+    // 复制一份可变数组（已经按置信度降序）
+    let detections = list.slice();
+
+    while (detections.length > 0) {
+      // 取出当前置信度最高的框
+      const current = detections.shift()!;
+      finalBoxes.push(current);
+
+      // 过滤掉与 current IoU 超过阈值的框
+      detections = detections.filter((d) => {
+        const i = iou([current.x1, current.y1, current.x2, current.y2], [d.x1, d.y1, d.x2, d.y2]);
+        return i <= iouThreshold;
+      });
+    }
+  }
+
+  // 最终按置信度降序返回
+  finalBoxes.sort((a, b) => b.conf - a.conf);
+
+  return finalBoxes;
 }
 
 /**
@@ -278,7 +292,7 @@ async function drawBoxes(
                       box.class_id === 2 ? "exterminal" :
                       box.class_id === 1 ? "excopper" :
                       "cross";
-    const label = `${className} ${(box.conf).toFixed(0)}`;
+    const label = `${className} ${(box.conf).toFixed(2)}`;
 
     // 绘制矩形框
     svgElements.push(
@@ -287,7 +301,7 @@ async function drawBoxes(
     );
 
     // 绘制标签背景
-    const labelBg = `<rect x="${box.x1}" y="${box.y1 - 20}" width="${label.length * 8}" height="20" ` +
+    const labelBg = `<rect x="${box.x1}" y="${box.y1 - 20}" width="${label.length * 10}" height="20" ` +
       `fill="rgb(${color.r},${color.g},${color.b})"/>`;
     svgElements.push(labelBg);
 

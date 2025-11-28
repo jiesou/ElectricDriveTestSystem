@@ -24,9 +24,7 @@ cvRouter.get("/stream/:cvClientIp", (ctx) => {
   const cvClientIp = ctx.params.cvClientIp;
 
   // 查找关联此 CV 客户端的普通客户端
-  const client = Object.values(clientManager.clients).find(
-    (c) => c.cvClient?.ip === cvClientIp,
-  );
+  const client = clientManager.findClientByCvIp(cvClientIp);
 
   if (!client || !client.cvClient) {
     ctx.response.status = 404;
@@ -47,12 +45,14 @@ cvRouter.get("/stream/:cvClientIp", (ctx) => {
   ctx.response.headers.set("Expires", "0");
 
   // 创建响应体流
+  let intervalId: number | null = null;
+
   const body = new ReadableStream({
-    async start(controller) {
+    start(controller) {
       const encoder = new TextEncoder();
 
       // 定期发送帧
-      const intervalId = setInterval(() => {
+      intervalId = setInterval(() => {
         try {
           const frame = client.cvClient?.latest_frame;
 
@@ -65,17 +65,21 @@ cvRouter.get("/stream/:cvClientIp", (ctx) => {
             controller.enqueue(frame);
             controller.enqueue(encoder.encode("\r\n"));
           }
-        } catch (error) {
-          console.error("[CV Stream] 发送帧失败:", error);
+        } catch (_error) {
+          // 流已关闭或其他错误，停止发送
+          if (intervalId !== null) {
+            clearInterval(intervalId);
+            intervalId = null;
+          }
         }
       }, 200); // 每200ms发送一次，即5fps
-
-      // 清理逻辑（当客户端断开连接时）
-      // Note: Oak's ReadableStream doesn't have a cancel callback,
-      // but the interval will be cleaned up when the response ends
-      return () => {
+    },
+    cancel() {
+      // 客户端断开连接时清理
+      if (intervalId !== null) {
         clearInterval(intervalId);
-      };
+        intervalId = null;
+      }
     },
   });
 
@@ -120,10 +124,8 @@ cvRouter.post("/upload_wiring", async (ctx) => {
 
   const cvClientIp: string = ctx.request.ip;
 
-  // 查找关联此CV客户端的普通客户端
-  const client = Object.values(clientManager.clients).find(
-    (c) => c.cvClient?.ip === cvClientIp,
-  );
+  // 查找关联此 CV 客户端的普通客户端（只有一个时自动绑定）
+  const client = clientManager.findClientByCvIp(cvClientIp);
 
   if (!client) {
     ctx.response.status = 400;
@@ -134,13 +136,32 @@ cvRouter.post("/upload_wiring", async (ctx) => {
     return;
   }
 
-  if (!client.cvClient?.session) {
+  if (!client.cvClient) {
     ctx.response.status = 400;
     ctx.response.body = {
       success: false,
-      error: "当前视觉客户端没有活跃会话，没有需要拍的",
+      error: "当前普通客户端没有绑定视觉客户端信息",
     };
     return;
+  }
+
+  if (!client.cvClient?.session) {
+    // 没有活跃会话则自动创建
+
+      // 创建装接评估会话
+      const session: EvaluateWiringSession = {
+        type: "evaluate_wiring",
+        startTime: getSecondTimestamp(),
+        shots: [],
+      };
+      client.cvClient.session = session;
+
+    // ctx.response.status = 400;
+    // ctx.response.body = {
+    //   success: false,
+    //   error: "当前视觉客户端没有活跃会话，没有需要拍的",
+    // };
+    // return;
   }
 
   if (client.cvClient.session.type !== "evaluate_wiring") {
@@ -230,10 +251,8 @@ cvRouter.post("/confirm_wiring", (ctx) => {
   try {
     const cvClientIp: string = ctx.request.ip;
 
-    // 查找关联此CV客户端的普通客户端
-    const client = Object.values(clientManager.clients).find(
-      (c) => c.cvClient?.ip === cvClientIp,
-    );
+    // 查找关联此 CV 客户端的普通客户端（只有一个时自动绑定）
+    const client = clientManager.findClientByCvIp(cvClientIp);
 
     if (!client) {
       ctx.response.status = 400;
@@ -248,7 +267,7 @@ cvRouter.post("/confirm_wiring", (ctx) => {
       ctx.response.status = 400;
       ctx.response.body = {
         success: false,
-        error: "当前视觉客户端没有活跃会话，没有要做的",
+        error: "当前视觉客户端没有拍过照片，没有工艺评估会话，请先拍照",
       };
       return;
     }
@@ -342,20 +361,18 @@ cvRouter.post("/confirm_wiring", (ctx) => {
 cvRouter.post("/upload_face", async (ctx) => {
   try {
     const body = await ctx.request.body.json();
-    const { who, image } = body;
+    const { who, image: _image } = body;
 
     const cvClientIp: string = ctx.request.ip;
 
-    // 查找关联此CV客户端的普通客户端
-    const client = Object.values(clientManager.clients).find(
-      (c) => c.cvClient?.ip === cvClientIp,
-    );
+    // 查找关联此 CV 客户端的普通客户端（只有一个时自动绑定）
+    const client = clientManager.findClientByCvIp(cvClientIp);
 
     if (!client) {
       ctx.response.status = 404;
       ctx.response.body = {
         success: false,
-        error: "Client not found for CV client",
+        error: "找不到当前视觉客户端，所对应的普通客户端",
       };
       return;
     }
@@ -418,14 +435,12 @@ cvRouter.post("/clear_session/:cvClientIp", (ctx) => {
       return;
     }
 
-    // 查找关联此 CV 客户端的普通客户端
-    const client = Object.values(clientManager.clients).find(
-      (c) => c.cvClient?.ip === cvClientIp,
-    );
+    // 查找关联此 CV 客户端的普通客户端（只有一个时自动绑定）
+    const client = clientManager.findClientByCvIp(cvClientIp);
 
     if (!client) {
       ctx.response.status = 404;
-      ctx.response.body = { success: false, error: "找不到对应的普通客户端" };
+      ctx.response.body = { success: false, error: "找不到当前视觉客户端，所对应的普通客户端" };
       return;
     }
 

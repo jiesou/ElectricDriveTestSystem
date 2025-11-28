@@ -126,6 +126,7 @@ app.use(async (ctx, next) => {
   const start = Date.now();
   await next();
   const ms = Date.now() - start;
+  if (ctx.request.url.pathname === "/api/clients") return; // 忽略该路由的日志
   console.log(
     `${ctx.request.method} ${ctx.request.url} - ${ctx.response.status} - ${ms}ms`,
   );

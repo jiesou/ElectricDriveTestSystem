@@ -10,6 +10,7 @@ class SimpleESP32Simulator {
   private currentQuestion: number = 0;
   private totalQuestions: number = 0;
   private isTestActive: boolean = false;
+  private pingIntervalId: number | null = null;
 
   connect(): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -18,9 +19,18 @@ class SimpleESP32Simulator {
       this.socket.onopen = () => {
         console.log("✅ ESP32模拟器已连接到服务器");
         this.isConnected = true;
-        setInterval(() => {
+        // 清除之前的定时器（如果有的话）
+        if (this.pingIntervalId !== null) {
+          clearInterval(this.pingIntervalId);
+        }
+        // 设置新的定时器
+        this.pingIntervalId = setInterval(() => {
           this.ping();
         }, 3000);
+      const message = { type: "evaluate_wiring_yolo_request" };
+      const response = JSON.stringify(message);
+      console.log("📤 发送工艺评估请求:", response);
+      this.socket?.send(response);
         resolve();
       };
 
@@ -37,6 +47,11 @@ class SimpleESP32Simulator {
       this.socket.onclose = () => {
         console.log("🔌 ESP32模拟器断开连接");
         this.isConnected = false;
+        // 清除心跳定时器
+        if (this.pingIntervalId !== null) {
+          clearInterval(this.pingIntervalId);
+          this.pingIntervalId = null;
+        }
         console.log(`🔄 尝试重连...`);
 
         setTimeout(() => {
@@ -186,6 +201,11 @@ class SimpleESP32Simulator {
       console.log("🔌 断开WebSocket连接");
       this.socket.close();
       this.socket = null;
+    }
+    // 清除心跳定时器
+    if (this.pingIntervalId !== null) {
+      clearInterval(this.pingIntervalId);
+      this.pingIntervalId = null;
     }
   }
 }

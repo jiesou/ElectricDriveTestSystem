@@ -175,6 +175,37 @@ export class ClientManager {
   }
 
   /**
+   * 根据 CV 客户端 IP 查找关联的普通客户端
+   * 当只有一个客户端且没有绑定 CV 时，自动绑定
+   */
+  findClientByCvIp(cvClientIp: string): Client | null {
+    // 先尝试精确匹配
+    const exactMatch = Object.values(this.clients).find(
+      (c) => c.cvClient?.ip === cvClientIp,
+    );
+    if (exactMatch) {
+      return exactMatch;
+    }
+
+    // 如果只有一个客户端，且没有绑定 CV 客户端，自动绑定
+    const allClients = Object.values(this.clients);
+    if (allClients.length === 1) {
+      const onlyClient = allClients[0];
+      // 可能会覆盖掉已有的 cvClient 绑定，预期行为
+      onlyClient.cvClient = {
+        clientType: "jetson_nano", // 默认类型
+        ip: cvClientIp,
+      };
+      console.log(
+        `[ClientManager] 自动绑定 CV 客户端 ${cvClientIp} 到唯一的普通客户端 ${onlyClient.id}`,
+      );
+      return onlyClient;
+    }
+
+    return null;
+  }
+
+  /**
    * 清理资源
    */
   cleanup(): void {

@@ -63,7 +63,7 @@ export class UdpCameraServer {
     }
     this.frameBuffer.get(frameIndex)!.set(chunkIndex, chunkPayload);
     this.frameChunkCount.set(frameIndex, chunkTotal);
-    console.log(`[UdpCamera] 接收帧 ${frameIndex} 的分片 ${chunkIndex + 1}/${chunkTotal}，大小: ${chunkPayload.length} 字节`);
+    // console.log(`[UdpCamera] 接收帧 ${frameIndex} 的分片 ${chunkIndex + 1}/${chunkTotal}，大小: ${chunkPayload.length} 字节`);
 
     // 清理旧的缓存
     this.cleanupBuffer();

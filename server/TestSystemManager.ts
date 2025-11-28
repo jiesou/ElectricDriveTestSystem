@@ -272,7 +272,7 @@ export class TestSystemManager {
     }, 3000); // 轮查间隔
   }
 
-  private broadcastTroubleStatus() {
+  broadcastTroubleStatus() {
     for (const [_clientId, client] of Object.entries(this.clients)) {
       if (!client.online) continue;
       if (!client.testSession) continue;
