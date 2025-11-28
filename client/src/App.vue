@@ -16,9 +16,9 @@ const activeTab = ref<TabKey>('troubles')
 
 const menuItems = [
   { key: 'troubles', label: '题库管理', path: '#/troubles' },
-  { key: 'tests', label: '测验管理', path: '#/tests' },
+  { key: 'tests', label: '排故测验', path: '#/tests' },
   { key: 'clients', label: '客户机监控', path: '#/clients' },
-  { key: 'ai-analysis', label: 'AI分析', path: '#/ai-analysis' }
+  { key: 'ai-analysis', label: 'AI 分析', path: '#/ai-analysis' }
 ]
 
 const clients = ref<Client[]>([])
@@ -108,7 +108,7 @@ onUnmounted(() => {
       </Header>
 
       <Layout>
-        <Sider width="200" style="background: #fff;">
+        <Sider width="130" style="background: #fff;">
           <div style="padding: 20px 0;">
             <div v-for="item in menuItems" :key="item.key" :class="['menu-item', { active: activeTab === item.key }]"
               @click="handleMenuClick(item.key as TabKey)">

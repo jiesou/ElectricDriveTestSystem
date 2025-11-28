@@ -12,9 +12,9 @@ export function generateMockData(): Client[] {
   
   // 前三个故障（从 troubles.json）
   const troubles: Trouble[] = [
-    { id: 1, description: "200 和 233 断路", from_wire: 200, to_wire: 233 },
-    { id: 2, description: "215 和 216 断路", from_wire: 215, to_wire: 216 },
-    { id: 3, description: "207 和 220 断路", from_wire: 207, to_wire: 220 }
+    { "id": 1, "description": "201 和 202 断路", "from_wire": 201, "to_wire": 202 },
+    { "id": 2, "description": "209 和 219 断路", "from_wire": 209, "to_wire": 219 },
+    { "id": 3, "description": "215 和 216 断路", "from_wire": 215, "to_wire": 216 }
   ]
   
   // 三道题，每题一个故障
@@ -89,7 +89,7 @@ export function generateMockData(): Client[] {
       action: 'answer',
       details: {
         question: questions[2],
-        trouble: { id: 4, description: "126 和 136 断路", from_wire: 126, to_wire: 136 },
+        trouble: troubles[1], // 错误选择了故障2
         result: false
       }
     },
@@ -160,6 +160,34 @@ export function generateMockData(): Client[] {
         scores: 91
       }
     }
+  }
+
+  // 为 Mock 模式下添加 装接评估 板的功能步骤进度
+  fakeClient.evaluateBoard = {
+    description: 'YY-三角 双速正转电路',
+    function_steps: [
+      {
+        description: '按下 SB1，电机低速',
+        can_wait_for_ms: 8000,
+        waited_for_ms: 350,
+        passed: true,
+        finished: true
+      },
+      {
+        description: '按下 SB3，电机停',
+        can_wait_for_ms: 8000,
+        waited_for_ms: 3300,
+        passed: true,
+        finished: true
+      },
+      {
+        description: '按下 SB2，电机高速',
+        can_wait_for_ms: 6000,
+        waited_for_ms: 150,
+        passed: true,
+        finished: true
+      }
+    ]
   }
   
   return [fakeClient]
