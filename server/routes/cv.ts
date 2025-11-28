@@ -215,9 +215,15 @@ cvRouter.post("/upload_wiring", async (ctx) => {
   }
 
   // 将图像转换为 string - 优先使用带标注的图像
-  const base64 = btoa(
-    String.fromCharCode(...(annotatedImageBuffer || inputImageBuffer)),
-  );
+  // 避免对大型 Uint8Array 使用扩展运算符导致栈溢出，采用分块拼接方式
+  const bytes = annotatedImageBuffer || inputImageBuffer;
+  let binary = "";
+  const CHUNK_SIZE = 0x8000; // 32K 每块，避免参数过长或栈溢出
+  for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
+    const chunk = bytes.subarray(i, i + CHUNK_SIZE);
+    binary += String.fromCharCode(...chunk);
+  }
+  const base64 = btoa(binary);
   const frameString: string = `data:image/jpeg;base64,${base64}`;
 
   // 添加拍摄记录，根据每个 position 做单独处理
