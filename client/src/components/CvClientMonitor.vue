@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted, computed, h } from 'vue'
 import { Card, Tag, Empty, Button } from 'ant-design-vue'
 import type { Client, CvClient } from '../types'
 import { CloseOutlined } from '@ant-design/icons-vue';
+import { useMockDataService, generateMockData } from '../useMockData'
 
 const clients = ref<Client[]>([])
 const loading = ref(false)
@@ -27,8 +28,11 @@ function setImageLoaded(ip: string, loaded: boolean) {
   imageLoaded.value[ip] = loaded
 }
 
-// 获取所有有 CV 客户端的客户机
-const cvClients = computed(() => {
+// 获取所有有 CV 客户端的客户机（支持 Mock 模式）
+const displayCvClients = computed(() => {
+  if (useMockDataService.value) {
+    return generateMockData().filter(c => c.cvClient)
+  }
   return clients.value.filter(c => c.cvClient)
 })
 
@@ -82,11 +86,11 @@ onUnmounted(() => {
 
 <template>
   <Card title="实时视觉客户端" style="display: none">
-    <div v-if="cvClients.length === 0">
+    <div v-if="displayCvClients.length === 0">
       <Empty description="暂无视觉客户端连接" />
     </div>
     <div v-else style="display: grid; grid-template-columns: repeat(auto-fill, 600px); gap: 16px;">
-      <Card v-for="client in cvClients" :key="client.id" size="small" :title="`${client.name} - 视觉客户端`">
+      <Card v-for="client in displayCvClients" :key="client.id" size="small" :title="`${client.name} - 视觉客户端`">
         <template #extra>
           <div style="display: flex; align-items: center; gap: 8px;">
             <Tag v-if="client.cvClient?.session?.type == 'evaluate_wiring'" color="blue">
@@ -110,7 +114,7 @@ onUnmounted(() => {
 
         <!-- 图像显示区域 -->
         <div
-          style="position: relative; width: 100%; background: #f0f0f0; border-radius: 4px; overflow: hidden; min-height: 160px;">
+          v-if="!useMockDataService" style="position: relative; width: 100%; background: #f0f0f0; border-radius: 4px; overflow: hidden; min-height: 160px;">
           <!-- MJPEG 流会自动处理，加载第一帧后就会触发 load 事件 -->
           <img v-if="client.cvClient" :src="`/api/cv/stream/${client.cvClient.ip}`"
             style="width: 100%; object-fit: contain; background: #000;"
@@ -129,7 +133,7 @@ onUnmounted(() => {
             视觉连接中...
           </div>
         </div>
-        
+
       </Card>
     </div>
   </Card>

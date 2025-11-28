@@ -126,6 +126,41 @@ export function generateMockData(): Client[] {
     online: true,
     testSession: testSession
   }
+
+  // 为 Mock 模式下添加关联的 CV 客户端数据（不包含真实图片，只包含分析结果数据）
+  fakeClient.cvClient = {
+    clientType: 'jetson_nano',
+    ip: '192.168.100.45',
+    session: {
+      type: 'evaluate_wiring',
+      startTime: testStartTime + 30,
+      // shots 中不包含真实图片（image 为空字符串），仅包含分析结果数字
+      shots: [
+        {
+          timestamp: testStartTime + 40,
+          image: '',
+          result: { sleeves_num: 40, cross_num: 1, excopper_num: 0, exterminal_num: 0 }
+        },
+        {
+          timestamp: testStartTime + 120,
+          image: '',
+          result: { sleeves_num: 50, cross_num: 0, excopper_num: 1, exterminal_num: 0 }
+        },
+        {
+          timestamp: testStartTime + 120,
+          image: '',
+          result: { sleeves_num: 45, cross_num: 0, excopper_num: 1, exterminal_num: 0 }
+        }
+      ],
+      finalResult: {
+        no_sleeves_num: 0,
+        cross_num: 1,
+        excopper_num: 2,
+        exterminal_num: 0,
+        scores: 91
+      }
+    }
+  }
   
   return [fakeClient]
 }
