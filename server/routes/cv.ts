@@ -185,11 +185,11 @@ cvRouter.post("/upload_wiring", async (ctx) => {
   const session = client.cvClient.session as EvaluateWiringSession;
 
   // 允许覆盖指定 position 的照片（1/2/3）。如果之前已有记录则覆盖。
-  const resultObj: {
-    sleeves_num?: number,
-    cross_num?: number,
-    excopper_num?: number,
-    exterminal_num?: number
+  const inputResultObj: {
+    sleeves_num: number,
+    cross_num: number,
+    excopper_num: number,
+    exterminal_num: number
   } = inputResultStr ? JSON.parse(inputResultStr as string) : {};
 
   // 将 File 转为 Uint8Array 供后续处理
@@ -197,7 +197,7 @@ cvRouter.post("/upload_wiring", async (ctx) => {
 
   // 如果没有 result，使用服务端推理。注意：当使用服务端推理时，需要按 position 做特殊处理。
   let annotatedImageBuffer: Uint8Array | undefined;
-  let detectionResult: {
+  let serverDetectionResult: {
     annotatedImage?: Uint8Array;
     sleeves_num?: number;
     cross_num?: number;
@@ -205,13 +205,13 @@ cvRouter.post("/upload_wiring", async (ctx) => {
     exterminal_num?: number;
   } = {};
 
-  const usingServerInference = !resultObj || Object.keys(resultObj).length === 0;
+  const usingServerInference = !inputResultObj || Object.keys(inputResultObj).length === 0;
   if (usingServerInference) {
     console.log("[CV Upload] 没有推理结果，使用服务端 YOLO 推理");
     // 调用 YOLO 推理（返回结果和带标注的图像）
-    detectionResult = await detectObjects(inputImageBuffer);
-    annotatedImageBuffer = detectionResult.annotatedImage;
-    console.log("[CV Upload] 服务端推理完成:", detectionResult);
+    serverDetectionResult = await detectObjects(inputImageBuffer);
+    annotatedImageBuffer = serverDetectionResult.annotatedImage;
+    console.log("[CV Upload] 服务端推理完成:", serverDetectionResult);
   }
 
   // 将图像转换为 string - 优先使用带标注的图像
@@ -227,33 +227,30 @@ cvRouter.post("/upload_wiring", async (ctx) => {
   const frameString: string = `data:image/jpeg;base64,${base64}`;
 
   // 添加拍摄记录，根据每个 position 做单独处理
-  let sleeves_num = resultObj.sleeves_num ?? detectionResult.sleeves_num ?? 0;
-  let cross_num = resultObj.cross_num ?? detectionResult.cross_num ?? 0;
-  let excopper_num = resultObj.excopper_num ?? detectionResult.excopper_num ?? 0;
-  let exterminal_num = resultObj.exterminal_num ?? detectionResult.exterminal_num ?? 0;
+  let sleeves_num = inputResultObj.sleeves_num ?? serverDetectionResult.sleeves_num ?? 0;
+  let cross_num = inputResultObj.cross_num ?? serverDetectionResult.cross_num ?? 0;
+  let exterminal_num = inputResultObj.exterminal_num ?? serverDetectionResult.exterminal_num ?? 0;
+  const excopper_num = inputResultObj.excopper_num ?? serverDetectionResult.excopper_num ?? 0;
 
   // 第1张：只记录 cross，terminal 始终为 20，其他为 0
   if (position === 1) {
-    cross_num = detectionResult.cross_num ?? 0;
+    // keep cross_num
     sleeves_num = 20; // terminal 始终 20
-    excopper_num = 0;
     exterminal_num = 0;
   }
 
   // 第2张：只记录 terminal（sleeves_num），其他为 0
   if (position === 2) {
-    sleeves_num = detectionResult.sleeves_num ?? 0;
+    //keep sleeves_num
     cross_num = 0;
-    excopper_num = 0;
     exterminal_num = 0;
   }
 
   // 第3张：只记录 exterminal，terminal 始终为 18，其他为 0
   if (position === 3) {
-    exterminal_num = detectionResult.exterminal_num ?? 0;
+    //keep exterminal_num
     sleeves_num = 18; // terminal 始终 18
     cross_num = 0;
-    excopper_num = 0;
   }
 
   // 构建拍摄记录并写入指定 position（覆盖已有条目）
@@ -285,6 +282,8 @@ cvRouter.post("/upload_wiring", async (ctx) => {
   console.log(
     `[CV Upload] 已存储/覆盖装接评估拍摄记录，客户端 ${client.id}，position=${position}，当前已拍 ${session.shots.length} 张`,
   );
+
+  console.log(shot);
 
   ctx.response.body = {
     success: true,
