@@ -349,18 +349,17 @@ cvRouter.post("/confirm_wiring", (ctx) => {
       0,
     );
 
-    const OVERALL_SLEEVES_NEEDED = 20 * 2.8; // 总共需要标20个号码管，拍三张照片
+    const OVERALL_SLEEVES_NEEDED = 20+18+20; // 第一张始终 20，第三张始终 18，中间第二张需要 20
 
-    // 简单的评分算法（可根据实际需求调整）
-    // 假设：每个未标号码管扣5分，每个交叉扣3分，每个露铜扣2分
+    // 评分算法
+    // 每个未标号码管扣2分，交叉扣3分，露铜忽略，露端子扣1分
     const totalPoints = 100;
     const noSleevesDeduction = Math.max(
       0,
       OVERALL_SLEEVES_NEEDED - totalSleeves,
     );
-    const deduction = noSleevesDeduction * 5 + totalCross * 10 +
-      totalExcopper * 5 + totalExterminal * 5;
-    const scores = Math.max(0, totalPoints - deduction);
+    const deduction = noSleevesDeduction * 2 + totalCross * 3 + totalExterminal * 1;
+    const scores = Math.max(76, Math.min(90, totalPoints - deduction)); // 最低76分，最高90分
 
     session.finalResult = {
       no_sleeves_num: noSleevesDeduction,

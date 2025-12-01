@@ -130,8 +130,8 @@ function processOutput(
   output: Float32Array,
   imgWidth: number,
   imgHeight: number,
-  confThreshold: number = 0.05,
-  iouThreshold: number = 0.3,
+  confThreshold: number = 0.2,
+  iouThreshold: number = 0.2,
 ): DetectionBox[] {
   const boxes: DetectionBox[] = [];
 
