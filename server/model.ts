@@ -8,7 +8,7 @@ import sharp from "sharp";
 import { Buffer } from "node:buffer";
 
 // 推理配置
-const MODEL_PATH = "./electricdrivev2.0.onnx";
+const MODEL_PATH = "./electricdrivev10.3.15.2.onnx";
 const INPUT_SIZE = 640;
 
 // 全局模型实例（延迟加载）
