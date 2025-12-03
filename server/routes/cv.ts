@@ -379,13 +379,15 @@ cvRouter.post("/confirm_wiring", (ctx) => {
     );
 
     // 发送结果给ESP32客户端
-    if (client.socket && client.socket.readyState === WebSocket.OPEN) {
-      const responseMsg: EvaluateWiringYoloResponseMessage = {
-        type: "evaluate_wiring_yolo_response",
-        timestamp: getSecondTimestamp(),
-        result: session.finalResult,
-      };
-      clientManager.safeSend(client.socket, responseMsg);
+    for (const client of Object.values(clientManager.clients)) {
+      if (client.socket && client.socket.readyState === WebSocket.OPEN) {
+        const responseMsg: EvaluateWiringYoloResponseMessage = {
+          type: "evaluate_wiring_yolo_response",
+          timestamp: getSecondTimestamp(),
+          result: session.finalResult,
+        };
+        clientManager.safeSend(client.socket, responseMsg);
+      }
     }
 
     ctx.response.body = {

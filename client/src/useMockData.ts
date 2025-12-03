@@ -14,7 +14,8 @@ export function generateMockData(): Client[] {
   const troubles: Trouble[] = [
     { "id": 1, "description": "201 和 202 断路", "from_wire": 201, "to_wire": 202 },
     { "id": 2, "description": "209 和 219 断路", "from_wire": 209, "to_wire": 219 },
-    { "id": 3, "description": "215 和 216 断路", "from_wire": 215, "to_wire": 216 }
+    { "id": 3, "description": "215 和 216 断路", "from_wire": 215, "to_wire": 216 },
+    { "id": 4, "description": "227 和 233 断路", "from_wire": 227, "to_wire": 233 }
   ]
   
   // 三道题，每题一个故障
@@ -89,7 +90,7 @@ export function generateMockData(): Client[] {
       action: 'answer',
       details: {
         question: questions[2],
-        trouble: troubles[1], // 错误选择了故障2
+        trouble: troubles[3], // 错误选择了故障4
         result: false
       }
     },
@@ -139,25 +140,25 @@ export function generateMockData(): Client[] {
         {
           timestamp: testStartTime + 40,
           image: '',
-          result: { sleeves_num: 40, cross_num: 1, excopper_num: 0, exterminal_num: 0 }
+          result: { sleeves_num: 20, cross_num: 3, excopper_num: 0, exterminal_num: 0 }
         },
         {
           timestamp: testStartTime + 120,
           image: '',
-          result: { sleeves_num: 50, cross_num: 0, excopper_num: 1, exterminal_num: 0 }
+          result: { sleeves_num: 18, cross_num: 0, excopper_num: 0, exterminal_num: 0 }
         },
         {
           timestamp: testStartTime + 120,
           image: '',
-          result: { sleeves_num: 45, cross_num: 0, excopper_num: 1, exterminal_num: 0 }
+          result: { sleeves_num: 20, cross_num: 0, excopper_num: 1, exterminal_num: 3 }
         }
       ],
       finalResult: {
-        no_sleeves_num: 0,
-        cross_num: 1,
-        excopper_num: 2,
-        exterminal_num: 0,
-        scores: 91
+        no_sleeves_num: 2,
+        cross_num: 3,
+        excopper_num: 1,
+        exterminal_num: 3,
+        scores: 82
       }
     }
   }
