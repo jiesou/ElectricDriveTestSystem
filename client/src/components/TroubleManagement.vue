@@ -38,7 +38,7 @@ onMounted(async () => {
     <h2>题库管理</h2>
 
     <div style="display:flex; gap:20px; align-items:flex-start;">
-      <img :src="sch" alt="示意图" style="width:700px; height:auto; object-fit:contain;" />
+      <img :src="sch" alt="示意图" style="width:60%; height:auto; object-fit:contain;" />
 
       <div style="flex:1;">
         <div style="margin-bottom: 20px;">
