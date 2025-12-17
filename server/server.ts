@@ -4,8 +4,8 @@ import {
   WSMessage,
 } from "./types.ts";
 import { clientManager } from "./ClientManager.ts";
-import "./tests.ts"; // 注册排故测验消息处理器
-import "./evaluate.ts"; // 注册装接评估消息处理器
+import "./tests.ts"; // 注册排故测验 WSMessageHandler
+import "./evaluate.ts"; // 注册装接评估 WSMessageHandler
 import { generatorRouter } from "./routes/generator.ts";
 import { troublesRouter } from "./routes/troubles.ts";
 import { questionsRouter } from "./routes/questions.ts";

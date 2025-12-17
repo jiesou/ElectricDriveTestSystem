@@ -1,5 +1,5 @@
 import { Router } from "@oak/oak";
-import { manager } from "../TestSystemManager.ts";
+import { manager } from "../tests.ts";
 import { clientManager } from "../ClientManager.ts";
 import { getSecondTimestamp } from "../types.ts";
 

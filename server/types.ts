@@ -137,6 +137,9 @@ export interface WSMessage {
   [key: string]: unknown;
 }
 
+// WebSocket 消息处理器类型
+export type WSMessageHandler = (client: Client, socket: WebSocket, message: WSMessage) => void;
+
 /* XXRequestMessage 表示客户机发送到服务器的消息 */
 export interface PingRequestMessage extends WSMessage {
   type: "ping";

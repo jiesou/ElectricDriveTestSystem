@@ -4,6 +4,7 @@ import {
   CV_CLIENT_MAP,
   getSecondTimestamp,
   WSMessage,
+  WSMessageHandler,
 } from "./types.ts";
 
 /**
@@ -100,20 +101,22 @@ export class ClientManager {
     console.log(`[ClientManager] Client ${client.id} disconnected`);
   }
 
+  private wsMessageHandlers: WSMessageHandler[] = [];
+
   /**
    * 注册WebSocket消息处理器
    */
-  addOnMessageHandler(handler: (client: Client, socket: WebSocket, message: WSMessage) => void): () => void {
-    // TODO
+  addWSMessageHandler(handler: WSMessageHandler): void {
+    this.wsMessageHandlers.push(handler);
   }
 
   /**
    * 仅在server.ts由socket.onmessage调用，处理并分发消息给注册的处理器
    */
   processWebSocketMessageIn(client: Client, socket: WebSocket, message: WSMessage): void {
-    if (!this.onMessageHandlers || this.onMessageHandlers.length === 0) return;
-    for (const handler of this.onMessageHandlers) {
-      // TODO
+    if (!this.wsMessageHandlers || this.wsMessageHandlers.length === 0) return;
+    for (const handler of this.wsMessageHandlers) {
+      handler(client, socket, message);
     }
   }
 
@@ -152,8 +155,8 @@ export class ClientManager {
   }
 
   /**
-   * 根据 CV 客户端 IP 查找关联的普通客户端
-   * 当只有一个客户端且没有绑定 CV 时，自动绑定
+   * 根据CV客户端IP查找关联的普通客户端
+   * 当只有一个客户端且没有绑定CV时，自动绑定
    */
   findClientByCvIp(cvClientIp: string): Client | null {
     // 先尝试精确匹配
@@ -164,11 +167,11 @@ export class ClientManager {
       return exactMatch;
     }
 
-    // 如果只有一个客户端，且没有绑定 CV 客户端，自动绑定
+    // 如果只有一个客户端，且没有绑定CV客户端，自动绑定
     const allClients = Object.values(this.clients);
     if (allClients.length === 1) {
       const onlyClient = allClients[0];
-      // 可能会覆盖掉已有的 cvClient 绑定，预期行为
+      // 可能会覆盖掉已有的cvClient绑定，预期行为
       onlyClient.cvClient = {
         clientType: "jetson_nano", // 默认类型
         ip: cvClientIp,

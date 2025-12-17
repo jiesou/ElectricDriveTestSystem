@@ -1,5 +1,5 @@
 import { Router } from "@oak/oak";
-import { manager } from "../TestSystemManager.ts";
+import { manager } from "../tests.ts";
 
 /**
  * 故障管理路由
