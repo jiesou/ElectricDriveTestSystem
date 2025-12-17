@@ -56,7 +56,8 @@ clientsRouter.put("/clients/:id", async (ctx) => {
 
 // 忘记所有客户端
 clientsRouter.post("/clients/forget", (ctx) => {
-  const clearedCount = clientManager.clearAllClients();
+  clientManager.clients = {};
+  const clearedCount = Object.keys(clientManager.clients).length;
 
   ctx.response.body = {
     success: true,

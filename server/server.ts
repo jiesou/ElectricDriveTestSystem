@@ -1,16 +1,8 @@
 import { Application, Router } from "@oak/oak";
 import {
-  AnswerResultMessage,
-  Client,
-  EvaluateBoard,
-  EvaluateFunctionBoardUpdateMessage,
-  EvaluateWiringSession,
-  FaceSigninSession,
-  FinishResultMessage,
   getSecondTimestamp,
-  TROUBLES,
+  WSMessage,
 } from "./types.ts";
-import { manager } from "./TestSystemManager.ts";
 import { clientManager } from "./ClientManager.ts";
 import "./tests.ts"; // 注册排故测验消息处理器
 import "./evaluate.ts"; // 注册装接评估消息处理器
@@ -70,7 +62,7 @@ wsRouter.get("/ws", (ctx) => {
   const client = clientManager.connectClient(clientIp, socket);
 
   socket.onmessage = (event) => {
-    const message = JSON.parse(event.data as string);
+    const message: WSMessage = JSON.parse(event.data as string);
     console.log("Received message:", message);
 
     // 处理应用层 ping 消息
@@ -87,8 +79,8 @@ wsRouter.get("/ws", (ctx) => {
       return;
     }
 
-    // 仅在 socket.onmessage 中调用 processWebSocketMessage
-    clientManager.processWebSocketMessage(client, socket, message);
+    // 仅在 socket.onmessage 中调用 processWebSocketMessageIn
+    clientManager.processWebSocketMessageIn(client, socket, message);
   };
 
   socket.onerror = (error) => {

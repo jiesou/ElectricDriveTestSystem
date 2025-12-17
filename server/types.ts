@@ -51,7 +51,7 @@ export interface Client {
   socket?: WebSocket; // Optional since offline clients don't have socket
   lastPing?: number; // timestamp in seconds of last application-layer ping
   testSession?: TestSession;
-  cvClient?: CvClient; // 关联的CV客户端
+  cvClient?: CvClient; // 关联的CV客户机
   evaluateBoard?: EvaluateBoard; // 装接评估-功能部分的当前Board状态
   relayRainbowSentMs?: number; // relay_rainbow 发送时间戳（毫秒），用于计算回环延迟
 }
@@ -112,7 +112,7 @@ export interface FaceSigninSession extends CvSession {
   };
 }
 
-// CV客户端基类接口
+// CV客户机基类接口
 export interface CvClient {
   clientType: "esp32cam" | "jetson_nano";
   ip: string;
@@ -120,84 +120,70 @@ export interface CvClient {
   latest_frame?: Uint8Array; // 最新接收到的 JPEG 帧数据
 }
 
-// ESP32-CAM客户端
+// ESP32-CAM客户机
 export interface ESPCAMClient extends CvClient {
   clientType: "esp32cam";
 }
 
-// Jetson Nano客户端
+// Jetson Nano客户机
 export interface JetsonNanoClient extends CvClient {
   clientType: "jetson_nano";
 }
 
-// WebSocket message types
+// ==================== WebSocket 消息类型 ====================
 export interface WSMessage {
   type: string;
   timestamp?: number; // in seconds
   [key: string]: unknown;
 }
 
-export interface InTestingMessage extends WSMessage {
-  type: "in_testing";
-  all_troubles: Trouble[];
-  exist_troubles: Trouble[];
-  current_question_index: number;
-  total_questions: number;
+/* XXRequestMessage 表示客户机发送到服务器的消息 */
+export interface PingRequestMessage extends WSMessage {
+  type: "ping";
+}
+
+export interface RelayRainbowRequestMessage extends WSMessage {
+  type: "relay_rainbow";
+}
+
+export interface AckRelayRainbowRequestMessage extends WSMessage {
+  type: "ack_relay_rainbow";
+}
+
+// ==================== TroubleTest 排故测验相关 ====================
+
+export interface TroubleTestStartMessage extends WSMessage {
+  type: "trouble_test_start";
+  all_questions: Question[];
   start_time: number;
   duration_time: number | null;
 }
 
-export interface PingMessage extends WSMessage {
-  type: "ping";
-}
-
-export interface RelayRainbowMessage extends WSMessage {
-  type: "relay_rainbow";
-}
-
-export interface AckRelayRainbowMessage extends WSMessage {
-  type: "ack_relay_rainbow";
-}
-
-export interface AnswerMessage extends WSMessage {
-  type: "answer";
+export interface TroubleTestUpdateRequestMessage extends WSMessage {
+  type: "trouble_test_update";
   trouble_id: number;
 }
 
-export interface AnswerResultMessage extends WSMessage {
-  type: "answer_result";
-  result: boolean;
-  trouble: Trouble;
+// 服务器要求客户机结束测试
+export interface TroubleTestFinishMessage extends WSMessage {
+  type: "trouble_test_finish";
 }
 
-export interface QuestionNavigationMessage extends WSMessage {
-  type: "last_question" | "next_question";
-}
+// ==================== EvaluateFunctionBoard 功能评估相关 ====================
 
-export interface FinishMessage extends WSMessage {
-  type: "finish";
-}
-
-export interface FinishResultMessage extends WSMessage {
-  type: "finish_result";
-  finished_score: number;
-}
-
-// ==================== CV机器视觉WebSocket消息类型 ====================
-
-// ESP32客户端更新装接评估-功能部分的Board状态
+// ESP32 客户机更新装接评估-功能部分的 Board 状态
 export interface EvaluateFunctionBoardUpdateMessage extends WSMessage {
   type: "evaluate_function_board_update";
   description: string;
   function_steps: EvaluateFuncationStep[];
 }
 
-// ESP32客户端请求装接评估
+// ESP32 客户机请求装接评估
 export interface EvaluateWiringYoloRequestMessage extends WSMessage {
   type: "evaluate_wiring_yolo_request";
 }
 
-// 服务器返回装接评估结果给ESP32客户端
+// 服务器返回装接评估结果给ESP32客户机
 export interface EvaluateWiringYoloResponseMessage extends WSMessage {
   type: "evaluate_wiring_yolo_response";
   result: {
@@ -209,18 +195,20 @@ export interface EvaluateWiringYoloResponseMessage extends WSMessage {
   };
 }
 
-// ESP32客户端请求人脸签到
+// ==================== FaceSignin 人脸签到相关 ====================
+
+// ESP32 客户机请求人脸签到
 export interface FaceSigninRequestMessage extends WSMessage {
   type: "face_signin_request";
 }
 
-// 服务器返回人脸签到结果给ESP32客户端
+// 服务器返回人脸签到结果给ESP32客户机
 export interface FaceSigninResponseMessage extends WSMessage {
   type: "face_signin_response";
   who: string;
 }
 
-// Predefined troubles (hardcoded)
+// 写死的类型
 // 默认 troubles，当执行目录下没有 troubles.json 时使用
 const DEFAULT_TROUBLES: Trouble[] = [
   { id: 1, description: "101 和 102 断路", from_wire: 101, to_wire: 102 },
@@ -272,19 +260,19 @@ export const TROUBLES: Trouble[] = (() => {
   return DEFAULT_TROUBLES;
 })();
 
-// ==================== CV客户端映射配置 ====================
+// ==================== CV 机器视觉客户机映射配置 ====================
 
-// CV客户端映射表配置项
+// CV客户机映射表配置项
 export interface CvClientMapConfig {
-  clientIp: string; // 普通客户端IP
-  cvClientIp: string; // CV客户端IP
-  cvClientType: "esp32cam" | "jetson_nano"; // CV客户端类型
+  clientIp: string; // 普通客户机IP
+  cvClientIp: string; // CV客户机IP
+  cvClientType: "esp32cam" | "jetson_nano"; // CV客户机类型
 }
 
-// 默认CV客户端映射表（当cvClientMap.json不存在时使用）
+// 默认CV客户机映射表（当cvClientMap.json不存在时使用）
 const DEFAULT_CV_CLIENT_MAP: CvClientMapConfig[] = [];
 
-// 从cvClientMap.json加载CV客户端映射表
+// 从cvClientMap.json加载CV客户机映射表
 export const CV_CLIENT_MAP: CvClientMapConfig[] = (() => {
   const tryLoad = (): CvClientMapConfig[] | null => {
     try {

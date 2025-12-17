@@ -3,6 +3,7 @@ import {
   CvClient,
   CV_CLIENT_MAP,
   getSecondTimestamp,
+  WSMessage,
 } from "./types.ts";
 
 /**
@@ -16,12 +17,11 @@ export class ClientManager {
   // relay_rainbow 响应回调 (clientId -> resolve function)
   public relayRainbowCallbacks: Map<string, (latencyMs: number) => void> = new Map();
   
-  private heartbeatInterval?: number;
   private readonly HEARTBEAT_TIMEOUT = 10; // 心跳超时时间（秒）
   private readonly HEARTBEAT_CHECK_INTERVAL = 2000; // 心跳检查间隔（毫秒）
 
   constructor() {
-    this.heartbeatInterval = setInterval(() => {
+    setInterval(() => {
       const now = getSecondTimestamp();
       
       for (const [_id, client] of Object.entries(this.clients)) {
@@ -101,29 +101,19 @@ export class ClientManager {
   }
 
   /**
-   * 注册WebSocket消息处理器，返回一个注销函数
+   * 注册WebSocket消息处理器
    */
-  addOnMessageHandler(handler: (client: Client, socket: WebSocket, message: Record<string, unknown>) => void): () => void {
-    if (!handler) return () => {};
-    this.onMessageHandlers = this.onMessageHandlers || [];
-    this.onMessageHandlers.push(handler);
-    return () => {
-      const idx = this.onMessageHandlers.indexOf(handler);
-      if (idx !== -1) this.onMessageHandlers.splice(idx, 1);
-    };
+  addOnMessageHandler(handler: (client: Client, socket: WebSocket, message: WSMessage) => void): () => void {
+    // TODO
   }
 
   /**
-   * 由 socket.onmessage 调用，处理并分发消息给注册的处理器
+   * 仅在server.ts由socket.onmessage调用，处理并分发消息给注册的处理器
    */
-  processWebSocketMessage(client: Client, socket: WebSocket, message: Record<string, unknown>): void {
+  processWebSocketMessageIn(client: Client, socket: WebSocket, message: WSMessage): void {
     if (!this.onMessageHandlers || this.onMessageHandlers.length === 0) return;
-    for (const h of this.onMessageHandlers.slice()) {
-      try {
-        h(client, socket, message);
-      } catch (err) {
-        console.error('[ClientManager] message handler error:', err);
-      }
+    for (const handler of this.onMessageHandlers) {
+      // TODO
     }
   }
 
@@ -162,31 +152,6 @@ export class ClientManager {
   }
 
   /**
-   * 清理所有客户端连接
-   * 用于"忘记所有客户端"功能
-   */
-  clearAllClients(): number {
-    const clientsToClear = Object.values(this.clients);
-
-    for (const client of clientsToClear) {
-      if (client.socket && client.socket.readyState === WebSocket.OPEN) {
-        try {
-          client.socket.close(1000, "Cleared by administrator");
-        } catch (error) {
-          console.error(
-            `[ClientManager] Failed to close socket for client ${client.id}:`,
-            error,
-          );
-        }
-      }
-    }
-
-    const clearedCount = clientsToClear.length;
-    this.clients = {};
-    return clearedCount;
-  }
-
-  /**
    * 根据 CV 客户端 IP 查找关联的普通客户端
    * 当只有一个客户端且没有绑定 CV 时，自动绑定
    */
@@ -215,15 +180,6 @@ export class ClientManager {
     }
 
     return null;
-  }
-
-  /**
-   * 清理资源
-   */
-  cleanup(): void {
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval);
-    }
   }
 }
 

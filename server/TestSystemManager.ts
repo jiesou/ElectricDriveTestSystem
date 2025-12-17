@@ -310,12 +310,6 @@ export class TestSystemManager {
     this.tests.push(test);
     return test;
   }
-
-  cleanup() {
-    if (this.broadcastInterval) {
-      clearInterval(this.broadcastInterval);
-    }
-  }
 }
 
 
