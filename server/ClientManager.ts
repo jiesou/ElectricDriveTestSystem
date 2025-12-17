@@ -101,18 +101,30 @@ export class ClientManager {
   }
 
   /**
-   * 处理ping消息，更新lastPing时间戳
+   * 注册WebSocket消息处理器，返回一个注销函数
    */
-  handlePing(client: Client, socket: WebSocket): void {
-    client.lastPing = getSecondTimestamp();
-    client.online = true;
-    client.socket = socket; // 更新socket引用
-    
-    // 发送pong响应
-    this.safeSend(socket, {
-      type: "pong",
-      timestamp: getSecondTimestamp(),
-    });
+  addOnMessageHandler(handler: (client: Client, socket: WebSocket, message: Record<string, unknown>) => void): () => void {
+    if (!handler) return () => {};
+    this.onMessageHandlers = this.onMessageHandlers || [];
+    this.onMessageHandlers.push(handler);
+    return () => {
+      const idx = this.onMessageHandlers.indexOf(handler);
+      if (idx !== -1) this.onMessageHandlers.splice(idx, 1);
+    };
+  }
+
+  /**
+   * 由 socket.onmessage 调用，处理并分发消息给注册的处理器
+   */
+  processWebSocketMessage(client: Client, socket: WebSocket, message: Record<string, unknown>): void {
+    if (!this.onMessageHandlers || this.onMessageHandlers.length === 0) return;
+    for (const h of this.onMessageHandlers.slice()) {
+      try {
+        h(client, socket, message);
+      } catch (err) {
+        console.error('[ClientManager] message handler error:', err);
+      }
+    }
   }
 
   /**

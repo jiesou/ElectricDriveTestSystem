@@ -1,17 +1,19 @@
 import { Application, Router } from "@oak/oak";
 import {
-  Client,
-  getSecondTimestamp,
   AnswerResultMessage,
-  FinishResultMessage,
-  TROUBLES,
+  Client,
+  EvaluateBoard,
+  EvaluateFunctionBoardUpdateMessage,
   EvaluateWiringSession,
   FaceSigninSession,
-  EvaluateFunctionBoardUpdateMessage,
-  EvaluateBoard,
+  FinishResultMessage,
+  getSecondTimestamp,
+  TROUBLES,
 } from "./types.ts";
 import { manager } from "./TestSystemManager.ts";
 import { clientManager } from "./ClientManager.ts";
+import "./tests.ts"; // 注册排故测验消息处理器
+import "./evaluate.ts"; // 注册装接评估消息处理器
 import { generatorRouter } from "./routes/generator.ts";
 import { troublesRouter } from "./routes/troubles.ts";
 import { questionsRouter } from "./routes/questions.ts";
@@ -68,20 +70,25 @@ wsRouter.get("/ws", (ctx) => {
   const client = clientManager.connectClient(clientIp, socket);
 
   socket.onmessage = (event) => {
-    try {
-      const message = JSON.parse(event.data as string);
-      console.log("Received message:", message);
+    const message = JSON.parse(event.data as string);
+    console.log("Received message:", message);
 
-      // 处理应用层ping消息
-      if (message && typeof message.type === "string" && message.type === "ping") {
-        clientManager.handlePing(client, socket);
-        return;
-      }
-
-      handleWebSocketMessage(client, socket, message);
-    } catch (error) {
-      console.error(`Error parsing message from ${client.id}:`, error);
+    // 处理应用层 ping 消息
+    if (
+      message && typeof message.type === "string" && message.type === "ping"
+    ) {
+      client.lastPing = getSecondTimestamp();
+      client.online = true;
+      client.socket = socket;
+      clientManager.safeSend(socket, {
+        type: "pong",
+        timestamp: getSecondTimestamp(),
+      });
+      return;
     }
+
+    // 仅在 socket.onmessage 中调用 processWebSocketMessage
+    clientManager.processWebSocketMessage(client, socket, message);
   };
 
   socket.onerror = (error) => {
@@ -160,177 +167,9 @@ app.use(async (ctx, next) => {
   }
 });
 
-/**
- * 处理WebSocket消息
- */
-function handleWebSocketMessage(
-  client: Client,
-  socket: WebSocket,
-  message: Record<string, unknown>,
-) {
-  console.log(`Message from ${client.id}:`, message);
-
-  switch (message.type) {
-    case "answer": {
-      // 处理答题
-      const troubleId = message.trouble_id as number;
-      if (!client.testSession) {
-        clientManager.safeSend(socket, {
-          type: "error",
-          message: "No active test session",
-          timestamp: getSecondTimestamp(),
-        });
-        return;
-      }
-      const trouble = TROUBLES.find((t) => t.id === troubleId);
-      if (!trouble) {
-        clientManager.safeSend(socket, {
-          type: "error",
-          message: "Trouble not found",
-          timestamp: getSecondTimestamp(),
-        });
-        return;
-      }
-      const isCorrect = manager.handleAnswer(client, trouble);
-      clientManager.safeSend(socket, {
-        type: "answer_result",
-        timestamp: getSecondTimestamp(),
-        result: isCorrect,
-        trouble,
-      } as AnswerResultMessage);
-      manager.broadcastTroubleStatus();
-      break;
-    }
-
-    case "next_question":
-    case "last_question": {
-      // 处理题目导航
-      const direction = message.type === "next_question" ? "next" : "prev";
-      manager.navigateQuestion(client, direction);
-      manager.broadcastTroubleStatus();
-      break;
-    }
-
-    case "finish": {
-      // 排故测验 完成
-      const timestamp = typeof message.timestamp === "number"
-        ? message.timestamp
-        : undefined;
-
-      const finishedScore = manager.finishTest(client, timestamp);
-      clientManager.safeSend(socket, {
-        type: "finish_result",
-        finished_score: finishedScore,
-        timestamp: getSecondTimestamp(),
-      } as FinishResultMessage);
-      break;
-    }
-
-    case "evaluate_function_board_update": {
-      // 装接评估-功能部分 步骤更新
-      const msg = message as EvaluateFunctionBoardUpdateMessage;
-      
-      const board: EvaluateBoard = {
-        description: msg.description,
-        function_steps: msg.function_steps
-      };
-      
-      client.evaluateBoard = board;
-      
-      console.log(
-        `[WebSocket] Updated evaluate board for client ${client.id}: ${board.description}, steps: ${board.function_steps.length}`,
-      );
-      
-      break;
-    }
-
-    case "evaluate_wiring_yolo_request": {
-      // 处理装接评估请求
-      if (!client.cvClient) {
-        clientManager.safeSend(socket, {
-          type: "error",
-          message: "No CV client configured",
-          timestamp: getSecondTimestamp(),
-        });
-        return;
-      }
-
-      // 创建装接评估会话
-      const session: EvaluateWiringSession = {
-        type: "evaluate_wiring",
-        startTime: getSecondTimestamp(),
-        shots: [],
-      };
-      client.cvClient.session = session;
-
-      console.log(
-        `[WebSocket] Started evaluate_wiring session for client ${client.id}`,
-      );
-
-      // 通知CV客户端开始拍照/推理
-      // 实际的CV客户端交互通过HTTP POST到 /api/cv/upload_wiring 实现
-      break;
-    }
-
-    case "face_signin_request": {
-      // 处理人脸签到请求
-      if (!client.cvClient) {
-        clientManager.safeSend(socket, {
-          type: "error",
-          message: "No CV client configured",
-          timestamp: getSecondTimestamp(),
-        });
-        return;
-      }
-
-      // 创建人脸签到会话
-      const session: FaceSigninSession = {
-        type: "face_signin",
-        startTime: getSecondTimestamp(),
-      };
-      client.cvClient.session = session;
-
-      console.log(
-        `[WebSocket] Started face_signin session for client ${client.id}`,
-      );
-
-      // 通知CV客户端开始人脸识别
-      // 实际的CV客户端交互通过HTTP POST到 /api/cv/upload_face 实现
-      break;
-    }
-
-    case "ack_relay_rainbow": {
-      // 处理 relay_rainbow 的 ack 响应，计算延迟
-      if (!client.relayRainbowSentMs) {
-        console.warn(
-          `[WebSocket] Received ack_relay_rainbow from ${client.id} but no sent timestamp recorded`,
-        );
-        return;
-      }
-
-      const nowMs = Date.now();
-      const latencyMs = nowMs - client.relayRainbowSentMs;
-      
-      console.log(
-        `[WebSocket] Relay rainbow latency for client ${client.id}: ${latencyMs}ms`,
-      );
-
-      // 清除发送时间戳（表示已响应）
-      delete client.relayRainbowSentMs;
-
-      // 调用回调函数（如果存在）
-      const callback = clientManager.relayRainbowCallbacks.get(client.id);
-      if (callback) {
-        callback(latencyMs);
-        clientManager.relayRainbowCallbacks.delete(client.id);
-      }
-      break;
-    }
-
-    default:
-      console.warn(`Unknown message type: ${message.type}`);
-  }
-}
+// WebSocket 消息处理逻辑已拆分到独立模块（server/tests.ts 和 server/evaluate.ts），
+// 这些模块在 server 启动时通过 clientManager.addOnMessageHandler 注册各自的处理器。
+// 保留这里作为占位注释，避免删除过多代码。
 
 // 处理应用错误
 app.addEventListener("error", (evt) => {

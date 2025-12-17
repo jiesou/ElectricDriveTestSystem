@@ -110,8 +110,6 @@ export class TestSystemManager {
     const session: TestSession = {
       id: `${clientId}_${Date.now()}`,
       test,
-      currentQuestionIndex: 0,
-      solvedTroubles: [],
       logs: [
         {
           timestamp: getSecondTimestamp(),
@@ -123,47 +121,6 @@ export class TestSystemManager {
 
     client.testSession = session;
     return true;
-  }
-
-  handleAnswer(client: Client, trouble: Trouble): boolean {
-    if (!client?.testSession) return false;
-
-    const session = client.testSession;
-    const currentQuestion =
-      session.test.questions[session.currentQuestionIndex];
-
-    const haveBeenSolved = session.solvedTroubles.find(([index, troubles]) =>
-      index === session.currentQuestionIndex &&
-      troubles.some((t) => t.id === trouble.id)
-    );
-    // 检查 session 对应 question 确实包含该 trouble，且未被解决过
-    const isCorrect = !haveBeenSolved &&
-      currentQuestion.troubles.some((t: Trouble) => t.id === trouble.id);
-
-    if (isCorrect) {
-      // 加入到 currentQuestion 的 solvedTroubles
-      const existingEntry = session.solvedTroubles.find((
-        [index]: [number, Trouble[]],
-      ) => index === session.currentQuestionIndex);
-      if (existingEntry) {
-        existingEntry[1].push(trouble);
-      } else {
-        session.solvedTroubles.push([session.currentQuestionIndex, [trouble]]);
-      }
-    }
-
-    // Log the answer
-    session.logs.push({
-      timestamp: getSecondTimestamp(),
-      action: "answer",
-      details: {
-        question: currentQuestion,
-        trouble,
-        result: isCorrect,
-      },
-    });
-
-    return isCorrect;
   }
 
   get questions(): Question[] {
