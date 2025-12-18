@@ -70,12 +70,13 @@ testsRouter.post("/test-sessions", async (ctx) => {
       durationTime || null,
     );
 
-    const results: { clientId: string; success: boolean }[] = [];
+    const results: { clientId: string }[] = [];
 
     // 为每个客户端创建测验会话
     for (const clientId of clientIds) {
-      const success = troubleTest.createTestSession(clientId, test);
-      results.push({ clientId, success });
+      const client = clientManager.clients[clientId];
+      troubleTest.createTestSession(client, test);
+      results.push({ clientId });
     }
 
     ctx.response.body = {
@@ -84,7 +85,7 @@ testsRouter.post("/test-sessions", async (ctx) => {
     };
   } catch (_error) {
     ctx.response.status = 400;
-    ctx.response.body = { success: false, error: "Invalid request body" };
+    ctx.response.body = { success: false, error: "Invalid test-sessions create request body" };
   }
 });
 

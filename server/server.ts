@@ -65,21 +65,6 @@ wsRouter.get("/ws", (ctx) => {
   socket.onmessage = (event) => {
     const message: WSMessage = JSON.parse(event.data as string);
     console.log("Received message:", message);
-
-    // 处理应用层 ping 消息
-    if (
-      message && typeof message.type === "string" && message.type === "ping"
-    ) {
-      client.lastPing = getSecondTimestamp();
-      client.online = true;
-      client.socket = socket;
-      clientManager.safeSend(socket, {
-        type: "pong",
-        timestamp: getSecondTimestamp(),
-      });
-      return;
-    }
-
     // 仅在 socket.onmessage 中调用 processWebSocketMessageIn
     clientManager.processWebSocketMessageIn(client, socket, message);
   };

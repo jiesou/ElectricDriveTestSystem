@@ -5,25 +5,11 @@ import {
   TestSession,
   Trouble,
   TROUBLES,
-  TroubleTestUpdateRequestMessage
+  TroubleTestPushMessage,
+  TroubleTestUpdateRequestMessage,
 } from "./types.ts";
 import { getSecondTimestamp } from "./types.ts";
 import { clientManager } from "./ClientManager.ts";
-
-clientManager.addWSMessageHandler((client, _socket, message) => {
-  switch (message.type) {
-    case "trouble_tests_update": {
-      // 客户端上传整个 testSession 或更新
-      // 直接覆盖 client.testSession（客户端为胖客户端，服务端只保存状态）
-      const session = (message as TroubleTestUpdateRequestMessage).testSession;
-      if (session) {
-        client.testSession = session;
-        console.log(`[tests] Updated testSession for client ${client.id}`);
-      }
-      break;
-    }
-  }
-});
 
 // TroubleTest 负责排故测验的逻辑管理
 export class TroubleTest {
@@ -59,13 +45,24 @@ export class TroubleTest {
     );
   }
 
-  // 创建测验会话
-  createTestSession(clientId: string, test: Test): boolean {
-    const client = clientManager.clients[clientId];
-    if (!client) return false;
+  pushTestToClient(client: Client, test: Test) {
+    const troubleTestPushMessage: TroubleTestPushMessage = {
+      type: "trouble_test_push",
+      all_questions: test.questions,
+      start_time: test.startTime,
+      duration_time: test.durationTime,
+    };
 
+    clientManager.sendWSMessage(
+      client.socket,
+      troubleTestPushMessage,
+    );
+  }
+
+  // 创建测验会话
+  createTestSession(client: Client, test: Test) {
     const session: TestSession = {
-      id: `${clientId}_${Date.now()}`,
+      id: `${client.id}_${Date.now()}`,
       test,
       logs: [
         {
@@ -75,8 +72,9 @@ export class TroubleTest {
         },
       ],
     };
-
     client.testSession = session;
+
+    this.pushTestToClient(client, test);
     return true;
   }
 
@@ -140,3 +138,36 @@ export class TroubleTest {
 
 // 全局单例
 export const troubleTest = new TroubleTest();
+
+
+clientManager.addWSMessageHandler((client, _socket, message) => {
+  switch (message.type) {
+    case "trouble_test_update_request": {
+      // 客户端上传或更新整个 test 的相关信息（主要就是 all_questions）
+      const troubleTestUpdateRequestMessage = message as TroubleTestUpdateRequestMessage;
+      if (client.testSession) {
+        // 直接覆盖服务器上的 client.testSession（客户端为胖客户端，服务端只保存状态）
+        client.testSession.test.questions = troubleTestUpdateRequestMessage.all_questions;
+      } else {
+        // 如果没有 testSession，则当场创建一个新的（虽然正常情况下不应该发生，但总之这相当于允许客户机主动发起测验）
+        client.testSession = {
+          id: `${client.id}_${Date.now()}`,
+          test: {
+            id: Date.now(),
+            questions: troubleTestUpdateRequestMessage.all_questions,
+            startTime: troubleTestUpdateRequestMessage.start_time,
+            durationTime: troubleTestUpdateRequestMessage.duration_time,
+          },
+          logs: [
+            {
+              timestamp: getSecondTimestamp(),
+              action: "start",
+              details: { question: troubleTestUpdateRequestMessage.all_questions[0]}
+            }
+          ]
+        };
+      }
+      break;
+    }
+  }
+});

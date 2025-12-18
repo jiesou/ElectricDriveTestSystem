@@ -5,6 +5,7 @@ import {
   getSecondTimestamp,
   WSMessage,
   WSMessageHandler,
+  PongMessage,
 } from "./types.ts";
 
 /**
@@ -69,6 +70,13 @@ export class ClientManager {
       existingClient.lastPing = timestamp;
 
       console.log(`[ClientManager] Client ${existingClient.id} (${ip}) reconnected`);
+
+      if (existingClient.testSession)
+        // 恢复测验状态
+        import("./TroubleTest.ts").then(({ troubleTest }) => {
+          troubleTest.pushTestToClient(existingClient, existingClient.testSession!.test);
+        });
+
       return existingClient;
     } else {
       // 创建新客户端
@@ -114,6 +122,20 @@ export class ClientManager {
    * 仅在server.ts由socket.onmessage调用，处理并分发消息给注册的处理器
    */
   processWebSocketMessageIn(client: Client, socket: WebSocket, message: WSMessage): void {
+    // 处理应用层 ping 消息
+    if (
+      message && typeof message.type === "string" && message.type === "ping"
+    ) {
+      client.lastPing = getSecondTimestamp();
+      client.online = true;
+      const pongMessage: PongMessage = {
+        type: "pong",
+        timestamp: getSecondTimestamp(),
+      };
+      clientManager.sendWSMessage(client.socket, pongMessage);
+      return;
+    }
+
     if (!this.wsMessageHandlers || this.wsMessageHandlers.length === 0) return;
     for (const handler of this.wsMessageHandlers) {
       handler(client, socket, message);
@@ -123,8 +145,8 @@ export class ClientManager {
   /**
    * 安全发送WebSocket消息
    */
-  safeSend(socket: WebSocket, message: Record<string, unknown>): void {
-    if (socket.readyState === WebSocket.OPEN) {
+  sendWSMessage(socket: WebSocket | undefined, message: WSMessage): void {
+    if (socket && socket.readyState === WebSocket.OPEN) {
       try {
         socket.send(JSON.stringify(message));
       } catch (error) {

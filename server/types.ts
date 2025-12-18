@@ -14,47 +14,37 @@ export interface Trouble {
 
 export interface Question {
   id: number;
-  troubles: Trouble[]; // Direct trouble objects instead of IDs
+  troubles: Trouble[]; // 直接包含 Trouble 对象数组，而不是 ID
 }
 
+// 排故测验
 export interface Test {
   id: number;
-  questions: Question[];
-  startTime: number; // timestamp in seconds
-  durationTime: number | null; // duration in seconds, null means no time limit
+  questions: Question[]; // 题目数组
+  startTime: number; // 开始时间戳（秒）
+  durationTime: number | null; // 持续时间（秒），null 表示不限时
 }
 
+// 排故测验会话
 export interface TestSession {
   id: string;
-  test: Test; // Reference to the scheduled test
-  finishTime?: number; // timestamp when session finished (is null if not finished)
-  finishedScore?: number; // final score after finishing the test (out of 100, is null if not finished)
-  logs: TestLog[]; // activity logs
+  test: Test; // 关联的测验
+  finishTime?: number; // 完成时间戳（秒），未完成为 null
+  finishedScore?: number; // 完成后的最终得分（满分 100，未完成为 null）
+  logs: TestLog[]; // 活动日志
 }
 
+// 排故测验日志
 export interface TestLog {
-  timestamp: number;
-  action: "start" | "answer" | "navigation" | "finish" | "connect" | "disconnect";
+  timestamp: number; // 时间戳（秒）
+  action: "start" | "answer" | "navigation" | "finish" | "connect" | "disconnect"; // 操作类型
   details: {
-    question?: Question; // For start, navigation, answer
-    trouble?: Trouble; // For answer
-    result?: boolean; // For answer
-    direction?: "next" | "prev"; // For navigation,
-    score?: number; // For finish
+    question?: Question; // 用于 start、navigation、answer
+    trouble?: Trouble; // 用于 answer
+    result?: boolean; // 用于 answer
+    direction?: "next" | "prev"; // 用于 navigation
+    score?: number; // 用于 finish
   };
-}
-
-export interface Client {
-  id: string;
-  name: string; // Default to client IP
-  ip: string;
-  online: boolean;
-  socket?: WebSocket; // Optional since offline clients don't have socket
-  lastPing?: number; // timestamp in seconds of last application-layer ping
-  testSession?: TestSession;
-  cvClient?: CvClient; // 关联的CV客户机
-  evaluateBoard?: EvaluateBoard; // 装接评估-功能部分的当前Board状态
-  relayRainbowSentMs?: number; // relay_rainbow 发送时间戳（毫秒），用于计算回环延迟
 }
 
 // ==================== EvaluateFunctionBoard 功能评估相关 ====================
@@ -115,6 +105,20 @@ export interface FaceSigninSession extends CvSession {
 
 // ==================== 客户机实例 ====================
 
+// 客户机实例
+export interface Client {
+  id: string;
+  name: string; // 默认为客户机 IP
+  ip: string;
+  online: boolean;
+  socket?: WebSocket; // 离线客户机没有 socket
+  lastPing?: number; // 应用层 ping 的最后时间戳（秒）
+  relayRainbowSentMs?: number; // relay_rainbow 发送时间戳（毫秒），用于计算回环延迟
+  testSession?: TestSession;
+  cvClient?: CvClient; // 关联的 CV 客户机
+  evaluateBoard?: EvaluateBoard; // 装接评估-功能部分的当前 Board 状态
+}
+
 // CV客户机基类接口
 export interface CvClient {
   clientType: "esp32cam" | "jetson_nano";
@@ -143,12 +147,16 @@ export interface WSMessage {
 // WebSocket 消息处理器类型
 export type WSMessageHandler = (client: Client, socket: WebSocket, message: WSMessage) => void;
 
-/* XXRequestMessage 表示客户机发送到服务器的消息 */
+/* XX RequestMessage 表示客户机发送到服务器的消息 */
 export interface PingRequestMessage extends WSMessage {
   type: "ping";
 }
 
-export interface RelayRainbowRequestMessage extends WSMessage {
+export interface PongMessage extends WSMessage {
+  type: "pong";
+}
+
+export interface RelayRainbowMessage extends WSMessage {
   type: "relay_rainbow";
 }
 
@@ -158,16 +166,22 @@ export interface AckRelayRainbowRequestMessage extends WSMessage {
 
 // ==================== TroubleTest 排故测验相关 ====================
 
-export interface TroubleTestStartMessage extends WSMessage {
-  type: "trouble_test_start";
+// 服务器通知客户机更新排故测验信息（用于开始测验，也可确保不丢失排故测验进度）
+export interface TroubleTestPushMessage extends WSMessage {
+  type: "trouble_test_push";
   all_questions: Question[];
   start_time: number;
   duration_time: number | null;
 }
 
+// 客户机请求更新服务器上的排故测验信息（胖客户端，逻辑在客户端）
 export interface TroubleTestUpdateRequestMessage extends WSMessage {
-  type: "trouble_test_update";
-  testSession: TestSession;
+  type: "trouble_test_update_request";
+  all_questions: Question[];
+  start_time: number;
+  duration_time: number | null;
+  finish_time?: number; // 完成时间戳（秒），未完成为 null
+  finished_score?: number; // 完成后的最终得分（满分 100，未完成为 null）
 }
 
 // 服务器要求客户机结束测试

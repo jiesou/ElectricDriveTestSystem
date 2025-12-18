@@ -386,7 +386,7 @@ cvRouter.post("/confirm_wiring", (ctx) => {
           timestamp: getSecondTimestamp(),
           result: session.finalResult,
         };
-        clientManager.safeSend(client.socket, responseMsg);
+        clientManager.sendWSMessage(client.socket, responseMsg);
       }
     }
 
@@ -461,7 +461,7 @@ cvRouter.post("/upload_face", async (ctx) => {
         timestamp: getSecondTimestamp(),
         who: session.finalResult.who,
       };
-      clientManager.safeSend(client.socket, responseMsg);
+      clientManager.sendWSMessage(client.socket, responseMsg);
     }
 
     ctx.response.body = {
