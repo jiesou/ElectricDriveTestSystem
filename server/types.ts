@@ -1,9 +1,10 @@
-// Utility function to get integer second timestamp
+// Utility function
 export function getSecondTimestamp(): number {
   return Math.floor(Date.now() / 1000);
 }
 
-// Types and interfaces
+
+// ==================== TroubleTest 排故测验相关 ====================
 export interface Trouble {
   id: number;
   description: string;
@@ -56,7 +57,21 @@ export interface Client {
   relayRainbowSentMs?: number; // relay_rainbow 发送时间戳（毫秒），用于计算回环延迟
 }
 
-// ==================== CV机器视觉相关类型 ====================
+// ==================== EvaluateFunctionBoard 功能评估相关 ====================
+
+export interface EvaluateBoard {
+  description: string;
+  function_steps: EvaluateFuncationStep[];
+}
+
+export interface EvaluateFuncationStep {
+  description: string;
+  can_wait_for_ms: number;
+  waited_for_ms: number;
+
+  passed: boolean;
+  finished: boolean;
+};
 
 // CV会话基类接口
 export interface CvSession {
@@ -76,20 +91,6 @@ export interface WiringShot {
     exterminal_num: number; // 露端子数量
   };
 }
-
-export interface EvaluateBoard {
-  description: string;
-  function_steps: EvaluateFuncationStep[];
-}
-
-export interface EvaluateFuncationStep {
-  description: string;
-  can_wait_for_ms: number;
-  waited_for_ms: number;
-
-  passed: boolean;
-  finished: boolean;
-};
 
 // 装接评估会话
 export interface EvaluateWiringSession extends CvSession {
@@ -111,6 +112,8 @@ export interface FaceSigninSession extends CvSession {
     who: string; // 识别到的人员名称
   };
 }
+
+// ==================== 客户机实例 ====================
 
 // CV客户机基类接口
 export interface CvClient {
@@ -164,7 +167,7 @@ export interface TroubleTestStartMessage extends WSMessage {
 
 export interface TroubleTestUpdateRequestMessage extends WSMessage {
   type: "trouble_test_update";
-  trouble_id: number;
+  testSession: TestSession;
 }
 
 // 服务器要求客户机结束测试

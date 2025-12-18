@@ -1,5 +1,5 @@
 import { Router } from "@oak/oak";
-import { manager } from "../tests.ts";
+import { troubleTest } from "../TroubleTest.ts";
 
 /**
  * 故障管理路由
@@ -10,6 +10,6 @@ export const troublesRouter = new Router({ prefix: "/troubles" });
 troublesRouter.get("/", (ctx) => {
   ctx.response.body = {
     success: true,
-    data: manager.getTroubles(),
+    data: troubleTest.getTroubles(),
   };
 });

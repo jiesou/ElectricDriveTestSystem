@@ -1,5 +1,5 @@
 import { Router } from "@oak/oak";
-import { manager } from "../tests.ts";
+import { troubleTest } from "../TroubleTest.ts";
 import { clientManager } from "../ClientManager.ts";
 import { getSecondTimestamp } from "../types.ts";
 
@@ -12,7 +12,7 @@ export const testsRouter = new Router( { prefix: "/tests" } );
 testsRouter.get("/", (ctx) => {
   ctx.response.body = {
     success: true,
-    data: manager.tests,
+    data: troubleTest.tests,
   };
 });
 
@@ -20,7 +20,7 @@ testsRouter.get("/", (ctx) => {
 testsRouter.post("/finish-all", (ctx) => {
   const finishTime = getSecondTimestamp();
   for (const client of Object.values(clientManager.clients)) {
-    manager.finishTest(client, finishTime);
+    troubleTest.finishTest(client, finishTime);
   }
 
   ctx.response.body = { success: true };
@@ -31,7 +31,7 @@ testsRouter.post("/clear-all", (ctx) => {
   for (const client of Object.values(clientManager.clients)) {
     client.testSession = undefined;
   }
-  manager.tests = [];
+  troubleTest.tests = [];
 
   ctx.response.body = { success: true };
 });
@@ -51,7 +51,7 @@ testsRouter.post("/test-sessions", async (ctx) => {
       return;
     }
 
-    const allQuestions = manager.questions;
+    const allQuestions = troubleTest.questions;
     // 查找所含的题目，同时确保保持输入的顺序
     const selectedQuestions = questionIds
       .map((id) => allQuestions.find((q) => q.id === id))
@@ -64,7 +64,7 @@ testsRouter.post("/test-sessions", async (ctx) => {
     }
 
     // 创建测验
-    const test = manager.createTest(
+    const test = troubleTest.createTest(
       selectedQuestions,
       startTime || getSecondTimestamp(),
       durationTime || null,
@@ -74,7 +74,7 @@ testsRouter.post("/test-sessions", async (ctx) => {
 
     // 为每个客户端创建测验会话
     for (const clientId of clientIds) {
-      const success = manager.createTestSession(clientId, test);
+      const success = troubleTest.createTestSession(clientId, test);
       results.push({ clientId, success });
     }
 

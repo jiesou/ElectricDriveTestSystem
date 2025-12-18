@@ -1,5 +1,5 @@
 import { Router } from "@oak/oak";
-import { manager } from "../tests.ts";
+import { troubleTest } from "../TroubleTest.ts";
 
 /**
  * 题目管理路由
@@ -10,7 +10,7 @@ export const questionsRouter = new Router({ prefix: "/questions" });
 questionsRouter.get("/", (ctx) => {
   ctx.response.body = {
     success: true,
-    data: manager.questions,
+    data: troubleTest.questions,
   };
 });
 
@@ -26,7 +26,7 @@ questionsRouter.post("/", async (ctx) => {
       return;
     }
 
-    const newQuestion = manager.addQuestion({ troubles });
+    const newQuestion = troubleTest.addQuestion({ troubles });
     ctx.response.body = {
       success: true,
       data: newQuestion,
@@ -42,7 +42,7 @@ questionsRouter.put("/:id", async (ctx) => {
   try {
     const id = parseInt(ctx.params.id!);
     const body = await ctx.request.body.json();
-    const success = manager.updateQuestion(id, body);
+    const success = troubleTest.updateQuestion(id, body);
 
     if (success) {
       ctx.response.body = { success: true };
@@ -59,7 +59,7 @@ questionsRouter.put("/:id", async (ctx) => {
 // 删除题目
 questionsRouter.delete("/:id", (ctx) => {
   const id = parseInt(ctx.params.id!);
-  const success = manager.deleteQuestion(id);
+  const success = troubleTest.deleteQuestion(id);
 
   if (success) {
     ctx.response.body = { success: true };

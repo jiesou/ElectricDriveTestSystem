@@ -1,0 +1,65 @@
+import { clientManager } from "./ClientManager.ts";
+import {
+  EvaluateBoard,
+  EvaluateFunctionBoardUpdateMessage,
+  EvaluateWiringSession,
+  FaceSigninSession,
+  getSecondTimestamp,
+} from "./types.ts";
+
+clientManager.addWSMessageHandler((client, socket, message) => {
+  switch (message.type) {
+    case "evaluate_function_board_update": {
+      const msg = message as EvaluateFunctionBoardUpdateMessage;
+      const board: EvaluateBoard = {
+        description: msg.description,
+        function_steps: msg.function_steps,
+      };
+      client.evaluateBoard = board;
+      console.log(
+        `[evaluate] Updated evaluate board for client ${client.id}: ${board.description}`,
+      );
+      break;
+    }
+    case "evaluate_wiring_yolo_request": {
+      if (!client.cvClient) {
+        clientManager.safeSend(socket, {
+          type: "error",
+          message: "No CV client configured",
+          timestamp: getSecondTimestamp(),
+        });
+        return;
+      }
+      const session: EvaluateWiringSession = {
+        type: "evaluate_wiring",
+        startTime: getSecondTimestamp(),
+        shots: [],
+      };
+      client.cvClient.session = session;
+      console.log(
+        `[evaluate] Started evaluate_wiring session for client ${client.id}`,
+      );
+      break;
+    }
+
+    case "face_signin_request": {
+      if (!client.cvClient) {
+        clientManager.safeSend(socket, {
+          type: "error",
+          message: "No CV client configured",
+          timestamp: getSecondTimestamp(),
+        });
+        return;
+      }
+      const session: FaceSigninSession = {
+        type: "face_signin",
+        startTime: getSecondTimestamp(),
+      };
+      client.cvClient.session = session;
+      console.log(
+        `[evaluate] Started face_signin session for client ${client.id}`,
+      );
+      break;
+    }
+  }
+});

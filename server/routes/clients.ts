@@ -1,5 +1,4 @@
 import { Router } from "@oak/oak";
-import { manager } from "../tests.ts";
 import { clientManager } from "../ClientManager.ts";
 
 /**
