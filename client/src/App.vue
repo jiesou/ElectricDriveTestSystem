@@ -140,8 +140,6 @@ onUnmounted(() => {
             checked-children="科技"
             un-checked-children="效率"
           />
-            un-checked-children="效率"
-          />
         </div>
       </Header>
 
