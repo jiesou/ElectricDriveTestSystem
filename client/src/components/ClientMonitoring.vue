@@ -200,13 +200,9 @@ onUnmounted(() => {
           <div v-if="client.testSession">
             <div style="margin-bottom: 16px;">
               <p><strong>开始时间:</strong> {{ formatTime(client.testSession.test.startTime) }}</p>
-              <p><strong>连接状态:</strong>
-                <Tag style="margin-left: 4px;" :color="client.online ? 'green' : 'red'">
-                  {{ client.online ? '在线' : '离线' }}
-                </Tag>
-              </p>
-              <p><strong>当前进度:</strong> 第 {{ client.testSession.currentQuestionIndex + 1 }}/{{
-                client.testSession.test.questions.length }} 题</p>
+              <p><strong>已提交:</strong> {{
+                client.testSession.test.questions.reduce((acc, q) => acc + q.troubles.filter(t => t.is_submitted).length, 0)
+              }} 个</p>
               <div v-if="client.testSession.logs && client.testSession.logs.length > 0">
                 <strong>测验日志</strong>
                 <Switch v-model:checked="showConnectionEvents" checked-children="显示连接变化" un-checked-children="隐藏连接变化"

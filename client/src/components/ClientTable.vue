@@ -173,7 +173,7 @@ onUnmounted(() => {
         <Tag v-else-if="record.testSession" color="blue" size="small">进行中</Tag>
         <Tag v-else color="green" size="small">可用</Tag>
         <div v-if="record.testSession" style="margin-top: 4px; font-size: 12px; color: #666;">
-          第 {{ record.testSession.currentQuestionIndex + 1 }}/{{ record.testSession.test.questions.length }} 题
+          已提交: {{ record.testSession.test.questions.reduce((acc, q) => acc + q.troubles.filter(t => t.is_submitted).length, 0) }} 个
         </div>
       </template>
     </template>

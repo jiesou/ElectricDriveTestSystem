@@ -11,6 +11,93 @@ import {
 import { getSecondTimestamp } from "./types.ts";
 import { clientManager } from "./ClientManager.ts";
 
+clientManager.addWSMessageHandler((client, _socket, message) => {
+  switch (message.type) {
+    case "trouble_test_update_request": {
+      // 客户端上传或更新整个 test 的相关信息（主要就是 all_questions）
+      const msg = message as TroubleTestUpdateRequestMessage;
+      if (client.testSession) {
+        /* 核心：差分计算实现 TestLog 记录 */
+        const oldQuestions = client.testSession.test.questions;
+        const newQuestions = msg.all_questions;
+
+        newQuestions.forEach((newQ, qIdx) => {
+          const oldQ = oldQuestions[qIdx];
+          if (!oldQ) return;
+
+          newQ.troubles.forEach((newT) => {
+            // 查找旧数据中对应的故障
+            const oldT = oldQ.troubles.find((t) => t.id === newT.id);
+
+            // 如果旧数据中未提交，而新数据中已提交，则记录日志
+            if (newT.is_submitted && (!oldT || !oldT.is_submitted)) {
+              client.testSession!.logs.push({
+                timestamp: getSecondTimestamp(),
+                action: "answer",
+                details: {
+                  question: newQ,
+                  trouble: newT,
+                  result: true,
+                },
+              });
+              console.log(
+                `[TroubleTest] Client ${client.id} submitted trouble ${newT.id} in question ${newQ.id}`,
+              );
+            }
+          });
+        });
+
+        // 直接覆盖服务器上的 client.testSession（客户端为胖客户端，服务端只保存状态）
+        client.testSession.test.questions = msg.all_questions;
+        client.testSession.finishTime = msg.finish_time;
+        client.testSession.finishedScore = msg.finished_score;
+
+        // 如果有完成时间，且之前没记录过完成日志，说明这次交卷了
+        if (
+          msg.finish_time &&
+          !client.testSession.logs.some((l) => l.action === "finish")
+        ) {
+          client.testSession.logs.push({
+            timestamp: msg.finish_time,
+            action: "finish",
+            details: { score: msg.finished_score },
+          });
+        }
+      } else {
+        // 如果没有 testSession，则当场创建一个新的（虽然正常情况下不应该发生，但总之这相当于允许客户机主动发起测验）
+        client.testSession = {
+          id: `${client.id}_${Date.now()}`,
+          test: {
+            id: Date.now(),
+            questions: msg.all_questions,
+            startTime: msg.start_time,
+            durationTime: msg.duration_time,
+          },
+          finishTime: msg.finish_time,
+          finishedScore: msg.finished_score,
+          logs: [
+            {
+              timestamp: getSecondTimestamp(),
+              action: "start",
+              details: { question: msg.all_questions[0] },
+            },
+          ],
+        };
+
+        // 如果有完成时间，说明直接交卷了
+        if (msg.finish_time) {
+          client.testSession.logs.push({
+            timestamp: msg.finish_time,
+            action: "finish",
+            details: { score: msg.finished_score },
+          });
+        }
+      }
+      break;
+    }
+  }
+});
+
 // TroubleTest 负责排故测验的逻辑管理
 export class TroubleTest {
   public tests: Test[] = [];
@@ -138,36 +225,3 @@ export class TroubleTest {
 
 // 全局单例
 export const troubleTest = new TroubleTest();
-
-
-clientManager.addWSMessageHandler((client, _socket, message) => {
-  switch (message.type) {
-    case "trouble_test_update_request": {
-      // 客户端上传或更新整个 test 的相关信息（主要就是 all_questions）
-      const troubleTestUpdateRequestMessage = message as TroubleTestUpdateRequestMessage;
-      if (client.testSession) {
-        // 直接覆盖服务器上的 client.testSession（客户端为胖客户端，服务端只保存状态）
-        client.testSession.test.questions = troubleTestUpdateRequestMessage.all_questions;
-      } else {
-        // 如果没有 testSession，则当场创建一个新的（虽然正常情况下不应该发生，但总之这相当于允许客户机主动发起测验）
-        client.testSession = {
-          id: `${client.id}_${Date.now()}`,
-          test: {
-            id: Date.now(),
-            questions: troubleTestUpdateRequestMessage.all_questions,
-            startTime: troubleTestUpdateRequestMessage.start_time,
-            durationTime: troubleTestUpdateRequestMessage.duration_time,
-          },
-          logs: [
-            {
-              timestamp: getSecondTimestamp(),
-              action: "start",
-              details: { question: troubleTestUpdateRequestMessage.all_questions[0]}
-            }
-          ]
-        };
-      }
-      break;
-    }
-  }
-});

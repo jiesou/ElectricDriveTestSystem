@@ -12,10 +12,10 @@ export function generateMockData(): Client[] {
   
   // 前三个故障（从 troubles.json）
   const troubles: Trouble[] = [
-    { "id": 1, "description": "201 和 202 断路", "from_wire": 201, "to_wire": 202 },
-    { "id": 2, "description": "209 和 219 断路", "from_wire": 209, "to_wire": 219 },
-    { "id": 3, "description": "215 和 216 断路", "from_wire": 215, "to_wire": 216 },
-    { "id": 4, "description": "227 和 233 断路", "from_wire": 227, "to_wire": 233 }
+    { "id": 1, "description": "201 和 202 断路", "from_wire": 201, "to_wire": 202, is_submitted: true },
+    { "id": 2, "description": "209 和 219 断路", "from_wire": 209, "to_wire": 219, is_submitted: true },
+    { "id": 3, "description": "215 和 216 断路", "from_wire": 215, "to_wire": 216, is_submitted: true },
+    { "id": 4, "description": "227 和 233 断路", "from_wire": 227, "to_wire": 233, is_submitted: true }
   ]
   
   // 三道题，每题一个故障
@@ -56,15 +56,6 @@ export function generateMockData(): Client[] {
         result: true
       }
     },
-    // 下一题
-    {
-      timestamp: testStartTime + 125,
-      action: 'navigation',
-      details: {
-        question: questions[1],
-        direction: 'next'
-      }
-    },
     // 第二题回答正确
     {
       timestamp: testStartTime + 240, // 再过约2分钟
@@ -73,15 +64,6 @@ export function generateMockData(): Client[] {
         question: questions[1],
         trouble: troubles[1],
         result: true
-      }
-    },
-    // 下一题
-    {
-      timestamp: testStartTime + 245,
-      action: 'navigation',
-      details: {
-        question: questions[2],
-        direction: 'next'
       }
     },
     // 第三题回答错误 (126和136断路，这是故障4)
@@ -108,14 +90,8 @@ export function generateMockData(): Client[] {
   const testSession: TestSession = {
     id: 'test-session-45',
     test: test,
-    currentQuestionIndex: 2, // 在第三题（索引2）
     finishTime: now, // 当前时间结束
     finishedScore: 67, // 得分67分
-    solvedTroubles: [
-      [0, [troubles[0]!]], // 第一题解决了故障1
-      [1, [troubles[1]!]], // 第二题解决了故障2
-      [2, []]              // 第三题没有解决
-    ],
     logs: logs
   }
   

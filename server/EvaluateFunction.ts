@@ -23,7 +23,7 @@ clientManager.addWSMessageHandler((client, socket, message) => {
     }
     case "evaluate_wiring_yolo_request": {
       if (!client.cvClient) {
-        clientManager.safeSend(socket, {
+        clientManager.sendWSMessage(socket, {
           type: "error",
           message: "No CV client configured",
           timestamp: getSecondTimestamp(),
@@ -41,10 +41,9 @@ clientManager.addWSMessageHandler((client, socket, message) => {
       );
       break;
     }
-
     case "face_signin_request": {
       if (!client.cvClient) {
-        clientManager.safeSend(socket, {
+        clientManager.sendWSMessage(socket, {
           type: "error",
           message: "No CV client configured",
           timestamp: getSecondTimestamp(),

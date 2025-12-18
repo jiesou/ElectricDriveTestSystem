@@ -6,6 +6,7 @@ export interface Trouble {
   description: string;
   from_wire: number;
   to_wire: number;
+  is_submitted?: boolean;
 }
 
 export interface Question {
@@ -23,21 +24,18 @@ export interface Test {
 export interface TestSession {
   id: string;
   test: Test; // Reference to the scheduled test
-  currentQuestionIndex: number;
   finishTime?: number; // timestamp when session finished (is null if not finished)
   finishedScore?: number; // final score after finishing the test (out of 100, is null if not finished)
-  solvedTroubles: [number, Trouble[]][]; // Array of [questionIndex, solvedTroubles[]] pairs
   logs: TestLog[]; // activity logs
 }
 
 export interface TestLog {
   timestamp: number;
-  action: "start" | "answer" | "navigation" | "finish" | "connect" | "disconnect";
+  action: "start" | "answer" | "finish" | "connect" | "disconnect";
   details: {
-    question?: Question; // For start, navigation, answer
+    question?: Question; // For start, answer
     trouble?: Trouble; // For answer
     result?: boolean; // For answer
-    direction?: "next" | "prev"; // For navigation,
     score?: number; // For finish
   };
 }
@@ -93,7 +91,6 @@ export interface FaceSigninSession extends CvSession {
   type: "face_signin";
   finalResult?: {
     who: string; // 识别到的人员名称
-    image: string; // 识别时的照片(base64)
   };
 }
 
@@ -112,6 +109,94 @@ export interface Client {
   testSession?: TestSession;
   cvClient?: CvClient;
   evaluateBoard?: EvaluateBoard; // 装接评估-功能部分的当前Board状态
+}
+
+// ==================== WebSocket 消息类型 ====================
+export interface WSMessage {
+  type: string;
+  timestamp?: number; // in seconds
+  [key: string]: unknown;
+}
+
+/* XX RequestMessage 表示客户机发送到服务器的消息 */
+export interface PingRequestMessage extends WSMessage {
+  type: "ping";
+}
+
+export interface PongMessage extends WSMessage {
+  type: "pong";
+}
+
+export interface RelayRainbowMessage extends WSMessage {
+  type: "relay_rainbow";
+}
+
+export interface AckRelayRainbowRequestMessage extends WSMessage {
+  type: "ack_relay_rainbow";
+}
+
+// ==================== TroubleTest 排故测验相关 ====================
+
+// 服务器通知客户机更新排故测验信息（用于开始测验，也可确保不丢失排故测验进度）
+export interface TroubleTestPushMessage extends WSMessage {
+  type: "trouble_test_push";
+  all_questions: Question[];
+  start_time: number;
+  duration_time: number | null;
+}
+
+// 客户机请求更新服务器上的排故测验信息（胖客户端，逻辑在客户端）
+export interface TroubleTestUpdateRequestMessage extends WSMessage {
+  type: "trouble_test_update_request";
+  all_questions: Question[];
+  start_time: number;
+  duration_time: number | null;
+  finish_time?: number; // 完成时间戳（秒），未完成为 null
+  finished_score?: number; // 完成后的最终得分（满分 100，未完成为 null）
+}
+
+// 服务器要求客户机结束测试
+export interface TroubleTestFinishMessage extends WSMessage {
+  type: "trouble_test_finish";
+}
+
+// ==================== EvaluateFunctionBoard 功能评估相关 ====================
+
+// ESP32 客户机更新装接评估-功能部分的 Board 状态
+export interface EvaluateFunctionBoardUpdateMessage extends WSMessage {
+  type: "evaluate_function_board_update";
+  description: string;
+  function_steps: EvaluateFunctionStep[];
+}
+
+// ESP32 客户机请求装接评估
+export interface EvaluateWiringYoloRequestMessage extends WSMessage {
+  type: "evaluate_wiring_yolo_request";
+}
+
+// 服务器返回装接评估结果给ESP32客户机
+export interface EvaluateWiringYoloResponseMessage extends WSMessage {
+  type: "evaluate_wiring_yolo_response";
+  result: {
+    no_sleeves_num: number;
+    cross_num: number;
+    excopper_num: number;
+    exterminal_num: number;
+    scores: number;
+  };
+}
+
+// ==================== FaceSignin 人脸签到相关 ====================
+
+// ESP32 客户机请求人脸签到
+export interface FaceSigninRequestMessage extends WSMessage {
+  type: "face_signin_request";
+}
+
+// 服务器返回人脸签到结果给ESP32客户机
+export interface FaceSigninResponseMessage extends WSMessage {
+  type: "face_signin_response";
+  who: string;
 }
 
 // Utility function to get integer second timestamp

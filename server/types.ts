@@ -10,6 +10,7 @@ export interface Trouble {
   description: string;
   from_wire: number;
   to_wire: number;
+  is_submitted?: boolean; // 是否已提交（用于排故测验）
 }
 
 export interface Question {
@@ -37,12 +38,11 @@ export interface TestSession {
 // 排故测验日志
 export interface TestLog {
   timestamp: number; // 时间戳（秒）
-  action: "start" | "answer" | "navigation" | "finish" | "connect" | "disconnect"; // 操作类型
+  action: "start" | "answer" | "finish" | "connect" | "disconnect"; // 操作类型
   details: {
-    question?: Question; // 用于 start、navigation、answer
+    question?: Question; // 用于 start、answer
     trouble?: Trouble; // 用于 answer
     result?: boolean; // 用于 answer
-    direction?: "next" | "prev"; // 用于 navigation
     score?: number; // 用于 finish
   };
 }
@@ -51,10 +51,10 @@ export interface TestLog {
 
 export interface EvaluateBoard {
   description: string;
-  function_steps: EvaluateFuncationStep[];
+  function_steps: EvaluateFunctionStep[];
 }
 
-export interface EvaluateFuncationStep {
+export interface EvaluateFunctionStep {
   description: string;
   can_wait_for_ms: number;
   waited_for_ms: number;
@@ -195,7 +195,7 @@ export interface TroubleTestFinishMessage extends WSMessage {
 export interface EvaluateFunctionBoardUpdateMessage extends WSMessage {
   type: "evaluate_function_board_update";
   description: string;
-  function_steps: EvaluateFuncationStep[];
+  function_steps: EvaluateFunctionStep[];
 }
 
 // ESP32 客户机请求装接评估
