@@ -100,8 +100,9 @@ function handleKeyPress(event: KeyboardEvent) {
 // 计算属性用于 Switch 的 v-model
 const techMode = computed({
   get: () => themeMode.value === 'tech',
-  set: () => {
-    // Switch 改变时会被调用，但实际切换由 toggleTheme 处理
+  set: (checked: boolean) => {
+    // 当 Switch 改变时，切换主题
+    toggleTheme()
   }
 })
 
@@ -166,8 +167,7 @@ onUnmounted(() => {
                   {{ themeMode === 'tech' ? '科技风格' : '效率风格' }}
                 </span>
                 <Switch 
-                  v-model:checked="techMode" 
-                  @change="toggleTheme"
+                  v-model:checked="techMode"
                   checked-children="科技"
                   un-checked-children="效率"
                   :style="{ backgroundColor: techMode ? '#00d4ff' : undefined }"
@@ -220,7 +220,10 @@ onUnmounted(() => {
             </Content>
           </Layout>
 
-          <div v-if="useMockDataService">.</div>
+          <!-- Mock data service indicator (press Home to toggle) -->
+          <div v-if="useMockDataService" style="position: fixed; bottom: 10px; right: 10px; background: #00d4ff; color: #000; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
+            MOCK
+          </div>
         </Layout>
       </dv-border-box-8>
 
@@ -234,8 +237,7 @@ onUnmounted(() => {
                 {{ themeMode === 'tech' ? '科技风格' : '效率风格' }}
               </span>
               <Switch 
-                v-model:checked="techMode" 
-                @change="toggleTheme"
+                v-model:checked="techMode"
                 checked-children="科技"
                 un-checked-children="效率"
               />
@@ -287,7 +289,10 @@ onUnmounted(() => {
           </Content>
         </Layout>
 
-        <div v-if="useMockDataService">.</div>
+        <!-- Mock data service indicator (press Home to toggle) -->
+        <div v-if="useMockDataService" style="position: fixed; bottom: 10px; right: 10px; background: #1890ff; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
+          MOCK
+        </div>
       </Layout>
     </div>
   </ConfigProvider>
