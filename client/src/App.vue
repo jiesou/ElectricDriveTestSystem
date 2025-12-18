@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import zhCN from 'ant-design-vue/es/locale/zh_CN';
-import { Layout, ConfigProvider, Select, Button, Card, Switch } from 'ant-design-vue'
+import { Layout, ConfigProvider, Select, Button, Switch } from 'ant-design-vue'
 import TroubleManagement from './components/TroubleManagement.vue'
 import TestManagement from './components/TestManagement.vue'
 import ClientMonitoring from './components/ClientMonitoring.vue'
@@ -11,7 +11,7 @@ import { useTheme } from './useTheme'
 import type { Client } from './types'
 
 const { Header, Content, Sider } = Layout
-const { theme, isTechTheme, toggleTheme, antdThemeConfig } = useTheme()
+const { isTechTheme, toggleTheme, antdThemeConfig } = useTheme()
 
 type TabKey = 'troubles' | 'tests' | 'clients' | 'ai-analysis'
 const activeTab = ref<TabKey>('troubles')
@@ -69,7 +69,7 @@ async function fetchClients() {
   }
 }
 
-function handleClientSelect(value: string | number | undefined) {
+function handleClientSelect(value: unknown) {
   if (value) {
     selectedClientId.value = value.toString()
   }
