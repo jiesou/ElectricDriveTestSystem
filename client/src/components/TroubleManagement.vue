@@ -3,6 +3,9 @@ import { ref, onMounted } from 'vue'
 import { Table } from 'ant-design-vue'
 import type { Trouble } from '../types'
 import QuestionManagement from './QuestionManagement.vue'
+import { useTheme } from '../useTheme'
+
+const { isTechTheme } = useTheme()
 
 // 使用 Vite 兼容的方式获取静态资源路径
 const sch = new URL('../assets/sch.png', import.meta.url).href
@@ -35,14 +38,24 @@ onMounted(async () => {
 
 <template>
   <div>
-    <h2>题库管理</h2>
+    <h2 :style="{ color: isTechTheme ? '#00b4d8' : '#000' }">题库管理</h2>
 
     <div style="display:flex; gap:20px; align-items:flex-start;">
-      <img :src="sch" alt="示意图" style="width:60%; height:auto; object-fit:contain;" />
+      <!-- 深色背景下反色显示 -->
+      <img 
+        :src="sch" 
+        alt="示意图" 
+        :style="{ 
+          width: '60%', 
+          height: 'auto', 
+          objectFit: 'contain',
+          filter: isTechTheme ? 'invert(1)' : 'none'
+        }" 
+      />
 
       <div style="flex:1;">
         <div style="margin-bottom: 20px;">
-          <h3>可用故障列表</h3>
+          <h3 :style="{ color: isTechTheme ? '#fff' : '#000' }">可用故障列表</h3>
           <Table 
             :dataSource="troubles" 
             :columns="troubleColumns" 

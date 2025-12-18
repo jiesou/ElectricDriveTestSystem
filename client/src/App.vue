@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import zhCN from 'ant-design-vue/es/locale/zh_CN';
-import { Layout, ConfigProvider, Select, Button, Card } from 'ant-design-vue'
+import { Layout, ConfigProvider, Select, Button, Card, Switch } from 'ant-design-vue'
 import TroubleManagement from './components/TroubleManagement.vue'
 import TestManagement from './components/TestManagement.vue'
 import ClientMonitoring from './components/ClientMonitoring.vue'
 import AIAnalysisModal from './components/AIAnalysisModal.vue'
 import { useMockDataService } from '././useMockData.ts'
+import { useTheme } from './useTheme'
 import type { Client } from './types'
 
 const { Header, Content, Sider } = Layout
+const { theme, isTechTheme, toggleTheme, antdThemeConfig } = useTheme()
 
 type TabKey = 'troubles' | 'tests' | 'clients' | 'ai-analysis'
 const activeTab = ref<TabKey>('troubles')
@@ -101,23 +103,65 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <ConfigProvider :locale="zhCN">
-    <Layout style="min-height: 100vh;">
-      <Header style="background: #fff; padding: 0 20px; display: flex; justify-content: center; align-items: center;">
-        <h1 style="margin: 0; color: #001529;">电力拖动教学培训 物联网云平台</h1>
+  <ConfigProvider :locale="zhCN" :theme="antdThemeConfig">
+    <Layout :style="{ minHeight: '100vh', background: isTechTheme ? '#000c17' : '#f0f2f5' }">
+      <!-- 顶部标题区域 -->
+      <Header :style="{ 
+        background: isTechTheme ? '#001529' : '#fff', 
+        padding: '0 20px', 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        borderBottom: isTechTheme ? '2px solid #177ddc' : 'none'
+      }">
+        <!-- 标题区域 - 科技风格下居中并加装饰 -->
+        <div style="flex: 1; display: flex; justify-content: center; align-items: center;">
+          <dv-decoration-5 v-if="isTechTheme" style="width: 250px; height: 40px;" />
+          <h1 :style="{ 
+            margin: '0 20px', 
+            color: isTechTheme ? '#00b4d8' : '#001529',
+            fontSize: '24px',
+            fontWeight: 'bold',
+            textShadow: isTechTheme ? '0 0 10px rgba(0, 180, 216, 0.8)' : 'none'
+          }">
+            电力拖动教学培训 物联网云平台
+          </h1>
+          <dv-decoration-5 v-if="isTechTheme" style="width: 250px; height: 40px;" />
+        </div>
+        
+        <!-- 主题切换开关 -->
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span :style="{ color: isTechTheme ? '#fff' : '#000' }">
+            {{ isTechTheme ? '科技' : '效率' }}
+          </span>
+          <Switch 
+            :checked="isTechTheme" 
+            @change="toggleTheme"
+            checked-children="科技"
+            un-checked-children="效率"
+          />
+            un-checked-children="效率"
+          />
+        </div>
       </Header>
 
       <Layout>
-        <Sider width="130" style="background: #fff;">
+        <Sider width="130" :style="{ background: isTechTheme ? '#001529' : '#fff' }">
           <div style="padding: 20px 0;">
             <div v-for="item in menuItems" :key="item.key" :class="['menu-item', { active: activeTab === item.key }]"
+              :style="{ color: isTechTheme ? '#fff' : '#000' }"
               @click="handleMenuClick(item.key as TabKey)">
               {{ item.label }}
             </div>
           </div>
         </Sider>
 
-        <Content style="margin: 20px; background: #fff; padding: 20px;">
+        <Content :style="{ 
+          margin: '20px', 
+          background: isTechTheme ? '#000c17' : '#fff', 
+          padding: '20px',
+          color: isTechTheme ? '#fff' : '#000'
+        }">
           <TroubleManagement v-if="activeTab === 'troubles'" />
           <TestManagement v-if="activeTab === 'tests'" />
           <ClientMonitoring v-if="activeTab === 'clients'" />
@@ -149,6 +193,13 @@ onUnmounted(() => {
         </Content>
       </Layout>
 
+      <!-- 底部装饰 - 科技风格 -->
+      <div v-if="isTechTheme" style="position: relative; height: 80px; background: #000c17; display: flex; align-items: center; justify-content: space-between; padding: 0 20px;">
+        <dv-decoration-8 style="width: 200px; height: 60px;" />
+        <dv-decoration-6 style="width: 100%; height: 30px;" />
+        <dv-decoration-8 :reverse="true" style="width: 200px; height: 60px;" />
+      </div>
+
       <div v-if="useMockDataService">.</div>
     </Layout>
   </ConfigProvider>
@@ -166,12 +217,21 @@ onUnmounted(() => {
 }
 
 .menu-item:hover {
-  background: #f0f0f0;
+  background: rgba(240, 240, 240, 0.1);
 }
 
 .menu-item.active {
-  background: #e6f7ff;
-  border-left-color: #1890ff;
-  color: #1890ff;
+  background: rgba(0, 180, 216, 0.15);
+  border-left-color: #00b4d8;
+  color: #00b4d8;
+}
+
+/* 科技风格下的样式覆盖 */
+:deep(.ant-layout) {
+  transition: background 0.3s;
+}
+
+:deep(.ant-card) {
+  transition: all 0.3s;
 }
 </style>

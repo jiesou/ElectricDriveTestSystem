@@ -6,8 +6,11 @@ import type { Client } from '../types'
 import ClientTable from './ClientTable.vue'
 import CvClientMonitor from './CvClientMonitor.vue'
 import AIAnalysisModal from './AIAnalysisModal.vue'
+import TechCard from './TechCard.vue'
 import { useMockDataService, generateMockData } from '../useMockData'
+import { useTheme } from '../useTheme'
 
+const { isTechTheme } = useTheme()
 const clients = ref<Client[]>([])
 const loading = ref(false)
 const refreshTimer = ref<number | null>(null)
@@ -107,9 +110,26 @@ onUnmounted(() => {
 
 <template>
   <div>
-    <h2>客户机监控</h2>
+    <!-- 标题区域添加雷达装饰 -->
+    <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
+      <dv-decoration-12 v-if="isTechTheme" style="width: 100px; height: 100px;" />
+      <h2 :style="{ color: isTechTheme ? '#00b4d8' : '#000' }">客户机监控</h2>
+    </div>
 
-    <Card title="实时客户机状态">
+    <!-- 主卡片使用 BorderBox8 -->
+    <dv-border-box-8 v-if="isTechTheme" :reverse="true">
+      <Card title="实时客户机状态" :bordered="false">
+        <template #extra>
+          <Popconfirm title="确定要忘记所有客户机吗？这也将清除客户机的活跃测验进度。" @confirm="handleForgetClients">
+            <Button type="primary" danger>忘记所有客户机</Button>
+          </Popconfirm>
+        </template>
+        <ClientTable />
+      </Card>
+    </dv-border-box-8>
+    
+    <!-- 效率模式下的普通卡片 -->
+    <Card v-else title="实时客户机状态">
       <template #extra>
         <Popconfirm title="确定要忘记所有客户机吗？这也将清除客户机的活跃测验进度。" @confirm="handleForgetClients">
           <Button type="primary" danger>忘记所有客户机</Button>
@@ -127,13 +147,19 @@ onUnmounted(() => {
     <!-- 显示已结束的测验 -->
     <div style="margin-top: 20px;"
       v-if="displayClients.filter(c => c.testSession && c.testSession.finishTime).length > 0">
-      <Card title="已结束的测验">
+      <TechCard title="已结束的测验">
         <div v-for="client in displayClients.filter(c => c.testSession && c.testSession.finishTime)"
           :key="`finished-${client.id}`"
-          style="margin-bottom: 16px; padding: 12px; border: 1px solid #f0f0f0; border-radius: 6px;">
+          :style="{ 
+            marginBottom: '16px', 
+            padding: '12px', 
+            border: isTechTheme ? '1px solid #177ddc' : '1px solid #f0f0f0', 
+            borderRadius: '6px',
+            background: isTechTheme ? 'rgba(0, 12, 23, 0.5)' : 'transparent'
+          }">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <div>
-              <strong>{{ client.name }} ({{ client.ip }})</strong>
+              <strong :style="{ color: isTechTheme ? '#fff' : '#000' }">{{ client.name }} ({{ client.ip }})</strong>
               <Tag :color="client.online ? 'green' : 'gray'" size="small" style="margin-left: 8px;">
                 {{ client.online ? '在线' : '离线' }}
               </Tag>
@@ -144,7 +170,7 @@ onUnmounted(() => {
               </Button>
             </div>
           </div>
-          <div style="margin-top: 8px; font-size: 12px; color: #666;">
+          <div :style="{ marginTop: '8px', fontSize: '12px', color: isTechTheme ? '#8c8c8c' : '#666' }">
             完成时间: {{ formatTime(client.testSession!.finishTime!) }} |
             用时: {{ Math.floor((client.testSession!.finishTime! - client.testSession!.test.startTime) / 60) }}分钟
             <br>
@@ -152,7 +178,7 @@ onUnmounted(() => {
             | 日志条数: {{ client.testSession!.logs.length }}
           </div>
         </div>
-      </Card>
+      </TechCard>
     </div>
 
     <!-- AI 分析结果模态框 -->
@@ -160,13 +186,19 @@ onUnmounted(() => {
 
     <!-- 已结束的装接评估 -->
     <div style="margin-top: 20px;" v-if="displayClients.filter(c => c.evaluateBoard && c.evaluateBoard.function_steps.every(s => s.finished)).length > 0">
-      <Card title="已结束的装接评估">
+      <TechCard title="已结束的装接评估">
         <div v-for="client in displayClients.filter(c => c.evaluateBoard && c.evaluateBoard.function_steps.every(s => s.finished))"
           :key="`finished-eval-${client.id}`"
-          style="margin-bottom: 16px; padding: 12px; border: 1px solid #f0f0f0; border-radius: 6px;">
+          :style="{ 
+            marginBottom: '16px', 
+            padding: '12px', 
+            border: isTechTheme ? '1px solid #177ddc' : '1px solid #f0f0f0', 
+            borderRadius: '6px',
+            background: isTechTheme ? 'rgba(0, 12, 23, 0.5)' : 'transparent'
+          }">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <div>
-              <strong>{{ client.name }} ({{ client.ip }})</strong>
+              <strong :style="{ color: isTechTheme ? '#fff' : '#000' }">{{ client.name }} ({{ client.ip }})</strong>
               <Tag :color="client.online ? 'green' : 'gray'" size="small" style="margin-left: 8px;">
                 {{ client.online ? '在线' : '离线' }}
               </Tag>
@@ -177,7 +209,7 @@ onUnmounted(() => {
               </Button>
             </div>
           </div>
-          <div style="margin-top: 8px; font-size: 12px; color: #666;">
+          <div :style="{ marginTop: '8px', fontSize: '12px', color: isTechTheme ? '#8c8c8c' : '#666' }">
             评估板: {{ client.evaluateBoard!.description }}
             <br>
             完成步骤: {{ client.evaluateBoard!.function_steps.filter(s => s.finished).length }}/{{ client.evaluateBoard!.function_steps.length }}
@@ -191,24 +223,24 @@ onUnmounted(() => {
             </span>
           </div>
         </div>
-      </Card>
+      </TechCard>
     </div>
 
     <div style="margin-top: 20px;" v-if="displayClients.filter(c => c.testSession).length > 0">
       <div v-for="client in displayClients.filter(c => c.testSession)" :key="client.id" style="margin-bottom: 20px;">
-        <Card :title="`活跃测验详情 - ${client.name} (${client.ip})`">
+        <TechCard :title="`活跃测验详情 - ${client.name} (${client.ip})`">
           <div v-if="client.testSession">
             <div style="margin-bottom: 16px;">
-              <p><strong>开始时间:</strong> {{ formatTime(client.testSession.test.startTime) }}</p>
-              <p><strong>连接状态:</strong>
+              <p :style="{ color: isTechTheme ? '#fff' : '#000' }"><strong>开始时间:</strong> {{ formatTime(client.testSession.test.startTime) }}</p>
+              <p :style="{ color: isTechTheme ? '#fff' : '#000' }"><strong>连接状态:</strong>
                 <Tag style="margin-left: 4px;" :color="client.online ? 'green' : 'red'">
                   {{ client.online ? '在线' : '离线' }}
                 </Tag>
               </p>
-              <p><strong>当前进度:</strong> 第 {{ client.testSession.currentQuestionIndex + 1 }}/{{
+              <p :style="{ color: isTechTheme ? '#fff' : '#000' }"><strong>当前进度:</strong> 第 {{ client.testSession.currentQuestionIndex + 1 }}/{{
                 client.testSession.test.questions.length }} 题</p>
               <div v-if="client.testSession.logs && client.testSession.logs.length > 0">
-                <strong>测验日志</strong>
+                <strong :style="{ color: isTechTheme ? '#fff' : '#000' }">测验日志</strong>
                 <Switch v-model:checked="showConnectionEvents" checked-children="显示连接变化" un-checked-children="隐藏连接变化"
                   style="margin-left: 12px;" />
                 <Timeline style="margin-top: 12px;">
@@ -219,7 +251,7 @@ onUnmounted(() => {
                       <Tag :color="getLogColor(log.action)" size="small">
                         {{ log.action.toUpperCase() }}
                       </Tag>
-                      <div style="margin-top: 4px;">
+                      <div :style="{ marginTop: '4px', color: isTechTheme ? '#fff' : '#000' }">
                         <strong v-if="log.action == 'start'">开始测验</strong>
                         <strong v-else-if="log.action == 'finish'">
                           完成测验 得分: {{ log.details.score }}
@@ -235,7 +267,7 @@ onUnmounted(() => {
                         </strong>
                         <strong v-else>未知操作</strong>
                       </div>
-                      <div style="font-size: 12px; color: #666;">
+                      <div :style="{ fontSize: '12px', color: isTechTheme ? '#8c8c8c' : '#666' }">
                         {{ formatTime(log.timestamp) }}
                         <span v-if="index > 0">
                           (经过 {{(log.timestamp - client.testSession.logs.filter(l => showConnectionEvents || (l.action
@@ -249,7 +281,7 @@ onUnmounted(() => {
 
             </div>
           </div>
-        </Card>
+        </TechCard>
       </div>
     </div>
 
@@ -258,18 +290,18 @@ onUnmounted(() => {
       <div v-for="client in displayClients.filter(c => c.evaluateBoard)" :key="`eval-${client.id}`"
         style="margin-bottom: 20px;">
 
-      <Card v-if="client.evaluateBoard" :title="`装接评估详情 - ${client.name} (${client.ip})`">
-        <p><strong>评估板:</strong> {{ client.evaluateBoard.description }}</p>
-        <p><strong>连接状态:</strong>
+      <TechCard v-if="client.evaluateBoard" :title="`装接评估详情 - ${client.name} (${client.ip})`">
+        <p :style="{ color: isTechTheme ? '#fff' : '#000' }"><strong>评估板:</strong> {{ client.evaluateBoard.description }}</p>
+        <p :style="{ color: isTechTheme ? '#fff' : '#000' }"><strong>连接状态:</strong>
           <Tag style="margin-left: 4px;" :color="client.online ? 'green' : 'red'">
             {{ client.online ? '在线' : '离线' }}
           </Tag>
         </p>
-        <p><strong>功能步骤进度:</strong> {{client.evaluateBoard.function_steps.filter(s => s.finished).length}}/{{
+        <p :style="{ color: isTechTheme ? '#fff' : '#000' }"><strong>功能步骤进度:</strong> {{client.evaluateBoard.function_steps.filter(s => s.finished).length}}/{{
           client.evaluateBoard.function_steps.length }} 完成</p>
 
         <div v-if="client.evaluateBoard.function_steps && client.evaluateBoard.function_steps.length > 0">
-          <strong>功能步骤详情</strong>
+          <strong :style="{ color: isTechTheme ? '#fff' : '#000' }">功能步骤详情</strong>
           <Timeline style="margin-top: 12px;">
             <Timeline.Item v-for="(step, index) in client.evaluateBoard.function_steps" :key="index"
               :color="step.finished ? (step.passed ? 'green' : 'red') : 'blue'">
@@ -277,7 +309,7 @@ onUnmounted(() => {
                 <Tag :color="step.finished ? (step.passed ? 'green' : 'red') : 'blue'" size="small">
                   步骤 {{ index + 1 }}
                 </Tag>
-                <span style="margin-top: 4px;">
+                <span :style="{ marginTop: '4px', color: isTechTheme ? '#fff' : '#000' }">
                   <strong>{{ step.description }}</strong>
                   <span style="margin-left: 8px;">
                     <span v-if="step.finished">
@@ -291,12 +323,14 @@ onUnmounted(() => {
                   </span>
                 </span>
                 <br>
-                等待: {{ step.waited_for_ms / 1000 }}s / {{ step.can_wait_for_ms / 1000 }}s
+                <span :style="{ color: isTechTheme ? '#8c8c8c' : '#666' }">
+                  等待: {{ step.waited_for_ms / 1000 }}s / {{ step.can_wait_for_ms / 1000 }}s
+                </span>
               </div>
             </Timeline.Item>
           </Timeline>
         </div>
-      </Card>
+      </TechCard>
 
     </div>
   </div>
