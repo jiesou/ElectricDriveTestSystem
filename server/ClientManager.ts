@@ -15,7 +15,7 @@ import {
 export class ClientManager {
   // 所有客户端的映射表 (clientId -> Client)
   public clients: Record<string, Client> = {};
-  // 视觉客户端池（按 IP 共享同一个 CvClient 实例，可被多个 client 绑定）
+  // 视觉客户端池（按 IP 共享同一个 CvClient 实例，可被多个 client 绑定，生命周期与进程同寿命）
   private cvClientPool: Record<string, CvClient> = {};
   
   // relay_rainbow 响应回调 (clientId -> resolve function)

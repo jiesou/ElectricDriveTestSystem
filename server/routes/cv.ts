@@ -174,6 +174,7 @@ cvRouter.post("/upload_wiring", async (ctx) => {
         ip: primary.cvClient.ip,
       };
     }
+    c.cvClient.latest_frame = primary.cvClient.latest_frame;
     c.cvClient.session = session;
   }
 
@@ -467,6 +468,7 @@ cvRouter.post("/upload_face", async (ctx) => {
           ip: primary.cvClient.ip,
         };
       }
+      c.cvClient.latest_frame = primary.cvClient.latest_frame;
       c.cvClient.session = session;
     }
 

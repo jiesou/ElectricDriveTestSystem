@@ -21,8 +21,9 @@ export async function apiJson<T>(path: string, init: RequestInit = {}): Promise<
   const json = await resp.json() as ApiResult<T>
   if (typeof json === 'object' && json && 'success' in json) {
     if (json.success === false) {
-      message.error((json as any).error || '操作失败')
-      throw new Error((json as any).error || '请求失败')
+      const err = (json as any).error || '请求失败'
+      message.error(err)
+      throw new Error(err)
     }
     return (json as any).data ?? (json as any)
   }
