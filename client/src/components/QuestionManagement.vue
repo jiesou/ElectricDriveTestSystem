@@ -2,6 +2,7 @@
 import { ref, reactive, onMounted, h } from 'vue'
 import { Table, Button, Modal, Form, Select, message, Space, Tag } from 'ant-design-vue'
 import type { Trouble, Question } from '../types'
+import { apiJson } from '../api-client'
 
 const troubles = ref<Trouble[]>([])
 const questions = ref<Question[]>([])
@@ -38,11 +39,7 @@ const questionColumns = [
 
 async function fetchTroubles() {
     try {
-        const response = await fetch('/api/troubles')
-        const result = await response.json()
-        if (result.success) {
-            troubles.value = result.data
-        }
+        troubles.value = await apiJson<Trouble[]>('/api/troubles')
     } catch (error) {
         console.error('Failed to fetch troubles:', error)
         message.error('获取故障列表失败')
@@ -52,11 +49,7 @@ async function fetchTroubles() {
 async function fetchQuestions() {
     try {
         loading.value = true
-        const response = await fetch('/api/questions')
-        const result = await response.json()
-        if (result.success) {
-            questions.value = result.data
-        }
+        questions.value = await apiJson<Question[]>('/api/questions')
     } catch (error) {
         console.error('Failed to fetch questions:', error)
         message.error('获取题目列表失败')
@@ -93,20 +86,13 @@ async function handleSubmit() {
             return troubles.value.find(t => t.id === troubleId)!
         })
 
-        const response = await fetch(url, {
+        await apiJson(url, {
             method,
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ troubles: troubleObjects })
         })
-
-        const result = await response.json()
-        if (result.success) {
-            message.success(isEdit ? '题目更新成功' : '题目创建成功')
-            modalVisible.value = false
-            await fetchQuestions()
-        } else {
-            message.error(result.error || '操作失败')
-        }
+        message.success(isEdit ? '题目更新成功' : '题目创建成功')
+        modalVisible.value = false
+        await fetchQuestions()
     } catch (error) {
         console.error('Failed to save question:', error)
         message.error('保存失败')
@@ -115,15 +101,9 @@ async function handleSubmit() {
 
 async function handleDelete(id: number) {
     try {
-        const response = await fetch(`/api/questions/${id}`, { method: 'DELETE' })
-        const result = await response.json()
-
-        if (result.success) {
-            message.success('题目删除成功')
-            await fetchQuestions()
-        } else {
-            message.error(result.error || '删除失败')
-        }
+        await apiJson(`/api/questions/${id}`, { method: 'DELETE' })
+        message.success('题目删除成功')
+        await fetchQuestions()
     } catch (error) {
         console.error('Failed to delete question:', error)
         message.error('删除失败')
@@ -138,37 +118,24 @@ async function createRandom3Questions() {
         const selectedTrouble = availableTroubles[randomIndex];
         if (!selectedTrouble) continue;
 
-        const response = await fetch('/api/questions', {
+        await apiJson('/api/questions', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ troubles: [selectedTrouble] })
         })
-
-        const result = await response.json()
-        if (result.success) {
-            message.success('题目创建成功')
-            modalVisible.value = false
-            await fetchQuestions()
-        } else {
-            message.error(result.error || '操作失败')
-        }
+        message.success('题目创建成功')
+        modalVisible.value = false
+        await fetchQuestions()
     }
 }
 
 async function createFilledQuestions() {
     troubles.value.forEach(async trouble => {
-        const response = await fetch('/api/questions', {
+        await apiJson('/api/questions', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ troubles: [trouble] })
         })
-        const result = await response.json()
-        if (result.success) {
-            message.success('题库填充成功')
-            await fetchQuestions()
-        } else {
-            message.error(result.error || '填充失败')
-        }
+        message.success('题库填充成功')
+        await fetchQuestions()
     });
 }
 

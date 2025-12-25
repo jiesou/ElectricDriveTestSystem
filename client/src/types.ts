@@ -1,6 +1,4 @@
-// Shared type definitions - imported from server types
-// This ensures consistency across client and server
-
+// 前后端共享的核心类型，保持瘦服务端、胖客户端的数据一致性
 export interface Trouble {
   id: number;
   description: string;
@@ -11,36 +9,43 @@ export interface Trouble {
 
 export interface Question {
   id: number;
-  troubles: Trouble[]; // Direct trouble objects instead of IDs
+  troubles: Trouble[];
 }
 
 export interface Test {
   id: number;
   questions: Question[];
-  startTime: number; // timestamp in seconds
-  durationTime: number | null; // duration in seconds, null means no time limit
+  startTime: number;
+  durationTime: number | null;
 }
 
 export interface TestSession {
   id: string;
-  test: Test; // Reference to the scheduled test
-  finishTime?: number; // timestamp when session finished (is null if not finished)
-  finishedScore?: number; // final score after finishing the test (out of 100, is null if not finished)
-  logs: TestLog[]; // activity logs
+  test: Test;
+  currentQuestionIndex: number;
+  finishTime?: number;
+  finishedScore?: number;
+  solvedTroubles: [number, Trouble[]][];
+  logs: TestLog[];
 }
 
 export interface TestLog {
   timestamp: number;
-  action: "start" | "answer" | "finish" | "connect" | "disconnect";
+  action: "start" | "answer" | "navigation" | "finish" | "connect" | "disconnect";
   details: {
-    question?: Question; // For start, answer
-    trouble?: Trouble; // For answer
-    result?: boolean; // For answer
-    score?: number; // For finish
+    question?: Question;
+    trouble?: Trouble;
+    result?: boolean;
+    direction?: "next" | "prev";
+    score?: number;
   };
 }
 
-// 装接评估-功能部分的步骤
+export interface EvaluateBoard {
+  description: string;
+  function_steps: EvaluateFunctionStep[];
+}
+
 export interface EvaluateFunctionStep {
   description: string;
   can_wait_for_ms: number;
@@ -49,56 +54,47 @@ export interface EvaluateFunctionStep {
   finished: boolean;
 }
 
-// 装接评估-功能部分的Board
-export interface EvaluateBoard {
-  description: string;
-  function_steps: EvaluateFunctionStep[];
-}
-
-// CV会话基类接口
 export interface CvSession {
   type: "evaluate_wiring" | "face_signin";
   startTime: number;
+  finalResult?: unknown;
 }
 
-// 拍摄记录接口
 export interface WiringShot {
-  timestamp: number; // 拍摄时间戳(秒)
-  image: string; // 图片数据（base64或URL）
+  timestamp: number;
+  image: string;
   result: {
-    sleeves_num: number; // 已标号码管数量
-    cross_num: number; // 交叉接线数量
-    excopper_num: number; // 露铜数量
-    exterminal_num: number; // 露端子数量
+    sleeves_num: number;
+    cross_num: number;
+    excopper_num: number;
+    exterminal_num: number;
   };
 }
 
-// 装接评估会话
 export interface EvaluateWiringSession extends CvSession {
   type: "evaluate_wiring";
-  shots: WiringShot[]; // 拍摄记录数组
+  shots: WiringShot[];
   finalResult?: {
-    no_sleeves_num: number; // 未标号码管总数
-    cross_num: number; // 交叉接线总数
-    excopper_num: number; // 露铜总数
-    exterminal_num: number; // 露端子数量
-    scores: number; // 评分
+    no_sleeves_num: number;
+    cross_num: number;
+    excopper_num: number;
+    exterminal_num: number;
+    scores: number;
   };
 }
 
-// 人脸签到会话
 export interface FaceSigninSession extends CvSession {
   type: "face_signin";
   finalResult?: {
-    who: string; // 识别到的人员名称
+    who: string;
   };
 }
 
-// CV客户端接口
 export interface CvClient {
   clientType: "esp32cam" | "jetson_nano";
   ip: string;
   session?: EvaluateWiringSession | FaceSigninSession;
+  latest_frame?: Uint8Array;
 }
 
 export interface Client {
@@ -106,75 +102,71 @@ export interface Client {
   name: string;
   ip: string;
   online: boolean;
+  socket?: WebSocket;
+  lastPing?: number;
   testSession?: TestSession;
   cvClient?: CvClient;
-  evaluateBoard?: EvaluateBoard; // 装接评估-功能部分的当前Board状态
+  evaluateBoard?: EvaluateBoard;
 }
 
-// ==================== WebSocket 消息类型 ====================
 export interface WSMessage {
   type: string;
-  timestamp?: number; // in seconds
+  timestamp?: number;
   [key: string]: unknown;
 }
 
-/* XX RequestMessage 表示客户机发送到服务器的消息 */
-export interface PingRequestMessage extends WSMessage {
-  type: "ping";
+export interface InTestingMessage extends WSMessage {
+  type: "in_testing";
+  all_troubles: Trouble[];
+  exist_troubles: Trouble[];
+  current_question_index: number;
+  total_questions: number;
+  start_time: number;
+  duration_time: number | null;
 }
 
-export interface PongMessage extends WSMessage {
-  type: "pong";
+export interface PingMessage extends WSMessage {
+  type: "ping";
 }
 
 export interface RelayRainbowMessage extends WSMessage {
   type: "relay_rainbow";
 }
 
-export interface AckRelayRainbowRequestMessage extends WSMessage {
-  type: "ack_relay_rainbow";
+export interface AnswerMessage extends WSMessage {
+  type: "answer";
+  trouble_id: number;
 }
 
-// ==================== TroubleTest 排故测验相关 ====================
-
-// 服务器通知客户机更新排故测验信息（用于开始测验，也可确保不丢失排故测验进度）
-export interface TroubleTestPushMessage extends WSMessage {
-  type: "trouble_test_push";
-  all_questions: Question[];
-  start_time: number;
-  duration_time: number | null;
+export interface AnswerResultMessage extends WSMessage {
+  type: "answer_result";
+  result: boolean;
+  trouble: Trouble;
 }
 
-// 客户机请求更新服务器上的排故测验信息（胖客户端，逻辑在客户端）
-export interface TroubleTestUpdateRequestMessage extends WSMessage {
-  type: "trouble_test_update_request";
-  all_questions: Question[];
-  start_time: number;
-  duration_time: number | null;
-  finish_time?: number; // 完成时间戳（秒），未完成为 null
-  finished_score?: number; // 完成后的最终得分（满分 100，未完成为 null）
+export interface QuestionNavigationMessage extends WSMessage {
+  type: "last_question" | "next_question";
 }
 
-// 服务器要求客户机结束测试
-export interface TroubleTestFinishMessage extends WSMessage {
-  type: "trouble_test_finish";
+export interface FinishMessage extends WSMessage {
+  type: "finish";
 }
 
-// ==================== EvaluateFunctionBoard 功能评估相关 ====================
+export interface FinishResultMessage extends WSMessage {
+  type: "finish_result";
+  finished_score: number;
+}
 
-// ESP32 客户机更新装接评估-功能部分的 Board 状态
 export interface EvaluateFunctionBoardUpdateMessage extends WSMessage {
   type: "evaluate_function_board_update";
   description: string;
   function_steps: EvaluateFunctionStep[];
 }
 
-// ESP32 客户机请求装接评估
 export interface EvaluateWiringYoloRequestMessage extends WSMessage {
   type: "evaluate_wiring_yolo_request";
 }
 
-// 服务器返回装接评估结果给ESP32客户机
 export interface EvaluateWiringYoloResponseMessage extends WSMessage {
   type: "evaluate_wiring_yolo_response";
   result: {
@@ -186,20 +178,15 @@ export interface EvaluateWiringYoloResponseMessage extends WSMessage {
   };
 }
 
-// ==================== FaceSignin 人脸签到相关 ====================
-
-// ESP32 客户机请求人脸签到
 export interface FaceSigninRequestMessage extends WSMessage {
   type: "face_signin_request";
 }
 
-// 服务器返回人脸签到结果给ESP32客户机
 export interface FaceSigninResponseMessage extends WSMessage {
   type: "face_signin_response";
   who: string;
 }
 
-// Utility function to get integer second timestamp
 export function getSecondTimestamp(): number {
   return Math.floor(Date.now() / 1000);
 }

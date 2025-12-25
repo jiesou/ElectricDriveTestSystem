@@ -68,6 +68,8 @@ function buildPrompt(client: Client): string {
   // 排故测验信息
   if (client.testSession) {
     const session = client.testSession;
+    const solvedTroubles = session.solvedTroubles || [];
+    const logs = session.logs || [];
     markdown.push("### 排故测验\n");
     
     // 基本信息
@@ -96,7 +98,7 @@ function buildPrompt(client: Client): string {
       });
       
       // 显示该题的解决情况
-      const solvedEntry = session.solvedTroubles.find(([qIdx]) => qIdx === idx);
+      const solvedEntry = solvedTroubles.find(([qIdx]) => qIdx === idx);
       if (solvedEntry && solvedEntry[1].length > 0) {
         markdown.push("正确解决:");
         solvedEntry[1].forEach((trouble) => {
@@ -110,8 +112,8 @@ function buildPrompt(client: Client): string {
     
     // 操作日志
     markdown.push("\n#### 详细操作日志");
-    markdown.push(`共 ${session.logs.length} 条操作记录:\n`);
-    session.logs.forEach((log, idx) => {
+    markdown.push(`共 ${logs.length} 条操作记录:\n`);
+    logs.forEach((log, idx) => {
       markdown.push(formatLogEntry(log, idx));
     });
     markdown.push("");

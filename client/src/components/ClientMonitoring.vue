@@ -1,56 +1,24 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, h, computed } from 'vue'
-import { Card, Popconfirm, Button, Tag, Timeline, Switch } from 'ant-design-vue'
+import { ref, h, computed } from 'vue'
+import { Card, Popconfirm, Button, Tag, Timeline, Switch, message } from 'ant-design-vue'
 import { AimOutlined } from '@ant-design/icons-vue'
 import type { Client } from '../types'
 import ClientTable from './ClientTable.vue'
 import CvClientMonitor from './CvClientMonitor.vue'
 import AIAnalysisModal from './AIAnalysisModal.vue'
-import { useMockDataService, generateMockData } from '../useMockData'
+import { apiJson } from '../api-client'
 
-const clients = ref<Client[]>([])
-const loading = ref(false)
-const refreshTimer = ref<number | null>(null)
+const props = defineProps<{ clients: Client[] }>()
+const emit = defineEmits<{ (e: 'refresh'): void }>()
+
 const showConnectionEvents = ref(false)
 const aiAnalysisModal = ref(false)
 const currentAnalysisClientId = ref<string | undefined>(undefined)
 
-// 根据模拟数据模式返回实际显示的客户端列表
-const displayClients = computed(() => {
-  if (useMockDataService.value) {
-    return generateMockData()
-  }
-  return clients.value
-})
-
-async function fetchClients() {
-  try {
-    loading.value = true
-    const response = await fetch('/api/clients')
-    const result = await response.json()
-
-    if (result.success) {
-      clients.value = result.data
-    }
-  } catch (error) {
-    console.error('Failed to fetch clients:', error)
-  } finally {
-    loading.value = false
-  }
-}
-
-function startAutoRefresh() {
-  refreshTimer.value = window.setInterval(() => {
-    fetchClients()
-  }, 2000) // Refresh every 2 seconds
-}
-
-function stopAutoRefresh() {
-  if (refreshTimer.value) {
-    clearInterval(refreshTimer.value)
-    refreshTimer.value = null
-  }
-}
+const finishedTests = computed(() => props.clients.filter(c => c.testSession && c.testSession.finishTime))
+const finishedEvaluateBoards = computed(() => props.clients.filter(c => c.evaluateBoard && c.evaluateBoard.function_steps.every(s => s.finished)))
+const activeTestClients = computed(() => props.clients.filter(c => c.testSession))
+const evaluateBoards = computed(() => props.clients.filter(c => c.evaluateBoard))
 
 function getLogColor(action: string): string {
   switch (action) {
@@ -68,25 +36,14 @@ function formatTime(timestamp: number): string {
   return new Date(timestamp * 1000).toLocaleString()
 }
 
-function handleForgetClients() {
-  // 模拟数据模式下不执行真实操作
-  if (useMockDataService.value) {
-    return
+async function handleForgetClients() {
+  try {
+    await apiJson('/api/clients/forget', { method: 'POST' })
+    emit('refresh')
+  } catch (err) {
+    console.error('Error forgetting clients:', err)
+    message.error('操作失败，请稍后重试。')
   }
-
-  fetch('/api/clients/forget', { method: 'POST' })
-    .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        fetchClients()
-      } else {
-        alert('操作失败，请稍后重试。')
-      }
-    })
-    .catch(err => {
-      console.error('Error forgetting clients:', err)
-      alert('操作失败，请稍后重试。')
-    })
 }
 
 function handleAIAnalysis(clientId: string) {
@@ -94,15 +51,10 @@ function handleAIAnalysis(clientId: string) {
   aiAnalysisModal.value = true
 }
 
-
-onMounted(() => {
-  fetchClients()
-  startAutoRefresh()
-})
-
-onUnmounted(() => {
-  stopAutoRefresh()
-})
+function pickLogs(session: Client['testSession']) {
+  const logs = session?.logs || []
+  return showConnectionEvents.value ? logs : logs.filter(log => log.action !== 'connect' && log.action !== 'disconnect')
+}
 </script>
 
 <template>
@@ -115,20 +67,20 @@ onUnmounted(() => {
           <Button type="primary" danger>忘记所有客户机</Button>
         </Popconfirm>
       </template>
-      <ClientTable />
+      <ClientTable :clients="props.clients" />
     </Card>
 
     <!-- 实时视觉客户端 -->
     <div style="margin-top: 20px;">
-      <CvClientMonitor />
+      <CvClientMonitor :clients="props.clients" />
     </div>
 
 
     <!-- 显示已结束的测验 -->
-    <div style="margin-top: 20px;"
-      v-if="displayClients.filter(c => c.testSession && c.testSession.finishTime).length > 0">
+    <div style="margin-top: 20px;" v-if="finishedTests.length > 0">
       <Card title="已结束的测验">
-        <div v-for="client in displayClients.filter(c => c.testSession && c.testSession.finishTime)"
+        <div
+          v-for="client in finishedTests"
           :key="`finished-${client.id}`"
           style="margin-bottom: 16px; padding: 12px; border: 1px solid #f0f0f0; border-radius: 6px;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -159,9 +111,10 @@ onUnmounted(() => {
     <AIAnalysisModal v-model:open="aiAnalysisModal" :client-id="currentAnalysisClientId" />
 
     <!-- 已结束的装接评估 -->
-    <div style="margin-top: 20px;" v-if="displayClients.filter(c => c.evaluateBoard && c.evaluateBoard.function_steps.every(s => s.finished)).length > 0">
+    <div style="margin-top: 20px;" v-if="finishedEvaluateBoards.length > 0">
       <Card title="已结束的装接评估">
-        <div v-for="client in displayClients.filter(c => c.evaluateBoard && c.evaluateBoard.function_steps.every(s => s.finished))"
+        <div
+          v-for="client in finishedEvaluateBoards"
           :key="`finished-eval-${client.id}`"
           style="margin-bottom: 16px; padding: 12px; border: 1px solid #f0f0f0; border-radius: 6px;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -194,22 +147,22 @@ onUnmounted(() => {
       </Card>
     </div>
 
-    <div style="margin-top: 20px;" v-if="displayClients.filter(c => c.testSession).length > 0">
-      <div v-for="client in displayClients.filter(c => c.testSession)" :key="client.id" style="margin-bottom: 20px;">
+    <div style="margin-top: 20px;" v-if="activeTestClients.length > 0">
+      <div v-for="client in activeTestClients" :key="client.id" style="margin-bottom: 20px;">
         <Card :title="`活跃测验详情 - ${client.name} (${client.ip})`">
           <div v-if="client.testSession">
             <div style="margin-bottom: 16px;">
               <p><strong>开始时间:</strong> {{ formatTime(client.testSession.test.startTime) }}</p>
               <p><strong>已提交:</strong> {{
-                client.testSession.test.questions.reduce((acc, q) => acc + q.troubles.filter(t => t.is_submitted).length, 0)
+                client.testSession.solvedTroubles?.reduce((acc: number, [, solved]: [number, any[]]) => acc + solved.length, 0) || 0
               }} 个</p>
-              <div v-if="client.testSession.logs && client.testSession.logs.length > 0">
+              <div v-if="pickLogs(client.testSession).length > 0">
                 <strong>测验日志</strong>
                 <Switch v-model:checked="showConnectionEvents" checked-children="显示连接变化" un-checked-children="隐藏连接变化"
                   style="margin-left: 12px;" />
                 <Timeline style="margin-top: 12px;">
                   <Timeline.Item
-                    v-for="(log, index) in client.testSession.logs.filter(log => showConnectionEvents || (log.action !== 'connect' && log.action !== 'disconnect'))"
+                    v-for="(log, index) in pickLogs(client.testSession)"
                     :key="index" :color="getLogColor(log.action)">
                     <div>
                       <Tag :color="getLogColor(log.action)" size="small">
@@ -234,8 +187,9 @@ onUnmounted(() => {
                       <div style="font-size: 12px; color: #666;">
                         {{ formatTime(log.timestamp) }}
                         <span v-if="index > 0">
-                          (经过 {{(log.timestamp - client.testSession.logs.filter(l => showConnectionEvents || (l.action
-                            !== 'connect' && l.action !== 'disconnect'))[index - 1]!.timestamp)}} 秒)
+                          (经过 {{
+                            (log.timestamp - (pickLogs(client.testSession)[index - 1]?.timestamp || log.timestamp))
+                          }} 秒)
                         </span>
                       </div>
                     </div>
@@ -250,8 +204,8 @@ onUnmounted(() => {
     </div>
 
     <!-- 装接评估详情 -->
-    <div style="margin-top: 20px;" v-if="displayClients.filter(c => c.evaluateBoard).length > 0">
-      <div v-for="client in displayClients.filter(c => c.evaluateBoard)" :key="`eval-${client.id}`"
+    <div style="margin-top: 20px;" v-if="evaluateBoards.length > 0">
+      <div v-for="client in evaluateBoards" :key="`eval-${client.id}`"
         style="margin-bottom: 20px;">
 
       <Card v-if="client.evaluateBoard" :title="`装接评估详情 - ${client.name} (${client.ip})`">

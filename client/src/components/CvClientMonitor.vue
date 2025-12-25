@@ -1,95 +1,30 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, h } from 'vue'
-import { Card, Tag, Empty, Button } from 'ant-design-vue'
+import { computed, h } from 'vue'
+import { Card, Tag, Empty, Button, message } from 'ant-design-vue'
 import type { Client, CvClient } from '../types'
-import { CloseOutlined } from '@ant-design/icons-vue';
-import { useMockDataService, generateMockData } from '../useMockData'
+import { CloseOutlined } from '@ant-design/icons-vue'
+import { apiJson } from '../api-client'
 
-const clients = ref<Client[]>([])
-const loading = ref(false)
-const refreshTimer = ref<number | null>(null)
-function startAutoRefresh() {
-  refreshTimer.value = window.setInterval(() => {
-    fetchClients()
-  }, 2000) // Refresh every 2 seconds
-}
-function stopAutoRefresh() {
-  if (refreshTimer.value) {
-    clearInterval(refreshTimer.value)
-    refreshTimer.value = null
-  }
-}
-// 跟踪每个CV客户端的图像加载状态
-const imageLoaded = ref<Record<string, boolean>>({})
-function isImageLoaded(ip: string | undefined): boolean {
-  return ip && imageLoaded.value[ip] || false
-}
-function setImageLoaded(ip: string, loaded: boolean) {
-  imageLoaded.value[ip] = loaded
-}
+const props = defineProps<{ clients: Client[] }>()
+const displayCvClients = computed(() => props.clients.filter(c => c.cvClient))
 
-// 获取所有有 CV 客户端的客户机（支持 Mock 模式）
-const displayCvClients = computed(() => {
-  if (useMockDataService.value) {
-    return generateMockData().filter(c => c.cvClient)
-  }
-  return clients.value.filter(c => c.cvClient)
-})
-
-async function fetchClients() {
-  try {
-    loading.value = true
-    const response = await fetch('/api/clients')
-    const result = await response.json()
-
-    if (result.success) {
-      clients.value = result.data
-    }
-  } catch (error) {
-    console.error('Failed to fetch clients:', error)
-  } finally {
-    loading.value = false
-  }
-}
-
-// 清除指定 CV 客户端的会话（由页面上的叉叉触发）
 async function clearSession(cvClient: CvClient) {
   if (!cvClient) return
   try {
-    const resp = await fetch(`/api/cv/clear_session/${cvClient.ip}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    })
-    const result = await resp.json()
-    if (result && result.success) {
-      // 刷新客户端列表以反映变化
-      await fetchClients()
-    } else {
-      console.error('[CvClientMonitor] 清除会话失败:', result)
-      window.alert(result?.error || '清除会话失败')
-    }
+    await apiJson(`/api/cv/clear_session/${cvClient.ip}`, { method: 'POST' })
+    message.success('已清除会话')
   } catch (error) {
     console.error('[CvClientMonitor] 清除会话请求失败:', error)
-    window.alert('请求失败')
   }
 }
-
-onMounted(() => {
-  fetchClients()
-  startAutoRefresh()
-})
-
-onUnmounted(() => {
-  stopAutoRefresh()
-})
 </script>
 
 <template>
-  <Card title="实时视觉客户端" style="display: none">
+  <Card title="实时视觉客户端">
     <div v-if="displayCvClients.length === 0">
       <Empty description="暂无视觉客户端连接" />
     </div>
-    <div v-else style="display: grid; grid-template-columns: repeat(auto-fill, 600px); gap: 16px;">
+    <div v-else style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px;">
       <Card v-for="client in displayCvClients" :key="client.id" size="small" :title="`${client.name} - 视觉客户端`">
         <template #extra>
           <div style="display: flex; align-items: center; gap: 8px;">
@@ -113,13 +48,11 @@ onUnmounted(() => {
         <strong>关联客户机IP:</strong> {{ client.ip }}
 
         <!-- 图像显示区域 -->
-        <div v-if="!useMockDataService"
-          style="position: relative; width: 100%; background: #ffffff; border-radius: 4px; overflow: hidden; min-height: 160px;">
-          <!-- MJPEG 流会自动处理，加载第一帧后就会触发 load 事件 -->
-           <img v-if="client.cvClient" :src="`/api/cv/stream/${client.cvClient.ip}`"
-           @load="() => { if (client.cvClient) { setImageLoaded(client.cvClient.ip, true) } }"
-           style="width: 100%; height: 100%; object-fit: cover;" />
-        </div>
+        <img
+          v-if="client.cvClient"
+          :src="`/api/cv/stream/${client.cvClient.ip}`"
+          style="width: 100%; height: 240px; object-fit: contain; background:#f6f6f6;"
+        />
 
       </Card>
     </div>

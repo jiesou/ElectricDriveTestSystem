@@ -15,6 +15,8 @@ import {
 export class ClientManager {
   // 所有客户端的映射表 (clientId -> Client)
   public clients: Record<string, Client> = {};
+  // 视觉客户端池（按 IP 共享同一个 CvClient 实例，可被多个 client 绑定）
+  private cvClientPool: Record<string, CvClient> = {};
   
   // relay_rainbow 响应回调 (clientId -> resolve function)
   public relayRainbowCallbacks: Map<string, (latencyMs: number) => void> = new Map();
@@ -68,6 +70,11 @@ export class ClientManager {
       existingClient.online = true;
       existingClient.socket = socket;
       existingClient.lastPing = timestamp;
+      if (existingClient.testSession) {
+        existingClient.testSession.currentQuestionIndex ??= 0;
+        existingClient.testSession.solvedTroubles ??= [];
+        existingClient.testSession.logs ??= [];
+      }
 
       console.log(`[ClientManager] Client ${existingClient.id} (${ip}) reconnected`);
 
@@ -165,46 +172,53 @@ export class ClientManager {
     }
 
     // 创建CV客户端对象
-    const cvClient: CvClient = {
+    const shared = this.cvClientPool[mapping.cvClientIp] || {
       clientType: mapping.cvClientType,
       ip: mapping.cvClientIp,
     };
+    this.cvClientPool[mapping.cvClientIp] = shared;
 
-    client.cvClient = cvClient;
+    client.cvClient = shared;
     console.log(
       `[ClientManager] 关联视觉客户端 ${mapping.cvClientIp} (${mapping.cvClientType}) 到普通客户端 ${client.id} ${client.ip}`,
     );
   }
 
   /**
-   * 根据CV客户端IP查找关联的普通客户端
+   * 根据CV客户端IP查找关联的普通客户端（可能有多个）
    * 当只有一个客户端且没有绑定CV时，自动绑定
    */
-  findClientByCvIp(cvClientIp: string): Client | null {
-    // 先尝试精确匹配
-    const exactMatch = Object.values(this.clients).find(
+  findClientsByCvIp(cvClientIp: string): Client[] {
+    const matched = Object.values(this.clients).filter(
       (c) => c.cvClient?.ip === cvClientIp,
     );
-    if (exactMatch) {
-      return exactMatch;
-    }
+    if (matched.length > 0) return matched;
 
-    // 如果只有一个客户端，且没有绑定CV客户端，自动绑定
+    // 如果只有一个客户端，且没有绑定CV客户端，自动绑定并返回
     const allClients = Object.values(this.clients);
     if (allClients.length === 1) {
       const onlyClient = allClients[0];
-      // 可能会覆盖掉已有的cvClient绑定，预期行为
-      onlyClient.cvClient = {
+      const shared = this.cvClientPool[cvClientIp] || {
         clientType: "jetson_nano", // 默认类型
         ip: cvClientIp,
       };
+      this.cvClientPool[cvClientIp] = shared;
+      onlyClient.cvClient = shared;
       console.log(
         `[ClientManager] 自动绑定 CV 客户端 ${cvClientIp} 到唯一的普通客户端 ${onlyClient.id}`,
       );
-      return onlyClient;
+      return [onlyClient];
     }
 
-    return null;
+    return [];
+  }
+
+  /**
+   * 向后兼容的单个匹配（取第一个）
+   */
+  findClientByCvIp(cvClientIp: string): Client | null {
+    const list = this.findClientsByCvIp(cvClientIp);
+    return list[0] || null;
   }
 }
 

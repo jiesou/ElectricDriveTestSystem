@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { Modal, Skeleton } from 'ant-design-vue'
+import { Modal, Skeleton, message } from 'ant-design-vue'
 import { marked } from 'marked'
 import { useMockDataService } from '../useMockData'
 
@@ -78,9 +78,6 @@ async function handleAIAnalysis(clientId: string) {
 
     try {
         const response = await fetch(`/api/generator/analyze?clientId=${clientId}`, {
-            headers: {
-                'Content-Type': 'application/json',
-            },
             signal: abortController.signal,
         })
 
@@ -114,6 +111,7 @@ async function handleAIAnalysis(clientId: string) {
             return
         }
         console.error('AI analysis error:', error)
+        message.error('分析失败')
         aiAnalysisLoading.value = false
     }
 }
@@ -132,7 +130,7 @@ function handleClose() {
         <div v-if="aiAnalysisLoading" style="padding: 40px 0; text-align: center;">
             <Skeleton active :paragraph="{ rows: 8 }" />
         </div>
-        <div v-else v-html="marked(aiAnalysisContentMarkdown)" style="max-height: 75vh; overflow-y: auto;"
+        <div v-else v-html="marked.parse(aiAnalysisContentMarkdown)" style="max-height: 75vh; overflow-y: auto;"
             class="markdown-content" />
     </Modal>
 </template>

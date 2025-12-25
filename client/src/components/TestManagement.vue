@@ -5,10 +5,12 @@ import type { Question, Client, Test } from '../types'
 import { getSecondTimestamp } from '../types'
 import ClientTable from './ClientTable.vue'
 import QuestionManagement from './QuestionManagement.vue'
+import { apiJson } from '../api-client'
+
+const props = defineProps<{ clients: Client[] }>()
 
 const questions = ref<Question[]>([])
 const tests = ref<Test[]>([])
-const clients = ref<Client[]>([]) // Only used for modal selection
 const loading = ref(false)
 
 const createTestModalVisible = ref(false)
@@ -25,31 +27,12 @@ const formState = reactive({
 async function fetchData() {
   try {
     loading.value = true
-
-    // Fetch questions, clients, and tests in parallel
-    const [questionsRes, clientsRes, testsRes] = await Promise.all([
-      fetch('/api/questions'),
-      fetch('/api/clients'),
-      fetch('/api/tests')
+    const [questionsResult, testsResult] = await Promise.all([
+      apiJson<Question[]>('/api/questions'),
+      apiJson<Test[]>('/api/tests')
     ])
-
-    const [questionsResult, clientsResult, testsResult] = await Promise.all([
-      questionsRes.json(),
-      clientsRes.json(),
-      testsRes.json()
-    ])
-
-    if (questionsResult.success) {
-      questions.value = questionsResult.data
-    }
-
-    if (clientsResult.success) {
-      clients.value = clientsResult.data
-    }
-
-    if (testsResult.success) {
-      tests.value = testsResult.data
-    }
+    questions.value = questionsResult
+    tests.value = testsResult
   } catch (error) {
     console.error('Failed to fetch data:', error)
     message.error('获取数据失败')
@@ -118,9 +101,8 @@ async function handleCreateTest() {
       ? Math.floor(new Date(formState.startTime).getTime() / 1000)
       : getSecondTimestamp()
 
-    const response = await fetch('/api/tests/test-sessions', {
+    const result = await apiJson<any>('/api/tests/test-sessions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         clientIds: formState.clientIds,
         questionIds: formState.questionIds,
@@ -128,17 +110,10 @@ async function handleCreateTest() {
         durationTime: formState.durationTime ? formState.durationTime * 60 : null
       })
     })
-
-    const result = await response.json()
-    if (result.success) {
-      const successCount = result.data.filter((r: any) => r.success).length
-      message.success(`测验创建成功，${successCount}/${result.data.length} 个客户机已分配测验`)
-      createTestModalVisible.value = false
-
-      await fetchData() // Refresh all data
-    } else {
-      message.error(result.error || '测验创建失败')
-    }
+    const successCount = (result as any[]).filter((r) => r.success ?? true).length
+    message.success(`测验创建成功，${successCount}/${(result as any[]).length} 个客户机已分配测验`)
+    createTestModalVisible.value = false
+    await fetchData()
   } catch (error) {
     console.error('Failed to create test:', error)
     message.error('测验创建失败')
@@ -182,17 +157,9 @@ function formatTime(timestamp: number): string {
 
 async function handleFinishTest() {
   try {
-    const response = await fetch(`/api/tests/finish-all`, {
-      method: 'POST'
-    })
-
-    const result = await response.json()
-    if (result.success) {
-      message.success('活跃测验已全部结束')
-      await fetchData() // Refresh data
-    } else {
-      message.error(result.error || '结束活跃测验失败')
-    }
+    await apiJson('/api/tests/finish-all', { method: 'POST' })
+    message.success('活跃测验已全部结束')
+    await fetchData()
   } catch (error) {
     console.error('Failed to finish test:', error)
     message.error('结束活跃测验失败')
@@ -201,17 +168,9 @@ async function handleFinishTest() {
 
 async function handleClearAllTests() {
   try {
-    const response = await fetch(`/api/tests/clear-all`, {
-      method: 'POST'
-    })
-
-    const result = await response.json()
-    if (result.success) {
-      message.success('所有测验记录已清除')
-      await fetchData() // Refresh data
-    } else {
-      message.error(result.error || '清除测验记录失败')
-    }
+    await apiJson('/api/tests/clear-all', { method: 'POST' })
+    message.success('所有测验记录已清除')
+    await fetchData()
   } catch (error) {
     console.error('Failed to clear all tests:', error)
     message.error('清除测验记录失败')
@@ -253,8 +212,6 @@ const testColumns = [
 
 onMounted(() => {
   fetchData()
-  // Refresh data every 5 seconds
-  setInterval(fetchData, 5000)
 })
 </script>
 
@@ -295,7 +252,7 @@ onMounted(() => {
     </Card>
 
     <Card title="连接的客户机" style="margin-bottom: 20px;">
-      <ClientTable />
+      <ClientTable :clients="props.clients" />
     </Card>
 
     <Card title="已安排的测验">
@@ -306,16 +263,16 @@ onMounted(() => {
       <Form layout="vertical">
         <Form.Item label="选择客户机" required>
           <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-            <Select v-model:value="formState.clientIds" mode="multiple" placeholder="请选择目标客户机" style="width: 100%">
-              <Select.Option v-for="client in clients" :key="client.id" :value="client.id">
-          {{ client.name }} ({{ client.ip }})
-          <Tag v-if="!client.online" color="red" size="small">离线</Tag>
-          <Tag v-else-if="client.testSession?.finishTime" color="green" size="small">已结束</Tag>
-          <Tag v-else-if="client.testSession" color="blue" size="small">进行中</Tag>
-          <Tag v-else color="green" size="small">可用</Tag>
+           <Select v-model:value="formState.clientIds" mode="multiple" placeholder="请选择目标客户机" style="width: 100%">
+               <Select.Option v-for="client in props.clients" :key="client.id" :value="client.id">
+           {{ client.name }} ({{ client.ip }})
+           <Tag v-if="!client.online" color="red" size="small">离线</Tag>
+           <Tag v-else-if="client.testSession?.finishTime" color="green" size="small">已结束</Tag>
+           <Tag v-else-if="client.testSession" color="blue" size="small">进行中</Tag>
+           <Tag v-else color="green" size="small">可用</Tag>
               </Select.Option>
             </Select>
-            <Button type="link" @click="formState.clientIds = clients.map(client => client.id)">
+            <Button type="link" @click="formState.clientIds = props.clients.map(client => client.id)">
               全选
             </Button>
           </div>

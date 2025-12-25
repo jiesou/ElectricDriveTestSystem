@@ -17,6 +17,9 @@ clientManager.addWSMessageHandler((client, _socket, message) => {
       // 客户端上传或更新整个 test 的相关信息（主要就是 all_questions）
       const msg = message as TroubleTestUpdateRequestMessage;
       if (client.testSession) {
+        client.testSession.currentQuestionIndex ??= 0;
+        client.testSession.solvedTroubles ??= [];
+        client.testSession.logs ??= [];
         /* 核心：差分计算实现 TestLog 记录 */
         const oldQuestions = client.testSession.test.questions;
         const newQuestions = msg.all_questions;
@@ -73,6 +76,8 @@ clientManager.addWSMessageHandler((client, _socket, message) => {
             startTime: msg.start_time,
             durationTime: msg.duration_time,
           },
+          currentQuestionIndex: 0,
+          solvedTroubles: [],
           finishTime: msg.finish_time,
           finishedScore: msg.finished_score,
           logs: [
@@ -151,6 +156,8 @@ export class TroubleTest {
     const session: TestSession = {
       id: `${client.id}_${Date.now()}`,
       test,
+      currentQuestionIndex: 0,
+      solvedTroubles: [],
       logs: [
         {
           timestamp: getSecondTimestamp(),

@@ -90,8 +90,13 @@ export function generateMockData(): Client[] {
   const testSession: TestSession = {
     id: 'test-session-45',
     test: test,
+    currentQuestionIndex: 0,
     finishTime: now, // 当前时间结束
     finishedScore: 67, // 得分67分
+    solvedTroubles: [
+      [0, [troubles[0]!]],
+      [1, [troubles[1]!]],
+    ],
     logs: logs
   }
   
