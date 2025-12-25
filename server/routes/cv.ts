@@ -16,6 +16,19 @@ import { detectObjects } from "../model.ts";
  */
 export const cvRouter = new Router({ prefix: "/cv" });
 
+function syncCvBindings(clients: ReturnType<typeof clientManager.findClientsByCvIp>, primary: any, session: any) {
+  for (const c of clients) {
+    if (!c.cvClient) {
+      c.cvClient = {
+        clientType: primary.cvClient.clientType,
+        ip: primary.cvClient.ip,
+      };
+    }
+    c.cvClient.latest_frame = primary.cvClient.latest_frame;
+    c.cvClient.session = session;
+  }
+}
+
 /**
  * MJPEG 流端点：实时显示 CV 客户端的图像流
  * GET /api/cv/stream/:cvClientIp
@@ -167,16 +180,7 @@ cvRouter.post("/upload_wiring", async (ctx) => {
   }
 
   // 为所有绑定的普通客户端同步会话对象
-  for (const c of clients) {
-    if (!c.cvClient) {
-      c.cvClient = {
-        clientType: primary.cvClient.clientType,
-        ip: primary.cvClient.ip,
-      };
-    }
-    c.cvClient.latest_frame = primary.cvClient.latest_frame;
-    c.cvClient.session = session;
-  }
+  syncCvBindings(clients, primary, session);
 
   if (session.type !== "evaluate_wiring") {
     ctx.response.status = 400;
@@ -461,16 +465,7 @@ cvRouter.post("/upload_face", async (ctx) => {
     }
 
     // 同步给所有绑定的普通客户端
-    for (const c of clients) {
-      if (!c.cvClient) {
-        c.cvClient = {
-          clientType: primary.cvClient.clientType,
-          ip: primary.cvClient.ip,
-        };
-      }
-      c.cvClient.latest_frame = primary.cvClient.latest_frame;
-      c.cvClient.session = session;
-    }
+    syncCvBindings(clients, primary, session);
 
     // 设置最终结果
     session.finalResult = {

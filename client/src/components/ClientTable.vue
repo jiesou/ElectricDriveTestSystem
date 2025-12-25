@@ -119,7 +119,7 @@ function startEdit(record: any) {
         <Tag v-else color="green" size="small">可用</Tag>
         <div v-if="record.testSession" style="margin-top: 4px; font-size: 12px; color: #666;">
           已提交: {{
-            record.testSession.solvedTroubles?.reduce((acc: number, [, solved]: [number, any[]]) => acc + solved.length, 0) || 0
+            record.testSession.solvedTroubles?.reduce((acc: number, [, solved]: [number, import('../types').Trouble[]]) => acc + solved.length, 0) || 0
           }} 个
         </div>
       </template>
