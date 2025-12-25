@@ -15,7 +15,6 @@ const loading = ref(false)
 
 const createTestModalVisible = ref(false)
 const questionManagementModalVisible = ref(false)
-const questionManagementRef = ref<InstanceType<typeof QuestionManagement> | null>(null)
 
 const formState = reactive({
   clientIds: [] as string[],
@@ -321,7 +320,7 @@ onMounted(() => {
     <!-- Question Management Modal -->
     <Modal v-model:open="questionManagementModalVisible" title="题库管理" width="800px" :footer="null"
       @cancel="handleQuestionManagementClose">
-      <QuestionManagement ref="questionManagementRef" />
+      <QuestionManagement />
     </Modal>
   </div>
 </template>

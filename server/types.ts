@@ -100,6 +100,7 @@ export interface FaceSigninSession extends CvSession {
   type: "face_signin";
   finalResult?: {
     who: string; // 识别到的人员名称
+    image: string; // 图片数据（base64或URL）
   };
 }
 
@@ -147,7 +148,10 @@ export interface WSMessage {
 // WebSocket 消息处理器类型
 export type WSMessageHandler = (client: Client, socket: WebSocket, message: WSMessage) => void;
 
-/* XX RequestMessage 表示客户机发送到服务器的消息 */
+/* XX RequestMessage       客户机->服务器 的消息 */
+/* XX UpdateRequestMessage 客户机->服务器 更新数据 */
+/* XX PullRequestMessage   客户机->服务器 请求拉取新数据 */
+/* XX PushMessage          客户机<-服务器 要求更新数据 */
 export interface PingRequestMessage extends WSMessage {
   type: "ping";
 }
@@ -192,8 +196,8 @@ export interface TroubleTestFinishMessage extends WSMessage {
 // ==================== EvaluateFunctionBoard 功能评估相关 ====================
 
 // ESP32 客户机更新装接评估-功能部分的 Board 状态
-export interface EvaluateFunctionBoardUpdateMessage extends WSMessage {
-  type: "evaluate_function_board_update";
+export interface EvaluateFunctionBoardUpdateRequestMessage extends WSMessage {
+  type: "evaluate_function_board_update_request";
   description: string;
   function_steps: EvaluateFunctionStep[];
 }
@@ -204,8 +208,8 @@ export interface EvaluateWiringYoloRequestMessage extends WSMessage {
 }
 
 // 服务器返回装接评估结果给ESP32客户机
-export interface EvaluateWiringYoloResponseMessage extends WSMessage {
-  type: "evaluate_wiring_yolo_response";
+export interface EvaluateWiringYoloPushMessage extends WSMessage {
+  type: "evaluate_wiring_yolo_push";
   result: {
     no_sleeves_num: number;
     cross_num: number;
@@ -218,13 +222,13 @@ export interface EvaluateWiringYoloResponseMessage extends WSMessage {
 // ==================== FaceSignin 人脸签到相关 ====================
 
 // ESP32 客户机请求人脸签到
-export interface FaceSigninRequestMessage extends WSMessage {
-  type: "face_signin_request";
-}
+// export interface FaceSigninRequestMessage extends WSMessage {
+//   type: "face_signin_request";
+// }
 
 // 服务器返回人脸签到结果给ESP32客户机
-export interface FaceSigninResponseMessage extends WSMessage {
-  type: "face_signin_response";
+export interface FaceSigninResultPushMessage extends WSMessage {
+  type: "face_signin_result_push";
   who: string;
 }
 

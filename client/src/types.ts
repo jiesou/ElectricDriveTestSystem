@@ -189,9 +189,9 @@ export interface EvaluateWiringYoloResponseMessage extends WSMessage {
 // ==================== FaceSignin 人脸签到相关 ====================
 
 // ESP32 客户机请求人脸签到
-export interface FaceSigninRequestMessage extends WSMessage {
-  type: "face_signin_request";
-}
+// export interface FaceSigninRequestMessage extends WSMessage {
+//   type: "face_signin_request";
+// }
 
 // 服务器返回人脸签到结果给ESP32客户机
 export interface FaceSigninResponseMessage extends WSMessage {

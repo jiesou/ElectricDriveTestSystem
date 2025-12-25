@@ -1,16 +1,15 @@
 import { clientManager } from "./ClientManager.ts";
 import {
   EvaluateBoard,
-  EvaluateFunctionBoardUpdateMessage,
+  EvaluateFunctionBoardUpdateRequestMessage,
   EvaluateWiringSession,
-  FaceSigninSession,
   getSecondTimestamp,
 } from "./types.ts";
 
 clientManager.addWSMessageHandler((client, socket, message) => {
   switch (message.type) {
     case "evaluate_function_board_update": {
-      const msg = message as EvaluateFunctionBoardUpdateMessage;
+      const msg = message as EvaluateFunctionBoardUpdateRequestMessage;
       const board: EvaluateBoard = {
         description: msg.description,
         function_steps: msg.function_steps,
@@ -38,25 +37,6 @@ clientManager.addWSMessageHandler((client, socket, message) => {
       client.cvClient.session = session;
       console.log(
         `[evaluate] Started evaluate_wiring session for client ${client.id}`,
-      );
-      break;
-    }
-    case "face_signin_request": {
-      if (!client.cvClient) {
-        clientManager.sendWSMessage(socket, {
-          type: "error",
-          message: "No CV client configured",
-          timestamp: getSecondTimestamp(),
-        });
-        return;
-      }
-      const session: FaceSigninSession = {
-        type: "face_signin",
-        startTime: getSecondTimestamp(),
-      };
-      client.cvClient.session = session;
-      console.log(
-        `[evaluate] Started face_signin session for client ${client.id}`,
       );
       break;
     }
