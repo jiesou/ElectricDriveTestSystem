@@ -111,7 +111,6 @@ async function handleAIAnalysis(clientId: string) {
             return
         }
         console.error('AI analysis error:', error)
-        message.error('分析失败')
         aiAnalysisLoading.value = false
     }
 }

@@ -33,6 +33,11 @@ function getLogColor(action: string): string {
   }
 }
 
+function pickLogs(session: Client['testSession']) {
+  const logs = session?.logs || []
+  return showConnectionEvents.value ? logs : logs.filter(log => log.action !== 'connect' && log.action !== 'disconnect')
+}
+
 async function handleForgetClients() {
   try {
     await apiJson('/api/clients/forget', { method: 'POST' })
@@ -46,11 +51,6 @@ async function handleForgetClients() {
 function handleAIAnalysis(clientId: string) {
   currentAnalysisClientId.value = clientId
   aiAnalysisModal.value = true
-}
-
-function pickLogs(session: Client['testSession']) {
-  const logs = session?.logs || []
-  return showConnectionEvents.value ? logs : logs.filter(log => log.action !== 'connect' && log.action !== 'disconnect')
 }
 </script>
 

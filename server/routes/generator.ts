@@ -38,9 +38,6 @@ function formatLogEntry(log: TestLog, index: number): string {
     case "answer":
       detail = `选择故障${log.details.trouble?.id} (${log.details.trouble?.description}) - ${log.details.result ? "正确✓" : "错误✗"}`;
       break;
-    case "navigation":
-      detail = `切换到${log.details.direction === "next" ? "下一题" : "上一题"}`;
-      break;
     case "finish":
       detail = `完成测验 - 得分: ${log.details.score}`;
       break;
@@ -92,7 +89,7 @@ function buildPrompt(client: Client): string {
       markdown.push(`**题目 ${idx + 1} (ID: ${question.id})**`);
       markdown.push("所设故障:");
       question.troubles.forEach((trouble: Trouble) => {
-        markdown.push(`  - 故障${trouble.id}: ${trouble.description}`);
+        markdown.push(`  - 故障${trouble.id}: ${trouble.description} 所选线号 ${trouble.is_submitted} - ${trouble.to_wire}`);
       });
     });
     

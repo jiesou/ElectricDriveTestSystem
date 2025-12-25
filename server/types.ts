@@ -1,9 +1,3 @@
-// Utility function
-export function getSecondTimestamp(): number {
-  return Math.floor(Date.now() / 1000);
-}
-
-
 // ==================== TroubleTest 排故测验相关 ====================
 export interface Trouble {
   id: number;
@@ -334,3 +328,8 @@ export const CV_CLIENT_MAP: CvClientMapConfig[] = (() => {
 
   return DEFAULT_CV_CLIENT_MAP;
 })();
+
+// Utility function
+export function getSecondTimestamp(): number {
+  return Math.floor(Date.now() / 1000);
+}
