@@ -154,7 +154,7 @@ function pickLogs(session: Client['testSession']) {
             <div style="margin-bottom: 16px;">
               <p><strong>开始时间:</strong> {{ formatTime(client.testSession.test.startTime) }}</p>
               <p><strong>已提交:</strong> {{
-                client.testSession.solvedTroubles?.reduce((acc: number, [, solved]: [number, any[]]) => acc + solved.length, 0) || 0
+                client.testSession.test.questions.reduce((acc, q) => acc + q.troubles.filter(t => t.is_submitted).length, 0)
               }} 个</p>
               <div v-if="pickLogs(client.testSession).length > 0">
                 <strong>测验日志</strong>
@@ -178,9 +178,6 @@ function pickLogs(session: Client['testSession']) {
                         <strong v-else-if="log.action == 'answer'">
                           选择了 <Tag v-if="log.details.trouble">故障{{ log.details.trouble.id }} ({{
                             log.details.trouble.description }})</Tag> - {{ log.details.result ? '正确' : '错误' }}
-                        </strong>
-                        <strong v-else-if="log.action == 'navigation'">
-                          切换到{{ log.details.direction === 'next' ? '下一题' : '上一题' }}
                         </strong>
                         <strong v-else>未知操作</strong>
                       </div>
