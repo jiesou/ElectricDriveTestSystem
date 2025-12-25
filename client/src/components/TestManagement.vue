@@ -2,7 +2,7 @@
 import { ref, reactive, onMounted, h } from 'vue'
 import { Table, Button, Modal, Form, Select, DatePicker, message, Card, Tag, InputNumber, Popconfirm } from 'ant-design-vue'
 import type { Question, Client, Test } from '../types'
-import { getSecondTimestamp } from '../types'
+import { getSecondTimestamp, formatTime } from '../types'
 import ClientTable from './ClientTable.vue'
 import QuestionManagement from './QuestionManagement.vue'
 import { apiJson } from '../api-client'
@@ -149,10 +149,6 @@ async function handleRelayRainbowTest() {
   } finally {
     loading.value = false
   }
-}
-
-function formatTime(timestamp: number): string {
-  return new Date(timestamp * 1000).toLocaleString()
 }
 
 async function handleFinishTest() {

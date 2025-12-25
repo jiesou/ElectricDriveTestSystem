@@ -23,10 +23,10 @@ export const cvRouter = new Router({ prefix: "/cv" });
 cvRouter.get("/stream/:cvClientIp", (ctx) => {
   const cvClientIp = ctx.params.cvClientIp;
 
-  // 查找关联此 CV 客户端的普通客户端
-  const client = clientManager.findClientByCvIp(cvClientIp);
+  const clients = clientManager.findClientsByCvIp(cvClientIp);
+  const primary = clients[0];
 
-  if (!client || !client.cvClient) {
+  if (!primary || !primary.cvClient) {
     ctx.response.status = 404;
     ctx.response.body = "CV client not found";
     return;
@@ -54,7 +54,7 @@ cvRouter.get("/stream/:cvClientIp", (ctx) => {
       // 定期发送帧
       intervalId = setInterval(() => {
         try {
-          const frame = client.cvClient?.latest_frame;
+          const frame = primary.cvClient?.latest_frame;
 
           if (frame && frame.length > 0) {
             // 发送 MJPEG 帧
@@ -133,10 +133,10 @@ cvRouter.post("/upload_wiring", async (ctx) => {
 
   const cvClientIp: string = ctx.request.ip;
 
-  // 查找关联此 CV 客户端的普通客户端（只有一个时自动绑定）
-  const client = clientManager.findClientByCvIp(cvClientIp);
+  const clients = clientManager.findClientsByCvIp(cvClientIp);
+  const primary = clients[0];
 
-  if (!client) {
+  if (!primary || !primary.cvClient) {
     ctx.response.status = 400;
     ctx.response.body = {
       success: false,
@@ -145,35 +145,16 @@ cvRouter.post("/upload_wiring", async (ctx) => {
     return;
   }
 
-  if (!client.cvClient) {
-    ctx.response.status = 400;
-    ctx.response.body = {
-      success: false,
-      error: "当前普通客户端没有绑定视觉客户端信息",
+  if (!primary.cvClient.session) {
+    const session: EvaluateWiringSession = {
+      type: "evaluate_wiring",
+      startTime: getSecondTimestamp(),
+      shots: [],
     };
-    return;
+    primary.cvClient.session = session;
   }
 
-  if (!client.cvClient?.session) {
-    // 没有活跃会话则自动创建
-
-      // 创建装接评估会话
-      const session: EvaluateWiringSession = {
-        type: "evaluate_wiring",
-        startTime: getSecondTimestamp(),
-        shots: [],
-      };
-      client.cvClient.session = session;
-
-    // ctx.response.status = 400;
-    // ctx.response.body = {
-    //   success: false,
-    //   error: "当前视觉客户端没有活跃会话，没有需要拍的",
-    // };
-    // return;
-  }
-
-  if (client.cvClient.session.type !== "evaluate_wiring") {
+  if (primary.cvClient.session.type !== "evaluate_wiring") {
     ctx.response.status = 400;
     ctx.response.body = {
       success: false,
@@ -182,7 +163,17 @@ cvRouter.post("/upload_wiring", async (ctx) => {
     return;
   }
 
-  const session = client.cvClient.session as EvaluateWiringSession;
+  const session = primary.cvClient.session as EvaluateWiringSession;
+  // 让所有绑定的客户端共享同一 session
+  for (const c of clients) {
+    if (!c.cvClient) {
+      c.cvClient = {
+        clientType: primary.cvClient!.clientType,
+        ip: primary.cvClient!.ip,
+      };
+    }
+    c.cvClient.session = session;
+  }
 
   // 允许覆盖指定 position 的照片（1/2/3）。如果之前已有记录则覆盖。
   const inputResultObj: {
@@ -304,19 +295,10 @@ cvRouter.post("/confirm_wiring", (ctx) => {
   try {
     const cvClientIp: string = ctx.request.ip;
 
-    // 查找关联此 CV 客户端的普通客户端（只有一个时自动绑定）
-    const client = clientManager.findClientByCvIp(cvClientIp);
+    const clients = clientManager.findClientsByCvIp(cvClientIp);
+    const primary = clients[0];
 
-    if (!client) {
-      ctx.response.status = 400;
-      ctx.response.body = {
-        success: false,
-        error: "找不到当前视觉客户端，所对应的普通客户端",
-      };
-      return;
-    }
-
-    if (!client.cvClient?.session) {
+    if (!primary?.cvClient || !primary.cvClient.session) {
       ctx.response.status = 400;
       ctx.response.body = {
         success: false,
@@ -325,7 +307,7 @@ cvRouter.post("/confirm_wiring", (ctx) => {
       return;
     }
 
-    if (client.cvClient.session.type !== "evaluate_wiring") {
+    if (primary.cvClient.session.type !== "evaluate_wiring") {
       ctx.response.status = 400;
       ctx.response.body = {
         success: false,
@@ -334,7 +316,7 @@ cvRouter.post("/confirm_wiring", (ctx) => {
       return;
     }
 
-    const session = client.cvClient.session as EvaluateWiringSession;
+    const session = primary.cvClient.session as EvaluateWiringSession;
 
     // 计算最终结果
     const totalSleeves = session.shots.reduce(
@@ -375,18 +357,18 @@ cvRouter.post("/confirm_wiring", (ctx) => {
     };
 
     console.log(
-      `[CV Upload] Wiring evaluation completed for client ${client.id}, score: ${scores}`,
+      `[CV Upload] Wiring evaluation completed for cvClient ${cvClientIp}, score: ${scores}`,
     );
 
-    // 发送结果给ESP32客户端
-    for (const client of Object.values(clientManager.clients)) {
-      if (client.socket && client.socket.readyState === WebSocket.OPEN) {
+    // 发送结果给相关客户端
+    for (const c of clients) {
+      if (c.socket && c.socket.readyState === WebSocket.OPEN) {
         const responseMsg: EvaluateWiringYoloResponseMessage = {
           type: "evaluate_wiring_yolo_response",
           timestamp: getSecondTimestamp(),
           result: session.finalResult,
         };
-        clientManager.sendWSMessage(client.socket, responseMsg);
+        clientManager.sendWSMessage(c.socket, responseMsg);
       }
     }
 
@@ -419,10 +401,10 @@ cvRouter.post("/upload_face", async (ctx) => {
 
     const cvClientIp: string = ctx.request.ip;
 
-    // 查找关联此 CV 客户端的普通客户端（只有一个时自动绑定）
-    const client = clientManager.findClientByCvIp(cvClientIp);
+    const clients = clientManager.findClientsByCvIp(cvClientIp);
+    const primary = clients[0];
 
-    if (!client) {
+    if (!primary?.cvClient) {
       ctx.response.status = 404;
       ctx.response.body = {
         success: false,
@@ -431,37 +413,47 @@ cvRouter.post("/upload_face", async (ctx) => {
       return;
     }
 
-    if (!client.cvClient?.session) {
-      ctx.response.status = 400;
-      ctx.response.body = { success: false, error: "No active CV session" };
-      return;
+    let session = primary.cvClient.session as FaceSigninSession | undefined;
+    if (!session) {
+      session = {
+        type: "face_signin",
+        startTime: getSecondTimestamp(),
+      };
+      primary.cvClient.session = session;
     }
 
-    if (client.cvClient.session.type !== "face_signin") {
+    if (session.type !== "face_signin") {
       ctx.response.status = 400;
       ctx.response.body = { success: false, error: "Wrong session type" };
       return;
     }
 
-    const session = client.cvClient.session as FaceSigninSession;
+    // 同步 session 给所有匹配客户端
+    for (const c of clients) {
+      if (!c.cvClient) {
+        c.cvClient = {
+          clientType: primary.cvClient.clientType,
+          ip: primary.cvClient.ip,
+        };
+      }
+      c.cvClient.session = session;
+    }
 
-    // 设置最终结果
-    session.finalResult = {
-      who,
-    };
+    session.finalResult = { who };
 
     console.log(
-      `[CV Upload] Face signin completed for client ${client.id}, identified: ${who}`,
+      `[CV Upload] Face signin completed for cvClient ${cvClientIp}, identified: ${who}`,
     );
 
-    // 发送结果给ESP32客户端
-    if (client.socket && client.socket.readyState === WebSocket.OPEN) {
-      const responseMsg: FaceSigninResponseMessage = {
-        type: "face_signin_response",
-        timestamp: getSecondTimestamp(),
-        who: session.finalResult.who,
-      };
-      clientManager.sendWSMessage(client.socket, responseMsg);
+    for (const c of clients) {
+      if (c.socket && c.socket.readyState === WebSocket.OPEN) {
+        const responseMsg: FaceSigninResponseMessage = {
+          type: "face_signin_response",
+          timestamp: getSecondTimestamp(),
+          who: session.finalResult.who,
+        };
+        clientManager.sendWSMessage(c.socket, responseMsg);
+      }
     }
 
     ctx.response.body = {

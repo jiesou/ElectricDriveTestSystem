@@ -203,3 +203,7 @@ export interface FaceSigninResponseMessage extends WSMessage {
 export function getSecondTimestamp(): number {
   return Math.floor(Date.now() / 1000);
 }
+
+export function formatTime(timestamp: number): string {
+  return new Date(timestamp * 1000).toLocaleString();
+}

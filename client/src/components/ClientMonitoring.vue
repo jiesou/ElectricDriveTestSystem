@@ -3,6 +3,7 @@ import { ref, h, computed } from 'vue'
 import { Card, Popconfirm, Button, Tag, Timeline, Switch, message } from 'ant-design-vue'
 import { AimOutlined } from '@ant-design/icons-vue'
 import type { Client } from '../types'
+import { formatTime } from '../types'
 import ClientTable from './ClientTable.vue'
 import CvClientMonitor from './CvClientMonitor.vue'
 import AIAnalysisModal from './AIAnalysisModal.vue'
@@ -30,10 +31,6 @@ function getLogColor(action: string): string {
     case 'disconnect': return 'gray'
     default: return 'default'
   }
-}
-
-function formatTime(timestamp: number): string {
-  return new Date(timestamp * 1000).toLocaleString()
 }
 
 async function handleForgetClients() {
