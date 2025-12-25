@@ -68,8 +68,8 @@ function buildPrompt(client: Client): string {
   // 排故测验信息
   if (client.testSession) {
     const session = client.testSession;
-    const solvedTroubles = session.solvedTroubles ?? [];
-    const logs = session.logs ?? [];
+    const solvedTroubles = session.solvedTroubles;
+    const logs = session.logs;
     markdown.push("### 排故测验\n");
     
     // 基本信息
