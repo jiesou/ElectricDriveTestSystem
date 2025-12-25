@@ -130,7 +130,7 @@ function handleClose() {
         <div v-if="aiAnalysisLoading" style="padding: 40px 0; text-align: center;">
             <Skeleton active :paragraph="{ rows: 8 }" />
         </div>
-        <div v-else v-html="marked.parse(aiAnalysisContentMarkdown)" style="max-height: 75vh; overflow-y: auto;"
+        <div v-else v-html="marked(aiAnalysisContentMarkdown)" style="max-height: 75vh; overflow-y: auto;"
             class="markdown-content" />
     </Modal>
 </template>

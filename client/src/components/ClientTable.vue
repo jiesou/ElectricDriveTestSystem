@@ -6,6 +6,7 @@ import type { Client } from '../types'
 import { apiJson } from '../api-client'
 
 const props = defineProps<{ clients: Client[] }>()
+const emit = defineEmits<{ (e: 'refresh'): void }>()
 
 const columns = [
   {
@@ -48,8 +49,7 @@ async function saveClientName(clientId: string) {
       method: 'PUT',
       body: JSON.stringify({ name: newName }),
     })
-    const idx = props.clients.findIndex((c) => c.id === clientId)
-    if (idx !== -1 && props.clients[idx]) props.clients[idx].name = newName
+    emit('refresh')
     editingId.value = null
     message.success('保存成功')
     return true
