@@ -101,7 +101,7 @@ async function handleCreateTest() {
       ? Math.floor(new Date(formState.startTime).getTime() / 1000)
       : getSecondTimestamp()
 
-    const result = await apiJson<any>('/api/tests/test-sessions', {
+    const result = await apiJson<Array<{ clientId: string; success?: boolean }>>('/api/tests/test-sessions', {
       method: 'POST',
       body: JSON.stringify({
         clientIds: formState.clientIds,
@@ -110,8 +110,8 @@ async function handleCreateTest() {
         durationTime: formState.durationTime ? formState.durationTime * 60 : null
       })
     })
-    const successCount = (result as any[]).filter((r) => r.success ?? true).length
-    message.success(`测验创建成功，${successCount}/${(result as any[]).length} 个客户机已分配测验`)
+    const successCount = result.filter((r) => r.success ?? true).length
+    message.success(`测验创建成功，${successCount}/${result.length} 个客户机已分配测验`)
     createTestModalVisible.value = false
     await fetchData()
   } catch (error) {

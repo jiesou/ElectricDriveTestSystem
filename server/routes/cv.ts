@@ -16,7 +16,11 @@ import { detectObjects } from "../model.ts";
  */
 export const cvRouter = new Router({ prefix: "/cv" });
 
-function syncCvBindings(clients: ReturnType<typeof clientManager.findClientsByCvIp>, primary: any, session: any) {
+function syncCvBindings(
+  clients: import("../types.ts").Client[],
+  primary: import("../types.ts").Client,
+  session: import("../types.ts").EvaluateWiringSession | import("../types.ts").FaceSigninSession,
+) {
   for (const c of clients) {
     if (!c.cvClient) {
       c.cvClient = {
@@ -354,22 +358,14 @@ cvRouter.post("/confirm_wiring", (ctx) => {
       c.cvClient.session = session;
     }
 
-    // 计算最终结果
-    const totalSleeves = session.shots.reduce(
-      (sum, shot) => sum + shot.result.sleeves_num,
-      0,
-    );
-    const totalCross = session.shots.reduce(
-      (sum, shot) => sum + shot.result.cross_num,
-      0,
-    );
-    const totalExcopper = session.shots.reduce(
-      (sum, shot) => sum + shot.result.excopper_num,
-      0,
-    );
-    const totalExterminal = session.shots.reduce(
-      (sum, shot) => sum + shot.result.exterminal_num,
-      0,
+    const totals = session.shots.reduce(
+      (sum, shot) => ({
+        sleeves: sum.sleeves + shot.result.sleeves_num,
+        cross: sum.cross + shot.result.cross_num,
+        excopper: sum.excopper + shot.result.excopper_num,
+        exterminal: sum.exterminal + shot.result.exterminal_num,
+      }),
+      { sleeves: 0, cross: 0, excopper: 0, exterminal: 0 },
     );
 
     const OVERALL_SLEEVES_NEEDED = 20+18+20; // 第一张始终 20，第三张始终 18，中间第二张需要 20
@@ -377,18 +373,15 @@ cvRouter.post("/confirm_wiring", (ctx) => {
     // 评分算法
     // 每个未标号码管扣2分，交叉扣3分，露铜忽略，露端子扣1分
     const totalPoints = 100;
-    const noSleevesDeduction = Math.max(
-      0,
-      OVERALL_SLEEVES_NEEDED - totalSleeves,
-    );
-    const deduction = noSleevesDeduction * 2 + totalCross * 3 + totalExterminal * 1;
+    const noSleevesDeduction = Math.max(0, OVERALL_SLEEVES_NEEDED - totals.sleeves);
+    const deduction = noSleevesDeduction * 2 + totals.cross * 3 + totals.exterminal * 1;
     const scores = Math.max(76, Math.min(90, totalPoints - deduction)); // 最低76分，最高90分
 
     session.finalResult = {
       no_sleeves_num: noSleevesDeduction,
-      cross_num: totalCross,
-      excopper_num: totalExcopper,
-      exterminal_num: totalExterminal,
+      cross_num: totals.cross,
+      excopper_num: totals.excopper,
+      exterminal_num: totals.exterminal,
       scores,
     };
 

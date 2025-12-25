@@ -2,7 +2,7 @@
 import { ref, nextTick } from 'vue'
 import { Table, Tag, Input, message } from 'ant-design-vue'
 import { EditOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons-vue'
-import type { Client } from '../types'
+import type { Client, Trouble } from '../types'
 import { apiJson } from '../api-client'
 
 const props = defineProps<{ clients: Client[] }>()
@@ -120,7 +120,7 @@ function startEdit(record: any) {
         <div v-if="record.testSession" style="margin-top: 4px; font-size: 12px; color: #666;">
           已提交: {{
             Array.isArray(record.testSession?.solvedTroubles)
-              ? record.testSession.solvedTroubles.reduce((acc: number, [, solved]: [number, any[]]) => acc + solved.length, 0)
+              ? record.testSession.solvedTroubles.reduce((acc: number, [, solved]: [number, Trouble[]]) => acc + solved.length, 0)
               : 0
           }} 个
         </div>
