@@ -53,7 +53,7 @@ export function generateMockData(): Client[] {
       details: {
         question: questions[0],
         trouble: troubles[0],
-        result: true
+        isCorrect: true
       }
     },
     // 第二题回答正确
@@ -63,7 +63,7 @@ export function generateMockData(): Client[] {
       details: {
         question: questions[1],
         trouble: troubles[1],
-        result: true
+        isCorrect: true
       }
     },
     // 第三题回答错误 (126和136断路，这是故障4)
@@ -73,7 +73,7 @@ export function generateMockData(): Client[] {
       details: {
         question: questions[2],
         trouble: troubles[3], // 错误选择了故障4
-        result: false
+        isCorrect: false
       }
     },
     // 交卷，得分67分

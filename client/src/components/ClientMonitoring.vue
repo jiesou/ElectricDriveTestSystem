@@ -173,8 +173,22 @@ function handleAIAnalysis(clientId: string) {
                         <strong v-else-if="log.action == 'connect'">连接上服务器</strong>
                         <strong v-else-if="log.action == 'disconnect'">断开了连接</strong>
                         <strong v-else-if="log.action == 'answer'">
-                          选择了 <Tag v-if="log.details.trouble">故障{{ log.details.trouble.id }} ({{
-                            log.details.trouble.description }})</Tag> - {{ log.details.result ? '正确' : '错误' }}
+                          第 {{ (() => {
+                            const question = log.details.question
+                            if (!client.testSession || !question) return '?'
+                            const idx = client.testSession.test.questions.findIndex(item => item.id === question.id)
+                            return idx >= 0 ? idx + 1 : '?'
+                          })() }} 题，第 {{ (() => {
+                            const question = log.details.question
+                            const trouble = log.details.trouble
+                            if (!question || !trouble) return '?'
+                            const idx = question.troubles.findIndex(item => item.id === trouble.id)
+                            return idx >= 0 ? idx + 1 : '?'
+                          })() }} 个故障 -
+                          选择了 <Tag v-if="log.details.trouble">{{
+                            log.details.trouble.submitted_from_wire }} - {{ log.details.trouble.submitted_to_wire }}</Tag>，正确答案为
+                            <Tag v-if="log.details.trouble">故障{{ log.details.trouble.id }} ({{
+                            log.details.trouble.from_wire }} - {{ log.details.trouble.to_wire }})</Tag>  - 判定 {{ log.details.isCorrect ? '答对' : '答错' }}
                         </strong>
                         <strong v-else>未知操作</strong>
                       </div>

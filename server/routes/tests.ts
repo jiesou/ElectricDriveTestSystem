@@ -36,6 +36,62 @@ testsRouter.post("/clear-all", (ctx) => {
   ctx.response.body = { success: true };
 });
 
+// 强制下发当前测验到指定/全部客户端
+testsRouter.post("/push-latest", async (ctx) => {
+  try {
+    const body = await ctx.request.body.json();
+    const targetClientIds: string[] | undefined = Array.isArray(body?.clientIds)
+      ? body.clientIds
+      : undefined;
+
+    const allClients = Object.values(clientManager.clients);
+    const targetClients = (targetClientIds && targetClientIds.length > 0)
+      ? targetClientIds
+          .map((id) => clientManager.clients[id])
+          .filter((client) => Boolean(client))
+      : allClients;
+
+    const results: {
+      clientId: string;
+      clientName: string;
+      pushed: boolean;
+      reason?: string;
+    }[] = [];
+
+    for (const client of targetClients) {
+      if (!client?.testSession?.test) {
+        results.push({
+          clientId: client?.id ?? "",
+          clientName: client?.name ?? "unknown",
+          pushed: false,
+          reason: "无测验会话",
+        });
+        continue;
+      }
+
+      troubleTest.pushTestToClient(client, client.testSession.test);
+      results.push({
+        clientId: client.id,
+        clientName: client.name,
+        pushed: true,
+      });
+    }
+
+    ctx.response.body = {
+      success: true,
+      data: {
+        total: results.length,
+        successCount: results.filter((r) => r.pushed).length,
+        results,
+      },
+    };
+  } catch (error) {
+    console.error("/tests/push-latest failed", error);
+    ctx.response.status = 400;
+    ctx.response.body = { success: false, error: "强制推送失败" };
+  }
+});
+
 // 创建测验会话
 testsRouter.post("/test-sessions", async (ctx) => {
   try {

@@ -172,6 +172,40 @@ async function handleClearAllTests() {
   }
 }
 
+// 推送当前测验到所有客户端
+async function handleForcePushTest() {
+  try {
+    loading.value = true
+    const response = await fetch('/api/tests/push-latest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    })
+
+    const result = await response.json()
+    if (result.success) {
+      const successCount = result.data?.successCount || 0
+      const total = result.data?.total || 0
+      message.success(`推送完成，成功 ${successCount}/${total}`)
+
+      if (Array.isArray(result.data?.results)) {
+        result.data.results.forEach((item: { clientName: string; pushed: boolean; reason?: string }) => {
+          if (!item.pushed) {
+            message.warning(`${item.clientName || '未知客户端'} 推送失败：${item.reason || '未知原因'}`)
+          }
+        })
+      }
+    } else {
+      message.error(result.error || '推送失败')
+    }
+  } catch (error) {
+    console.error('Failed to force push test:', error)
+    message.error('推送失败')
+  } finally {
+    loading.value = false
+  }
+}
+
 const testColumns = [
   {
     title: '测验ID',
@@ -200,7 +234,7 @@ const testColumns = [
     dataIndex: 'durationTime',
     key: 'durationTime',
     customRender: ({ text }: { text: number | null }) => {
-      return text ? `${Math.floor(text / 60)} 分钟` : '无限制'
+      return text ? `${text / 60} 分钟` : '无限制'
     }
   }
 ]
@@ -243,6 +277,9 @@ onMounted(() => {
       </Popconfirm>
       <Button style="margin-left: 10px;" @click="handleRelayRainbowTest">
         ⚡ 系统自检
+      </Button>
+      <Button style="margin-left: 10px;" @click="handleForcePushTest">
+        ⇪ 重新推送
       </Button>
     </Card>
 

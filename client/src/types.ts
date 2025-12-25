@@ -4,7 +4,9 @@ export interface Trouble {
   description: string;
   from_wire: number;
   to_wire: number;
-  is_submitted?: boolean; // 是否已提交（用于排故测验）
+  submitted_from_wire?: number | null; // 提交的故障（用于排故测验）
+  submitted_to_wire?: number | null;   // 提交的故障（用于排故测验）
+  submitted_correct?: boolean | null; // 提交是否正确（用于排故测验）
 }
 
 export interface Question {
@@ -34,10 +36,10 @@ export interface TestLog {
   timestamp: number; // 时间戳（秒）
   action: "start" | "answer" | "finish" | "connect" | "disconnect"; // 操作类型
   details: {
-    question?: Question; // 用于 start、answer
-    trouble?: Trouble; // 用于 answer
-    result?: boolean; // 用于 answer
-    score?: number; // 用于 finish
+    question?: Question; // For start, answer
+    trouble?: Trouble; // For answer
+    isCorrect?: boolean; // For answer
+    score?: number; // For finish
   };
 }
 
@@ -93,8 +95,8 @@ export interface EvaluateWiringSession extends CvSession {
 export interface FaceSigninSession extends CvSession {
   type: "face_signin";
   finalResult?: {
+    image: string; // 截图数据（base64或URL）
     who: string; // 识别到的人员名称
-    image: string; // 图片数据（base64或URL）
   };
 }
 

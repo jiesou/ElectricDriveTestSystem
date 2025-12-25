@@ -117,11 +117,6 @@ function startEdit(record: any) {
         <Tag v-else-if="record.testSession?.finishTime" color="green" size="small">已结束</Tag>
         <Tag v-else-if="record.testSession" color="blue" size="small">进行中</Tag>
         <Tag v-else color="green" size="small">可用</Tag>
-        <div v-if="record.testSession" style="margin-top: 4px; font-size: 12px; color: #666;">
-          已提交: {{
-            record.testSession.test.questions.reduce((acc: number, q: Question) => acc + q.troubles.filter((t: Trouble) => t.is_submitted).length, 0)
-          }} 个
-        </div>
       </template>
     </template>
   </Table>

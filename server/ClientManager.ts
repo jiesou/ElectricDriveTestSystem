@@ -72,13 +72,6 @@ export class ClientManager {
       existingClient.lastPing = timestamp;
 
       console.log(`[ClientManager] Client ${existingClient.id} (${ip}) reconnected`);
-
-      if (existingClient.testSession)
-        // 恢复测验状态
-        import("./TroubleTest.ts").then(({ troubleTest }) => {
-          troubleTest.pushTestToClient(existingClient, existingClient.testSession!.test);
-        });
-
       return existingClient;
     } else {
       // 创建新客户端
@@ -123,6 +116,7 @@ export class ClientManager {
    * 仅在server.ts由socket.onmessage调用，处理并分发消息给注册的处理器
    */
   processWebSocketMessageIn(client: Client, socket: WebSocket, message: WSMessage): void {
+    client.socket = socket; // 确保 socket 引用是最新的
     // 处理应用层 ping 消息
     if (
       message && typeof message.type === "string" && message.type === "ping"
@@ -147,12 +141,15 @@ export class ClientManager {
    * 安全发送WebSocket消息
    */
   sendWSMessage(socket: WebSocket | undefined, message: WSMessage): void {
-    if (socket && socket.readyState === WebSocket.OPEN) {
+    if (socket) {
       try {
+        console.log("Sent message:", message);
         socket.send(JSON.stringify(message));
       } catch (error) {
         console.error("[ClientManager] Failed to send WebSocket message:", error);
       }
+    } else {
+      console.warn(`[ClientManager] Cannot send message to client, there is no socket.`);
     }
   }
 
