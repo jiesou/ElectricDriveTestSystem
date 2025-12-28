@@ -10,6 +10,11 @@
     "cvClientType": "jetson_nano"
   },
   {
+    "clientIp": "192.168.11.234",
+    "cvClientIp": "192.168.11.121",
+    "cvClientType": "jetson_nano"
+  },
+  {
     "clientIp": "127.0.0.1",
     "cvClientIp": " 192.168.11.121",
     "cvClientType": "jetson_nano"

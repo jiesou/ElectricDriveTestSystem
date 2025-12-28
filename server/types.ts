@@ -170,6 +170,7 @@ export interface AckRelayRainbowRequestMessage extends WSMessage {
 // client 除了 IP、ID 之外，还有 name。后端的 name 默认为 IP
 export interface ClientNameUpdateRequestMessage extends WSMessage {
   type: "client_name_update_request";
+  name: string;
 }
 
 // 服务器返回 client 的新 name

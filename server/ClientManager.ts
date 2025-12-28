@@ -6,6 +6,8 @@ import {
   WSMessage,
   WSMessageHandler,
   PongMessage,
+  ClientNameUpdateRequestMessage,
+  ClientNamePushMessage,
 } from "./types.ts";
 
 /**
@@ -13,10 +15,10 @@ import {
  * 包括ping/pong心跳检测、连接/断开管理、CV客户端关联
  */
 export class ClientManager {
-  // 所有客户端的映射表 (clientId -> Client)
+  // 所有客户机实例 (clientId -> Client)
   public clients: Record<string, Client> = {};
-  // 按 CV IP 复用的客户端实例
-  private cvPool: Record<string, CvClient> = {};
+  // 所有 CV 客户端实例 (cvClientIp -> CvClient)
+  private cvClients: Record<string, CvClient> = {};
   
   // relay_rainbow 响应回调 (clientId -> resolve function)
   public relayRainbowCallbacks: Map<string, (latencyMs: number) => void> = new Map();
@@ -59,24 +61,23 @@ export class ClientManager {
    */
   connectClient(ip: string, socket: WebSocket): Client {
     // 查找是否有相同IP的客户端
-    const existingClient = Object.values(this.clients).find(
-      (client) => client.ip === ip,
+    let client: Client | undefined = Object.values(this.clients).find(
+      (c) => c.ip === ip,
     );
 
     const timestamp = getSecondTimestamp();
 
-    if (existingClient) {
+    if (client) {
       // 重连现有客户端
-      existingClient.online = true;
-      existingClient.socket = socket;
-      existingClient.lastPing = timestamp;
+      client.online = true;
+      client.socket = socket;
+      client.lastPing = timestamp;
 
-      console.log(`[ClientManager] Client ${existingClient.id} (${ip}) reconnected`);
-      return existingClient;
+      console.log(`[ClientManager] Client ${client.id} (${ip}) reconnected`);
     } else {
       // 创建新客户端
       const clientId = crypto.randomUUID();
-      const client: Client = {
+      client = {
         id: clientId,
         name: ip, // 默认名称为IP地址
         ip,
@@ -85,12 +86,24 @@ export class ClientManager {
         lastPing: timestamp,
       };
 
-      // 根据CV_CLIENT_MAP关联CV客户端
       this.clients[clientId] = client;
-      this.syncCvClients();
       console.log(`[ClientManager] New client ${clientId} (${ip}) connected`);
-      return client;
     }
+
+    // 根据CV_CLIENT_MAP关联CV客户端
+    const mapping = CV_CLIENT_MAP.find((m) => m.clientIp === ip);
+    if (mapping) {
+      const cvIp = mapping.cvClientIp;
+      if (!this.cvClients[cvIp]) {
+        this.cvClients[cvIp] = {
+          clientType: mapping.cvClientType,
+          ip: cvIp,
+        };
+      }
+      client.cvClient = this.cvClients[cvIp];
+    }
+
+    return client;
   }
 
   /**
@@ -127,7 +140,26 @@ export class ClientManager {
         type: "pong",
         timestamp: getSecondTimestamp(),
       };
-      clientManager.sendWSMessage(client.socket, pongMessage);
+      this.sendWSMessage(client.socket, pongMessage);
+      return;
+    }
+
+    // meta data 更新
+    // 处理客户机名称更新请求
+    if (message && message.type === "client_name_update_request") {
+      const updateMsg = message as unknown as ClientNameUpdateRequestMessage;
+      if (typeof updateMsg.name === "string" && updateMsg.name.trim() !== "") {
+        client.name = updateMsg.name.trim();
+        console.log(`[ClientManager] Client ${client.id} name updated to ${client.name}`);
+        
+        // 回复确认消息
+        const pushMessage: ClientNamePushMessage = {
+          type: "client_name_push",
+          name: client.name,
+          timestamp: getSecondTimestamp(),
+        };
+        this.sendWSMessage(client.socket, pushMessage);
+      }
       return;
     }
 
@@ -153,21 +185,6 @@ export class ClientManager {
     }
   }
 
-  private syncCvClients(): void {
-    for (const mapping of CV_CLIENT_MAP) {
-      const shared = this.cvPool[mapping.cvClientIp] ?? {
-        clientType: mapping.cvClientType,
-        ip: mapping.cvClientIp,
-      };
-      this.cvPool[mapping.cvClientIp] = shared;
-      for (const c of Object.values(this.clients)) {
-        if (c.ip === mapping.clientIp) {
-          c.cvClient = shared;
-        }
-      }
-    }
-  }
-
   /**
    * 根据CV客户端IP查找关联的普通客户端
    * 当只有一个客户端且没有绑定CV时，自动绑定
@@ -181,11 +198,11 @@ export class ClientManager {
     const allClients = Object.values(this.clients);
     if (allClients.length === 1) {
       const onlyClient = allClients[0];
-      onlyClient.cvClient = this.cvPool[cvClientIp] ?? {
+      onlyClient.cvClient = this.cvClients[cvClientIp] ?? {
         clientType: "jetson_nano",
         ip: cvClientIp,
       };
-      this.cvPool[cvClientIp] = onlyClient.cvClient;
+      this.cvClients[cvClientIp] = onlyClient.cvClient;
       return [onlyClient];
     }
     return [];
