@@ -119,7 +119,7 @@ cvRouter.post("/upload_wiring", async (ctx) => {
     return;
   }
 
-  if (!inputPosition || ![1, 2, 3].includes(inputPosition)) {
+  if (!inputPosition) {
     ctx.response.status = 400;
     ctx.response.body = { success: false, error: "需要有效的 position 参数 (1|2|3)" };
     return;

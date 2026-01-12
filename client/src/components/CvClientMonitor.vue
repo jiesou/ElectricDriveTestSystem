@@ -26,7 +26,7 @@ async function clearSession(cvClient: CvClient) {
       <Empty description="暂无视觉客户端连接" />
     </div>
     <div v-else style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px;">
-      <Card v-for="client in displayCvClients" :key="client.id" size="small" :title="`${client.name} - 视觉客户端`">
+      <Card v-for="client in displayCvClients" :key="client.id" size="small" :title="`${client.name} - 视觉客户端`" style="width: 880px;">
         <template #extra>
           <div style="display: flex; align-items: center; gap: 8px;">
             <Tag v-if="client.cvClient?.session?.type == 'evaluate_wiring'" color="blue">
@@ -52,7 +52,7 @@ async function clearSession(cvClient: CvClient) {
           style="position: relative; width: 100%; background: #ffffff; border-radius: 4px; overflow: hidden; min-height: 160px;">
           <!-- MJPEG 流会自动处理，加载第一帧后就会触发 load 事件 -->
           <img v-if="client.cvClient" :src="`/api/cv/stream/${client.cvClient.ip}`"
-            style="width: 100%; height: 240px; object-fit: contain; background:#f6f6f6;" />
+            style="width: 100%; height: 480px; object-fit: contain; background:#f6f6f6;" />
         </div>
 
 

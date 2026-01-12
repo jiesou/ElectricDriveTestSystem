@@ -97,7 +97,6 @@ export interface FaceSigninSession extends CvSession {
   finalResult?: {
     image: string; // 截图数据（base64或URL）
     who: string; // 识别到的人员名称
-    image: string; // 图片数据（base64或URL）
   };
 }
 

@@ -17,7 +17,7 @@ clientManager.addWSMessageHandler((client, _socket, message) => {
   switch (message.type) {
     case "trouble_test_pull_request": {
       const msg = message as TroubleTestPullRequestMessage;
-      if (client.testSession) {
+      if (client.testSession && !client.testSession.finishTime) { // 如果有测验会话，且未完成
         troubleTest.pushTestToClient(client, client.testSession?.test);
       }
       break;
@@ -35,7 +35,7 @@ clientManager.addWSMessageHandler((client, _socket, message) => {
           if (!oldQ) return;
 
           newQ.troubles.forEach((newT) => {
-            if (newT.submitted_from_wire == 0 && newT.submitted_to_wire == 0) {
+            if (!newT.submitted_from_wire && !newT.submitted_to_wire) {
               // 如果提交内容为空，则跳过（表示未提交）
               return;
             }
@@ -217,7 +217,8 @@ export class TroubleTest {
   }
 
   finishTest(client: Client, timestamp?: number) {
-    if (!client?.testSession) return 0;
+    if (!client?.testSession) return;
+    if (client.testSession.finishTime) return;
 
     const finishMessage: TroubleTestFinishMessage = {
       type: "trouble_test_finish",
