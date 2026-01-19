@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, h } from 'vue'
-import { Card, Tag, Empty, Button, message } from 'ant-design-vue'
+import { Card, Tag, Empty, Button, Divider, message } from 'ant-design-vue'
 import type { Client, CvClient } from '../types'
 import { CloseOutlined } from '@ant-design/icons-vue'
 import { apiJson } from '../api-client'
@@ -49,10 +49,41 @@ async function clearSession(cvClient: CvClient) {
         <strong>关联客户机IP:</strong> {{ client.ip }}
         <!-- 图像显示区域 -->
         <div v-if="!useMockDataService"
-          style="position: relative; width: 100%; background: #ffffff; border-radius: 4px; overflow: hidden; min-height: 160px;">
+          style="position: relative; width: 100%; background: #ffffff; border-radius: 4px; overflow: hidden; min-height: 60px; margin-bottom: 0px;">
           <!-- MJPEG 流会自动处理，加载第一帧后就会触发 load 事件 -->
           <img v-if="client.cvClient" :src="`/api/cv/stream/${client.cvClient.ip}`"
-            style="width: 100%; height: 480px; object-fit: contain; background:#f6f6f6;" />
+            style="width: 100%; height: 100%; object-fit: cover;" />
+          <div style="display: flex;
+    justify-content: space-around;
+    align-items: center;
+    height: 40px;
+    border-radius: 8px;
+    background: #f0f0f0;
+    margin: 10px;">摄像头图传</div>
+        </div>
+        <!--会话信息-->
+        <div v-if="client.cvClient?.session?.type == 'evaluate_wiring'" style="font-size:16px">
+          <strong >已经拍摄{{ client.cvClient?.session?.shots?.length || 0 }}张照片</strong>
+          <div v-for="(shot, idx) in client.cvClient?.session?.shots" :key="idx">
+            <strong style="color: blue"># 照片{{ idx + 1 }}</strong><br />
+            <img :src="shot.image"
+              style="width: 400px; height: auto; margin-right: 8px; border-radius: 8px; margin-bottom: 8px;" /><br />
+            号码管：{{ shot.result.sleeves_num }} 个<br />
+            线路交叉：{{ shot.result.cross_num }} 个<br />
+            露铜：{{ shot.result.excopper_num }} 个<br />
+            露端子：{{ shot.result.exterminal_num }} 个<br />
+            <Divider />
+          </div>
+
+          <Card v-if="client.cvClient?.session?.finalResult" style="margin-top: 10px; font-size: 16px">
+            <h3>✅ 最终评估结果已经确认：</h3><br />
+            <strong style="color: green;">得分：{{ client.cvClient?.session?.finalResult.scores }}</strong><br />
+            <strong>未套号码管：</strong>{{ client.cvClient?.session?.finalResult.no_sleeves_num }}<br />
+            <strong>线路交叉：</strong>{{ client.cvClient?.session?.finalResult.cross_num }}<br />
+            <strong>露铜：</strong>{{ client.cvClient?.session?.finalResult.excopper_num }}<br />
+            <strong>露端子：</strong>{{ client.cvClient?.session?.finalResult.exterminal_num }}<br />
+          </Card>
+
         </div>
 
 
