@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { Modal, Skeleton } from 'ant-design-vue'
+import { Modal, Skeleton, message } from 'ant-design-vue'
 import { marked } from 'marked'
 import { useMockDataService } from '../useMockData'
 
@@ -78,9 +78,6 @@ async function handleAIAnalysis(clientId: string) {
 
     try {
         const response = await fetch(`/api/generator/analyze?clientId=${clientId}`, {
-            headers: {
-                'Content-Type': 'application/json',
-            },
             signal: abortController.signal,
         })
 

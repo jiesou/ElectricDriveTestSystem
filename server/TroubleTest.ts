@@ -5,6 +5,8 @@ import {
   TestSession,
   Trouble,
   TROUBLES,
+  TroubleTestFinishMessage,
+  TroubleTestPullRequestMessage,
   TroubleTestPushMessage,
   TroubleTestUpdateRequestMessage,
 } from "./types.ts";
@@ -13,11 +15,18 @@ import { clientManager } from "./ClientManager.ts";
 
 clientManager.addWSMessageHandler((client, _socket, message) => {
   switch (message.type) {
+    case "trouble_test_pull_request": {
+      const msg = message as TroubleTestPullRequestMessage;
+      if (client.testSession && !client.testSession.finishTime) { // 如果有测验会话，且未完成
+        troubleTest.pushTestToClient(client, client.testSession?.test);
+      }
+      break;
+    }
     case "trouble_test_update_request": {
       // 客户端上传或更新整个 test 的相关信息（主要就是 all_questions）
       const msg = message as TroubleTestUpdateRequestMessage;
       if (client.testSession) {
-        /* 核心：差分计算实现 TestLog 记录 */
+        /* 核心：差分 diff 计算实现 TestLog 记录 */
         const oldQuestions = client.testSession.test.questions;
         const newQuestions = msg.all_questions;
 
@@ -26,18 +35,31 @@ clientManager.addWSMessageHandler((client, _socket, message) => {
           if (!oldQ) return;
 
           newQ.troubles.forEach((newT) => {
+            if (!newT.submitted_from_wire && !newT.submitted_to_wire) {
+              // 如果提交内容为空，则跳过（表示未提交）
+              return;
+            }
+
             // 查找旧数据中对应的故障
             const oldT = oldQ.troubles.find((t) => t.id === newT.id);
+            if (!oldT) return;
 
-            // 如果旧数据中未提交，而新数据中已提交，则记录日志
-            if (newT.is_submitted && (!oldT || !oldT.is_submitted)) {
+            // 如果旧数据和新数据的提交内容不一致，则记录日志
+            if (newT.submitted_from_wire !== oldT.submitted_from_wire || newT.submitted_to_wire !== oldT.submitted_to_wire) {
               client.testSession!.logs.push({
-                timestamp: getSecondTimestamp(),
+                timestamp: msg.timestamp || getSecondTimestamp(),
                 action: "answer",
                 details: {
                   question: newQ,
-                  trouble: newT,
-                  result: true,
+                  trouble: {
+                    id: newT.id,
+                    description: newT.description,
+                    from_wire: newT.from_wire,
+                    to_wire: newT.to_wire,
+                    submitted_from_wire: newT.submitted_from_wire,
+                    submitted_to_wire: newT.submitted_to_wire
+                  },
+                  isCorrect: newT.submitted_correct || false,
                 },
               });
               console.log(
@@ -195,12 +217,15 @@ export class TroubleTest {
   }
 
   finishTest(client: Client, timestamp?: number) {
-    if (!client?.testSession) return 0;
+    if (!client?.testSession) return;
+    if (client.testSession.finishTime) return;
 
-    const session = client.testSession;
-    const finishTime = timestamp || getSecondTimestamp();
-    // 如果已经设置过结束时间，就保持原值（避免覆盖）
-    session.finishTime = session.finishTime || finishTime;
+    const finishMessage: TroubleTestFinishMessage = {
+      type: "trouble_test_finish",
+      timestamp: timestamp || getSecondTimestamp(),
+    };
+
+    clientManager.sendWSMessage(client.socket, finishMessage);
   }
 
   getTroubles(): Trouble[] {

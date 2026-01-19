@@ -64,7 +64,7 @@ wsRouter.get("/ws", (ctx) => {
 
   socket.onmessage = (event) => {
     const message: WSMessage = JSON.parse(event.data as string);
-    console.log("Received message:", message);
+    console.log(new Date().toLocaleTimeString('en', {hour12: false}), "Received message:", message);
     // 仅在 socket.onmessage 中调用 processWebSocketMessageIn
     clientManager.processWebSocketMessageIn(client, socket, message);
   };

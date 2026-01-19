@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { Table } from 'ant-design-vue'
+import { Table, message } from 'ant-design-vue'
 import type { Trouble } from '../types'
 import QuestionManagement from './QuestionManagement.vue'
+import { apiJson } from '../api-client'
 
 // 使用 Vite 兼容的方式获取静态资源路径
 const sch = new URL('../assets/sch.png', import.meta.url).href
@@ -18,13 +19,10 @@ const troubleColumns = [
 
 async function fetchTroubles() {
   try {
-    const response = await fetch('/api/troubles')
-    const result = await response.json()
-    if (result.success) {
-      troubles.value = result.data
-    }
+    troubles.value = await apiJson<Trouble[]>('/api/troubles')
   } catch (error) {
     console.error('Failed to fetch troubles:', error)
+    message.error('获取故障列表失败')
   }
 }
 

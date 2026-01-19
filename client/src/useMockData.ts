@@ -12,10 +12,10 @@ export function generateMockData(): Client[] {
   
   // 前三个故障（从 troubles.json）
   const troubles: Trouble[] = [
-    { "id": 1, "description": "201 和 202 断路", "from_wire": 201, "to_wire": 202, is_submitted: true },
-    { "id": 2, "description": "209 和 219 断路", "from_wire": 209, "to_wire": 219, is_submitted: true },
-    { "id": 3, "description": "215 和 216 断路", "from_wire": 215, "to_wire": 216, is_submitted: true },
-    { "id": 4, "description": "227 和 233 断路", "from_wire": 227, "to_wire": 233, is_submitted: true }
+    { "id": 1, "description": "201 和 202 断路", "from_wire": 201, "to_wire": 202 },
+    { "id": 2, "description": "209 和 219 断路", "from_wire": 209, "to_wire": 219 },
+    { "id": 3, "description": "215 和 216 断路", "from_wire": 215, "to_wire": 216 },
+    { "id": 4, "description": "227 和 233 断路", "from_wire": 227, "to_wire": 233 }
   ]
   
   // 三道题，每题一个故障
@@ -53,7 +53,7 @@ export function generateMockData(): Client[] {
       details: {
         question: questions[0],
         trouble: troubles[0],
-        result: true
+        isCorrect: true
       }
     },
     // 第二题回答正确
@@ -63,7 +63,7 @@ export function generateMockData(): Client[] {
       details: {
         question: questions[1],
         trouble: troubles[1],
-        result: true
+        isCorrect: true
       }
     },
     // 第三题回答错误 (126和136断路，这是故障4)
@@ -73,7 +73,7 @@ export function generateMockData(): Client[] {
       details: {
         question: questions[2],
         trouble: troubles[3], // 错误选择了故障4
-        result: false
+        isCorrect: false
       }
     },
     // 交卷，得分67分

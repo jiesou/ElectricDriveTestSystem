@@ -1,14 +1,11 @@
 const apiKey = Deno.env.get("OPENAI_API_KEY");
-const apiBaseUrl = Deno.env.get("OPENAI_BASE_URL");
-const model = Deno.env.get("OPENAI_MODEL");
-
+const baseUrl = Deno.env.get("OPENAI_BASE_URL");
+const model = "deepseek-r1-distill-llama-8b";
+let reasoning_finished = false;
 export function analyzeStream(prompt: string) {
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
-
   const stream = new ReadableStream({
-    async start(controller) {
-      const response = await fetch(`${apiBaseUrl}/chat/completions`, {
+    async start(controller) { 
+      const response = await fetch(baseUrl + "/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -19,43 +16,48 @@ export function analyzeStream(prompt: string) {
           stream: true,
           messages: [
             {
-              role: "system",
-              content:
-                "请生成电拖测验分析报告，包括排故思路、操作效率、知识薄弱点、改进建议和学习重点。",
-            },
-            {
               role: "user",
               content: prompt,
-            },
-          ],
-        }),
+            }
+          ]
+        })
       });
 
       if (!response.ok) {
-        return;
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const reader = response.body?.getReader();
-      if (!reader) {
-        return;
-      }
+      const decoder = new TextDecoder();
+      const encoder = new TextEncoder();
 
       while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const line = decoder.decode(value, { stream: true });
-        if (!line.startsWith("data: ")) {
-          continue;
+        const { done, value } = await reader?.read() || {};
+        if (done) {
+          controller.close();
+          break;
         }
-        const data = line.slice(6);
+        const chunk = decoder.decode(value, { stream: true });
+        console.log(chunk);
+        const text = chunk.replace(/^data: /, "");
+        const obj = JSON.parse(text);
 
-        const content = JSON.parse(data).choices?.[0]?.delta?.content;
+        const content = obj.choices[0].delta.content;
         if (content) {
           controller.enqueue(encoder.encode(content));
         }
+        if (!reasoning_finished && content !== "") {
+          reasoning_finished = true;
+          controller.enqueue(encoder.encode("\n\n*深度思考已结束*\n\n"));
+        }
+        const reasoning_content = obj.choices[0].delta.reasoning_content;
+        if (reasoning_content) {
+          controller.enqueue(encoder.encode(reasoning_content));
+        }
+
       }
       controller.close();
     },
-  });
+  })
   return stream;
 }

@@ -1,21 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
+import { ref, nextTick } from 'vue'
 import { Table, Tag, Input, message } from 'ant-design-vue'
 import { EditOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons-vue'
-import type { Client } from '../types'
-import { useMockDataService, generateMockData } from '../useMockData'
+import type { Client, Question, Trouble } from '../types'
+import { apiJson } from '../api-client'
 
-const clients = ref<Client[]>([])
-const loading = ref<boolean | { delay: number }>(false)
-const refreshTimer = ref<number | null>(null)
-
-// 根据模拟数据模式返回实际显示的客户端列表
-const displayClients = computed(() => {
-  if (useMockDataService.value) {
-    return generateMockData()
-  }
-  return clients.value
-})
+const props = defineProps<{ clients: Client[] }>()
+const emit = defineEmits<{ (e: 'refresh'): void }>()
 
 const columns = [
   {
@@ -54,23 +45,14 @@ async function saveClientName(clientId: string) {
   }
 
   try {
-    const res = await fetch(`/api/clients/${clientId}`, {
+    await apiJson(`/api/clients/${clientId}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: newName }),
     })
-    const json = await res.json()
-    if (json.success) {
-      // update local list
-      const idx = clients.value.findIndex((c) => c.id === clientId)
-    if (idx !== -1 && clients.value[idx]) clients.value[idx].name = newName
-      editingId.value = null
-      message.success('保存成功')
-      return true
-    } else {
-      message.error(json.error || '保存失败')
-      return false
-    }
+    emit('refresh')
+    editingId.value = null
+    message.success('保存成功')
+    return true
   } catch (err) {
     console.error('Failed to save client name', err)
     message.error('保存失败')
@@ -90,47 +72,10 @@ function startEdit(record: any) {
   })
 }
 
-async function fetchClients() {
-  try {
-    loading.value = { delay: 2000 }
-    const response = await fetch('/api/clients')
-    const result = await response.json()
-    
-    if (result.success) {
-      clients.value = result.data
-    }
-  } catch (error) {
-    console.error('Failed to fetch clients:', error)
-  } finally {
-    loading.value = false
-  }
-}
-
-function startAutoRefresh() {
-  refreshTimer.value = window.setInterval(() => {
-    fetchClients()
-  }, 1000) // Fixed to 1000ms as requested
-}
-
-function stopAutoRefresh() {
-  if (refreshTimer.value) {
-    clearInterval(refreshTimer.value)
-    refreshTimer.value = null
-  }
-}
-
-onMounted(() => {
-  fetchClients()
-  startAutoRefresh()
-})
-
-onUnmounted(() => {
-  stopAutoRefresh()
-})
 </script>
 
 <template>
-  <Table :dataSource="displayClients" :columns="columns" :loading="loading" size="middle" rowKey="id" :pagination="false">
+  <Table :dataSource="props.clients" :columns="columns" size="middle" rowKey="id" :pagination="false">
     <template #bodyCell="{ column, record }">
       <template v-if="column.key === 'online'">
         <Tag :color="record.online ? 'green' : 'red'">
@@ -172,9 +117,6 @@ onUnmounted(() => {
         <Tag v-else-if="record.testSession?.finishTime" color="green" size="small">已结束</Tag>
         <Tag v-else-if="record.testSession" color="blue" size="small">进行中</Tag>
         <Tag v-else color="green" size="small">可用</Tag>
-        <div v-if="record.testSession" style="margin-top: 4px; font-size: 12px; color: #666;">
-          已提交: {{ record.testSession.test.questions.reduce((acc, q) => acc + q.troubles.filter(t => t.is_submitted).length, 0) }} 个
-        </div>
       </template>
     </template>
   </Table>
