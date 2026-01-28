@@ -254,7 +254,7 @@ const DEFAULT_TROUBLES: Trouble[] = [
   { id: 3, description: "103 和 104 断路", from_wire: 103, to_wire: 104 },
   { id: 4, description: "104 和 105 断路", from_wire: 104, to_wire: 105 },
   { id: 5, description: "201 和 202 断路", from_wire: 201, to_wire: 202 },
-  { id: 6, description: "202 和 203 断路", from_wire: 202, to_wire: 203 },
+  { id: 6, description: "（故障解析 等待中，展示默认故障）", from_wire: 202, to_wire: 203 },
 ];
 
 // 尝试在运行时从执行目录加载 troubles.json；若失败则回退为 DEFAULT_TROUBLES。
