@@ -61,11 +61,7 @@ async function confirmThenCreate() {
     await fetchData()
 
     // 打开创建模态并重置表单
-    formState.clientIds = []
-    formState.questionIds = []
-    formState.startTime = ''
-    formState.durationTime = undefined
-    createTestModalVisible.value = true
+    openCreateTestModal();
   } catch (error) {
     console.error('confirmThenCreate failed:', error)
     message.error('准备新测验失败')
@@ -254,8 +250,9 @@ onMounted(() => {
           <Popconfirm
             title="现在已有测验，确定清除当前测验然后创建新的？"
             ok-text="继续"
-            cancel-text="取消"
+            cancel-text="坚持直接发题"
             @confirm="confirmThenCreate"
+            @cancel="openCreateTestModal"
           >
             <Button type="primary">▶ 安排新测验</Button>
           </Popconfirm>

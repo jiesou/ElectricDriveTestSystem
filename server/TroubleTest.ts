@@ -45,7 +45,7 @@ clientManager.addWSMessageHandler((client, _socket, message) => {
             if (!oldT) return;
 
             // 如果旧数据和新数据的提交内容不一致，则记录日志
-            if (newT.submitted_from_wire !== oldT.submitted_from_wire || newT.submitted_to_wire !== oldT.submitted_to_wire) {
+            if (newT.submitted_from_wire !== oldT.submitted_from_wire || newT.submitted_to_wire !== oldT.submitted_to_wire || newT.submitted_correct !== oldT.submitted_correct) {
               client.testSession!.logs.push({
                 timestamp: msg.timestamp || getSecondTimestamp(),
                 action: "answer",
