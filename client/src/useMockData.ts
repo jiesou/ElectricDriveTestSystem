@@ -76,6 +76,22 @@ export function generateMockData(): Client[] {
         isCorrect: false
       }
     },
+    // 工位清洁
+    {
+      timestamp: now + 5,
+      action: 'desk_clean',
+      details: {
+        deskCleanResult: {
+          image: '',
+          sleeves_num: 0,
+          screwdriver_ready: true,
+          wire_stripper_ready: true,
+          multimeter_ready: false,
+          crimping_ready: true,
+          clean_progress: 0.85
+        }
+      }
+    },
     // 交卷，得分67分
     {
       timestamp: now,

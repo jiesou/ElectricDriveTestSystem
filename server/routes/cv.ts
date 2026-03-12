@@ -1,11 +1,14 @@
 import { Router } from "@oak/oak";
 import { clientManager } from "../ClientManager.ts";
 import {
+  DeskCleanResult,
+  DeskCleanSession,
   EvaluateWiringSession,
   EvaluateWiringYoloPushMessage,
   FaceSigninResultPushMessage,
   FaceSigninSession,
   getSecondTimestamp,
+  DeskCleanLog,
   WiringShot,
 } from "../types.ts";
 import { detectObjects } from "../model.ts";
@@ -377,6 +380,96 @@ cvRouter.post("/upload_face", async (ctx) => {
       who: session.finalResult.who,
     };
     clientManager.sendWSMessage(client.socket, responseMsg);
+  }
+
+  ctx.response.body = {
+    success: true,
+    data: session.finalResult,
+  };
+});
+
+/**
+ * 工位清洁：接收清洁结果
+ * POST /api/cv/upload_deskclean
+ *
+ * Body (FormData):
+ *   image: File,
+ *   result: str = '{"sleeves_num":0,"screwdriver_ready":true,"wire_stripper_ready":true,"multimeter_ready":true,"crimping_ready":true,"clean_progress":0.8}'
+ */
+cvRouter.post("/upload_deskclean", async (ctx) => {
+  const body = ctx.request.body;
+  if (body.type() !== "form-data") {
+    ctx.response.status = 400;
+    ctx.response.body = {
+      success: false,
+      error: "必须使用 multipart/form-data",
+    };
+    return;
+  }
+  const formData = await body.formData();
+
+  const inputImageFile = formData.get("image") as File;
+  const inputResultStr = formData.get("result") as string | null;
+
+  if (!inputImageFile || !(inputImageFile instanceof File)) {
+    ctx.response.status = 400;
+    ctx.response.body = { success: false, error: "未上传图片文件" };
+    return;
+  }
+
+  if (!inputResultStr) {
+    ctx.response.status = 400;
+    ctx.response.body = { success: false, error: "需要 result 参数" };
+    return;
+  }
+
+  let inputResultObj: Omit<DeskCleanResult, "image">;
+  try {
+    inputResultObj = JSON.parse(inputResultStr);
+  } catch (_error) {
+    ctx.response.status = 400;
+    ctx.response.body = { success: false, error: "result 不是合法 JSON" };
+    return;
+  }
+
+  const cvClientIp: string = ctx.request.ip;
+  const clients = clientManager.findClientsByCvIp(cvClientIp);
+  const cvClient = clients[0].cvClient!;
+
+  // 没有会话就建立
+  if (!cvClient.session || cvClient.session.type !== "desk_clean") {
+    const session: DeskCleanSession = {
+      type: "desk_clean",
+      startTime: getSecondTimestamp(),
+    };
+    cvClient.session = session;
+  }
+
+  const session = cvClient.session as DeskCleanSession;
+
+  // 将图片转为 data URL 字符串并写入会话
+  const imageDataUrl = await imageToDataUrl(inputImageFile, "image/jpeg");
+  session.finalResult = {
+    image: imageDataUrl,
+    sleeves_num: Number(inputResultObj.sleeves_num) || 0,
+    screwdriver_ready: Boolean(inputResultObj.screwdriver_ready),
+    wire_stripper_ready: Boolean(inputResultObj.wire_stripper_ready),
+    multimeter_ready: Boolean(inputResultObj.multimeter_ready),
+    crimping_ready: Boolean(inputResultObj.crimping_ready),
+    clean_progress: Number(inputResultObj.clean_progress) || 0,
+  };
+
+  // 记录日志（工位清洁属于测验考点）
+  for (const client of clients) {
+    if (!client.testSession) continue;
+    const log: DeskCleanLog = {
+      timestamp: getSecondTimestamp(),
+      action: "desk_clean",
+      details: {
+        deskCleanResult: session.finalResult,
+      },
+    };
+    client.testSession.logs.push(log);
   }
 
   ctx.response.body = {

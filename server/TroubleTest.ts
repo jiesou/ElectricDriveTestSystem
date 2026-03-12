@@ -1,6 +1,9 @@
 import {
+  AnswerLog,
   Client,
+  FinishLog,
   Question,
+  StartLog,
   Test,
   TestSession,
   Trouble,
@@ -46,7 +49,7 @@ clientManager.addWSMessageHandler((client, _socket, message) => {
 
             // 如果旧数据和新数据的提交内容不一致，则记录日志
             if (newT.submitted_from_wire !== oldT.submitted_from_wire || newT.submitted_to_wire !== oldT.submitted_to_wire || newT.submitted_correct !== oldT.submitted_correct) {
-              client.testSession!.logs.push({
+              const log: AnswerLog = {
                 timestamp: msg.timestamp || getSecondTimestamp(),
                 action: "answer",
                 details: {
@@ -57,11 +60,12 @@ clientManager.addWSMessageHandler((client, _socket, message) => {
                     from_wire: newT.from_wire,
                     to_wire: newT.to_wire,
                     submitted_from_wire: newT.submitted_from_wire,
-                    submitted_to_wire: newT.submitted_to_wire
+                    submitted_to_wire: newT.submitted_to_wire,
                   },
                   isCorrect: newT.submitted_correct || false,
                 },
-              });
+              };
+              client.testSession!.logs.push(log);
               console.log(
                 `[TroubleTest] Client ${client.id} submitted trouble ${newT.id} in question ${newQ.id}`,
               );
@@ -79,14 +83,20 @@ clientManager.addWSMessageHandler((client, _socket, message) => {
           msg.finish_time &&
           !client.testSession.logs.some((l) => l.action === "finish")
         ) {
-          client.testSession.logs.push({
+          const log: FinishLog = {
             timestamp: msg.finish_time,
             action: "finish",
             details: { score: msg.finished_score },
-          });
+          };
+          client.testSession.logs.push(log);
         }
       } else {
         // 如果没有 testSession，则当场创建一个新的（虽然正常情况下不应该发生，但总之这相当于允许客户机主动发起测验）
+        const startLog: StartLog = {
+          timestamp: getSecondTimestamp(),
+          action: "start",
+          details: { question: msg.all_questions[0] },
+        };
         client.testSession = {
           id: `${client.id}_${Date.now()}`,
           test: {
@@ -97,22 +107,17 @@ clientManager.addWSMessageHandler((client, _socket, message) => {
           },
           finishTime: msg.finish_time,
           finishedScore: msg.finished_score,
-          logs: [
-            {
-              timestamp: getSecondTimestamp(),
-              action: "start",
-              details: { question: msg.all_questions[0] },
-            },
-          ],
+          logs: [startLog],
         };
 
         // 如果有完成时间，说明直接交卷了
         if (msg.finish_time) {
-          client.testSession.logs.push({
+          const log: FinishLog = {
             timestamp: msg.finish_time,
             action: "finish",
             details: { score: msg.finished_score },
-          });
+          };
+          client.testSession.logs.push(log);
         }
       }
       break;
@@ -170,16 +175,15 @@ export class TroubleTest {
 
   // 创建测验会话
   createTestSession(client: Client, test: Test) {
+    const startLog: StartLog = {
+      timestamp: getSecondTimestamp(),
+      action: "start",
+      details: { question: test.questions[0] },
+    };
     const session: TestSession = {
       id: `${client.id}_${Date.now()}`,
       test,
-      logs: [
-        {
-          timestamp: getSecondTimestamp(),
-          action: "start",
-          details: { question: test.questions[0] },
-        },
-      ],
+      logs: [startLog],
     };
     client.testSession = session;
 

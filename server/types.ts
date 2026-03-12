@@ -31,17 +31,58 @@ export interface TestSession {
   logs: TestLog[]; // 活动日志
 }
 
-// 排故测验日志
-export interface TestLog {
+// 排故测验日志（拆分更精确的类型）
+export interface BaseTestLog {
   timestamp: number; // 时间戳（秒）
-  action: "start" | "answer" | "finish" | "connect" | "disconnect"; // 操作类型
+}
+
+export interface StartLog extends BaseTestLog {
+  action: "start";
   details: {
-    question?: Question; // 用于 start、answer
+    question?: Question; // 用于 start
+  };
+}
+
+export interface AnswerLog extends BaseTestLog {
+  action: "answer";
+  details: {
+    question?: Question; // 用于 answer
     trouble?: Trouble; // 用于 answer
     isCorrect?: boolean; // 用于 answer
+  };
+}
+
+export interface FinishLog extends BaseTestLog {
+  action: "finish";
+  details: {
     score?: number; // 用于 finish
   };
 }
+
+export interface ConnectLog extends BaseTestLog {
+  action: "connect";
+  details: Record<string, never>;
+}
+
+export interface DisconnectLog extends BaseTestLog {
+  action: "disconnect";
+  details: Record<string, never>;
+}
+
+export interface DeskCleanLog extends BaseTestLog {
+  action: "desk_clean";
+  details: {
+    deskCleanResult: DeskCleanResult; // 工位清洁结果
+  };
+}
+
+export type TestLog =
+  | StartLog
+  | AnswerLog
+  | FinishLog
+  | ConnectLog
+  | DisconnectLog
+  | DeskCleanLog;
 
 // ==================== EvaluateFunctionBoard 功能评估相关 ====================
 
@@ -61,7 +102,7 @@ export interface EvaluateFunctionStep {
 
 // CV会话基类接口
 export interface CvSession {
-  type: "evaluate_wiring" | "face_signin";
+  type: "evaluate_wiring" | "face_signin" | "desk_clean";
   startTime: number; // 会话开始时间戳(秒)
   finalResult?: unknown; // 最终结果，类型由具体会话决定
 }
@@ -100,6 +141,23 @@ export interface FaceSigninSession extends CvSession {
   };
 }
 
+// 工位清洁结果
+export interface DeskCleanResult {
+  image: string; // 截图数据（base64或URL）
+  sleeves_num: number;
+  screwdriver_ready: boolean; // 螺丝刀
+  wire_stripper_ready: boolean; // 剥线钳
+  multimeter_ready: boolean; // 万用表
+  crimping_ready: boolean; // 斜口钳
+  clean_progress: number; // 0-1
+}
+
+// 工位清洁会话
+export interface DeskCleanSession extends CvSession {
+  type: "desk_clean";
+  finalResult?: DeskCleanResult;
+}
+
 // ==================== 客户机实例 ====================
 
 // 客户机实例
@@ -120,7 +178,7 @@ export interface Client {
 export interface CvClient {
   clientType: "esp32cam" | "jetson_nano";
   ip: string;
-  session?: EvaluateWiringSession | FaceSigninSession; // 当前会话
+  session?: EvaluateWiringSession | FaceSigninSession | DeskCleanSession; // 当前会话
   latest_frame?: Uint8Array; // 最新接收到的 JPEG 帧数据
 }
 
