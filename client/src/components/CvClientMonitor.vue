@@ -29,13 +29,13 @@ async function clearSession(cvClient: CvClient) {
       <Card v-for="client in displayCvClients" :key="client.id" size="small" :title="`${client.name} - 视觉客户端`" style="width: 880px;">
         <template #extra>
           <div style="display: flex; align-items: center; gap: 8px;">
-            <Tag v-if="client.cvClient?.session?.type == 'evaluate_wiring'" color="blue">
+            <Tag v-if="client.cvClient?.session?.type == 'evaluate_wiring'" color="orange">
               装接评估
             </Tag>
             <Tag v-else-if="client.cvClient?.session?.type == 'face_signin'" color="green">
               人脸签到
             </Tag>
-            <Tag v-else-if="client.cvClient?.session?.type == 'desk_clean'" color="orange">
+            <Tag v-else-if="client.cvClient?.session?.type == 'desk_clean'" color="blue">
               工位清洁
             </Tag>
             <Tag v-else color="gray">
@@ -142,7 +142,7 @@ async function clearSession(cvClient: CvClient) {
           <!-- 人脸签到会话详情 -->
           <div v-else-if="client.cvClient.session.type === 'face_signin'">
             <div v-if="client.cvClient.session.finalResult">
-              <div style="color: #52c41a; font-size: 12px; margin-bottom: 6px;">
+              <div style="color: green; font-size: 12px; margin-bottom: 6px;">
                 <strong>✅ 人脸签到完成</strong>
               </div>
                 <img :src="client.cvClient.session.finalResult.image" alt="人脸截图"
@@ -156,7 +156,7 @@ async function clearSession(cvClient: CvClient) {
           <!-- 工位清洁会话详情 -->
           <div v-else-if="client.cvClient.session.type === 'desk_clean'">
             <div v-if="client.cvClient.session.finalResult">
-              <div style="color: #fa8c16; font-size: 12px; margin-bottom: 6px;">
+              <div style="color: green; font-size: 12px; margin-bottom: 6px;">
                 <strong>✅ 工位清洁已提交</strong>
               </div>
               <img :src="client.cvClient.session.finalResult.image" alt="工位清洁截图"
