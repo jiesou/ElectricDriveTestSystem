@@ -133,7 +133,7 @@ export class TroubleTest {
   constructor() {
     // 尝试从持久化存储恢复数据
     try {
-      const data = JSON.parse(Deno.readTextFileSync("data.json"));
+      const data = JSON.parse(Deno.readTextFileSync("data/data.json"));
       this.tests = data.tests || [];
       this.questionBank = data.questionBank || [];
     } catch (error) {
@@ -148,11 +148,11 @@ export class TroubleTest {
           questionBank: this.questionBank,
         };
         try {
-          const existingData = JSON.parse(Deno.readTextFileSync("data.json"));
+          const existingData = JSON.parse(Deno.readTextFileSync("data/data.json"));
           const mergedData = { ...existingData, ...dataToSave };
-          Deno.writeTextFileSync("data.json", JSON.stringify(mergedData));
+          Deno.writeTextFileSync("data/data.json", JSON.stringify(mergedData));
         } catch {
-          Deno.writeTextFileSync("data.json", JSON.stringify(dataToSave));
+          Deno.writeTextFileSync("data/data.json", JSON.stringify(dataToSave));
         }
       },
       5000,
