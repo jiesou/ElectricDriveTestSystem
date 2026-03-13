@@ -1,6 +1,6 @@
 server.exe
 public/*
-data.json
+data/
 .env
 node_modules/
 *.jpg

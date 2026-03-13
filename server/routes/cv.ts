@@ -12,7 +12,7 @@ import {
   WiringShot,
 } from "../types.ts";
 import { detectObjects } from "../model.ts";
-import { imageToDataUrl } from "../utils/image.ts";
+import { saveUploadedImage } from "../utils/upload.ts";
 
 /**
  * CV上传路由
@@ -174,9 +174,9 @@ cvRouter.post("/upload_wiring", async (ctx) => {
     console.log("[CV Upload] 服务端推理完成:", serverDetectionResult);
   }
 
-  // 将图像转换为 base64 data URL（优先使用服务端推理带标注的图像）
+  // 将图像保存为文件（优先使用服务端推理带标注的图像）
   const bytes = annotatedImageBuffer || inputImageBuffer;
-  const frameString: string = await imageToDataUrl(bytes, "image/jpeg");
+  const imageUrl: string = await saveUploadedImage(bytes, inputImageFile.name);
 
   // 添加拍摄记录，根据每个 position 做单独处理
   let sleeves_num = inputResultObj.sleeves_num ?? serverDetectionResult.sleeves_num ?? 0;
@@ -208,7 +208,7 @@ cvRouter.post("/upload_wiring", async (ctx) => {
   // 构建拍摄记录并写入指定 position（覆盖已有条目）
   const shot: WiringShot = {
     timestamp: getSecondTimestamp(),
-    image: frameString,
+    image: imageUrl,
     result: {
       sleeves_num,
       cross_num,
@@ -365,11 +365,13 @@ cvRouter.post("/upload_face", async (ctx) => {
 
   const session = cvClient.session as FaceSigninSession;
 
-  // 将图片转为 data URL 字符串并写入会话
-  const imageDataUrl = await imageToDataUrl(inputImageFile, "image/jpeg");
+  // 将图片保存为文件
+  const imageBuffer = new Uint8Array(await inputImageFile.arrayBuffer());
+  const imageUrl = await saveUploadedImage(imageBuffer, inputImageFile.name);
+
   session.finalResult = {
     who: inputWho,
-    image: imageDataUrl,
+    image: imageUrl,
   };
 
   // 发送人脸签到结果给相关客户端
@@ -447,10 +449,12 @@ cvRouter.post("/upload_deskclean", async (ctx) => {
 
   const session = cvClient.session as DeskCleanSession;
 
-  // 将图片转为 data URL 字符串并写入会话
-  const imageDataUrl = await imageToDataUrl(inputImageFile, "image/jpeg");
+  // 将图片保存为文件
+  const imageBuffer = new Uint8Array(await inputImageFile.arrayBuffer());
+  const imageUrl = await saveUploadedImage(imageBuffer, inputImageFile.name);
+
   session.finalResult = {
-    image: imageDataUrl,
+    image: imageUrl,
     sleeves_num: Number(inputResultObj.sleeves_num) || 0,
     screwdriver_ready: Boolean(inputResultObj.screwdriver_ready),
     wire_stripper_ready: Boolean(inputResultObj.wire_stripper_ready),

@@ -1,11 +1,23 @@
 import { clientManager } from "./ClientManager.ts";
+import { join } from "@std/path";
+
+// 数据文件路径
+const DATA_DIR = join(Deno.cwd(), "data");
+const DATA_FILE = join(DATA_DIR, "data.json");
 
 // SystemManager 负责存储和数据持久化
 export class SystemManager {
   constructor() {
     /* 野鸡持久存储方案 */
     try {
-      const data = JSON.parse(Deno.readTextFileSync("data.json"));
+      // 确保 data 目录存在
+      try {
+        Deno.mkdirSync(DATA_DIR, { recursive: true });
+      } catch (_e) {
+        // 忽略已存在的错误
+      }
+
+      const data = JSON.parse(Deno.readTextFileSync(DATA_FILE));
 
       // 恢复客户端数据到 clientManager
       if (data.clients) {
@@ -24,7 +36,7 @@ export class SystemManager {
         }
       }
     } catch (error) {
-      console.error("读取 data.json 数据库时出错，自动使用全新默认数据:", error);
+      console.error("读取 data/data.json 数据库时出错，自动使用全新默认数据:", error);
     }
 
     // 自动保存
@@ -42,7 +54,7 @@ export class SystemManager {
             ]),
           ),
         };
-        Deno.writeTextFileSync("data.json", JSON.stringify(dataToSave));
+        Deno.writeTextFileSync(DATA_FILE, JSON.stringify(dataToSave));
       },
       5000,
     );

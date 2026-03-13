@@ -123,7 +123,26 @@ app.use(apiRouter.routes());
 app.use(apiRouter.allowedMethods());
 app.use(healthRouter.routes());
 
-// 静态文件服务
+// 静态文件服务（客户端上传的资源）
+app.use(async (ctx, next) => {
+  const pathname = ctx.request.url.pathname;
+  if (pathname.startsWith("/uploads/")) {
+    try {
+      await ctx.send({
+        root: "./data",
+        path: pathname,
+      });
+      return;
+    } catch {
+      ctx.response.status = 404;
+      ctx.response.body = { error: "Image not found" };
+      return;
+    }
+  }
+  await next();
+});
+
+// 静态文件服务（前端）
 app.use(async (ctx, next) => {
   const pathname = ctx.request.url.pathname;
   if (!pathname.startsWith("/api") && !pathname.startsWith("/ws")) {
