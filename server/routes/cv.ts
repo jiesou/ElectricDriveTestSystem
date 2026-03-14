@@ -10,6 +10,7 @@ import {
   getSecondTimestamp,
   DeskCleanLog,
   WiringShot,
+  CvClientXiaoxinUpdateMessage,
 } from "../types.ts";
 import { detectObjects } from "../model.ts";
 import { saveUploadedImage } from "../utils/upload.ts";
@@ -499,5 +500,28 @@ cvRouter.post("/clear_session/:cvClientIp", (ctx) => {
 
   ctx.response.body = {
     success: true
+  };
+});
+
+/**
+ * 小新智能体状态更新（即是否需要 装接故障排除）
+ * GET /api/cv/pull_xiaoxin_update
+ */
+cvRouter.get("/pull_xiaoxin_update", (ctx) => {
+  const updateMessage: CvClientXiaoxinUpdateMessage = {
+    type: "idle",
+    timestamp: getSecondTimestamp(),
+  };
+  if (false) {
+    const updateMessage: CvClientXiaoxinUpdateMessage = {
+    type: "evaluate_need_troubleshoot",
+    evaluate_need_troubleshoot_type: "M1_NOT_START",
+    timestamp: getSecondTimestamp(),
+  };
+  }
+
+  ctx.response.body = {
+    success: true,
+    data: updateMessage,
   };
 });

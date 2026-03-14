@@ -158,6 +158,13 @@ export interface DeskCleanSession extends CvSession {
   finalResult?: DeskCleanResult;
 }
 
+export interface CvClientXiaoxinUpdateMessage {
+  type: "idle" | "evaluate_need_troubleshoot",
+  evaluate_need_troubleshoot_type?: "M1_NOT_START" | "M2_NOT_START",
+  timestamp: number; // 时间戳(秒)
+}
+
+
 // ==================== 客户机实例 ====================
 
 // 客户机实例
@@ -195,7 +202,7 @@ export interface JetsonNanoClient extends CvClient {
 // ==================== WebSocket 消息类型 ====================
 export interface WSMessage {
   type: string;
-  timestamp?: number; // in seconds
+  timestamp?: number; // 时间戳(秒)
   [key: string]: unknown;
 }
 
