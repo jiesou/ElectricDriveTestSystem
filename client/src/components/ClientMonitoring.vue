@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, h, computed } from 'vue'
-import { Card, Popconfirm, Button, Tag, Timeline, Switch, message } from 'ant-design-vue'
+import { Card, Popconfirm, Button, Tag, Timeline, message } from 'ant-design-vue'
 import { AimOutlined } from '@ant-design/icons-vue'
 import type { Client } from '../types'
 import { formatTime } from '../types'
 import ClientTable from './ClientTable.vue'
 import CvClientMonitor from './CvClientMonitor.vue'
 import AIAnalysisModal from './AIAnalysisModal.vue'
+import TestLog from './TestLog.vue'
 import { apiJson } from '../api-client'
 
 const props = defineProps<{ clients: Client[] }>()
@@ -20,24 +21,6 @@ const finishedTests = computed(() => props.clients.filter(c => c.testSession && 
 const finishedEvaluateBoards = computed(() => props.clients.filter(c => c.evaluateBoard && c.evaluateBoard.function_steps.every(s => s.finished)))
 const activeTestClients = computed(() => props.clients.filter(c => c.testSession))
 const evaluateBoards = computed(() => props.clients.filter(c => c.evaluateBoard))
-
-function getLogColor(action: string): string {
-  switch (action) {
-    case 'start': return 'blue'
-    case 'answer': return 'green'
-    case 'desk_clean': return 'orange'
-    case 'navigation': return 'orange'
-    case 'finish': return 'red'
-    case 'connect': return 'gray'
-    case 'disconnect': return 'gray'
-    default: return 'default'
-  }
-}
-
-function pickLogs(session: Client['testSession']) {
-  const logs = session?.logs || []
-  return showConnectionEvents.value ? logs : logs.filter(log => log.action !== 'connect' && log.action !== 'disconnect')
-}
 
 async function handleForgetClients() {
   try {
@@ -152,67 +135,12 @@ function handleAIAnalysis(clientId: string) {
             <div style="margin-bottom: 16px;">
               <p><strong>开始时间:</strong> {{ formatTime(client.testSession.test.startTime) }}</p>
               <p><strong>已提交:</strong> {{
-                client.testSession.test.questions.reduce((acc, q) => acc + q.troubles.filter(t => t.is_submitted).length, 0)
+                client.testSession.test.questions.reduce((acc, q) => acc + q.troubles.filter(t => t.submitted_from_wire).length, 0)
               }} 个</p>
-              <div v-if="pickLogs(client.testSession).length > 0">
-                <strong>测验日志</strong>
-                <Switch v-model:checked="showConnectionEvents" checked-children="显示连接变化" un-checked-children="隐藏连接变化"
-                  style="margin-left: 12px;" />
-                <Timeline style="margin-top: 12px;">
-                  <Timeline.Item
-                    v-for="(log, index) in pickLogs(client.testSession)"
-                    :key="index" :color="getLogColor(log.action)">
-                    <div>
-                      <Tag :color="getLogColor(log.action)" size="small">
-                        {{ log.action.toUpperCase() }}
-                      </Tag>
-                      <div style="margin-top: 4px;">
-                        <strong v-if="log.action == 'start'">开始测验</strong>
-                        <strong v-else-if="log.action == 'finish'">
-                          完成测验 得分: {{ log.details.score }}
-                        </strong>
-                        <strong v-else-if="log.action == 'connect'">连接上服务器</strong>
-                        <strong v-else-if="log.action == 'disconnect'">断开了连接</strong>
-                        <strong v-else-if="log.action == 'answer'">
-                          第 {{ (() => {
-                            const question = log.details.question
-                            if (!client.testSession || !question) return '?'
-                            const idx = client.testSession.test.questions.findIndex(item => item.id === question.id)
-                            return idx >= 0 ? idx + 1 : '?'
-                          })() }} 题，第 {{ (() => {
-                            const question = log.details.question
-                            const trouble = log.details.trouble
-                            if (!question || !trouble) return '?'
-                            const idx = question.troubles.findIndex(item => item.id === trouble.id)
-                            return idx >= 0 ? idx + 1 : '?'
-                          })() }} 个故障 -
-                          选择了 <Tag v-if="log.details.trouble">{{
-                            log.details.trouble.submitted_from_wire }} - {{ log.details.trouble.submitted_to_wire }}</Tag>，正确答案为
-                            <Tag v-if="log.details.trouble">故障{{ log.details.trouble.id }} ({{
-                            log.details.trouble.from_wire }} - {{ log.details.trouble.to_wire }})</Tag>  - 判定 {{ log.details.isCorrect ? '答对' : '答错' }}
-                        </strong>
-                        <strong v-else-if="log.action == 'desk_clean'">
-                          工位清洁: 进度 {{ (log.details.deskCleanResult.clean_progress * 100).toFixed(0) }}%，
-                          螺丝刀 {{ log.details.deskCleanResult.screwdriver_ready ? '归位' : '未归位' }}，
-                          剥线钳 {{ log.details.deskCleanResult.wire_stripper_ready ? '归位' : '未归位' }}，
-                          万用表 {{ log.details.deskCleanResult.multimeter_ready ? '归位' : '未归位' }}，
-                          斜口钳 {{ log.details.deskCleanResult.crimping_ready ? '归位' : '未归位' }}，
-                          号码管 {{ log.details.deskCleanResult.sleeves_num }} 个
-                        </strong>
-                        <strong v-else>未知操作</strong>
-                      </div>
-                      <div style="font-size: 12px; color: #666;">
-                        {{ formatTime(log.timestamp) }}
-                        <span v-if="index > 0">
-                          (经过 {{
-                            (log.timestamp - (pickLogs(client.testSession)[index - 1]?.timestamp || log.timestamp))
-                          }} 秒)
-                        </span>
-                      </div>
-                    </div>
-                  </Timeline.Item>
-                </Timeline>
-              </div>
+              <TestLog
+                :session="client.testSession"
+                v-model:showConnectionEvents="showConnectionEvents"
+              />
 
             </div>
           </div>

@@ -1,30 +1,30 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import zhCN from 'ant-design-vue/es/locale/zh_CN'
-import { Layout, ConfigProvider, Select, Button } from 'ant-design-vue'
+import { Layout, ConfigProvider } from 'ant-design-vue'
 import TroubleManagement from './components/TroubleManagement.vue'
 import TestManagement from './components/TestManagement.vue'
 import ClientMonitoring from './components/ClientMonitoring.vue'
-import AIAnalysisModal from './components/AIAnalysisModal.vue'
+import AIAnalysisPage from './components/AIAnalysisPage.vue'
+import Statistics from './components/Statistics.vue'
 import { useMockDataService, generateMockData } from './useMockData'
 import type { Client } from './types'
 import { apiJson } from './api-client'
 
 const { Header, Content, Sider } = Layout
 
-type TabKey = 'troubles' | 'tests' | 'clients' | 'ai-analysis'
+type TabKey = 'troubles' | 'tests' | 'clients' | 'ai-analysis' | 'statistics'
 const activeTab = ref<TabKey>('troubles')
 
 const menuItems = [
   { key: 'troubles', label: '题库管理', path: '#/troubles' },
   { key: 'tests', label: '排故测验', path: '#/tests' },
   { key: 'clients', label: '客户机监控', path: '#/clients' },
+  { key: 'statistics', label: '统计数据', path: '#/statistics' },
   { key: 'ai-analysis', label: 'AI 分析', path: '#/ai-analysis' }
 ]
 
 const clients = ref<Client[]>([])
-const selectedClientId = ref<string>()
-const aiAnalysisModalOpen = ref(false)
 const loadingClients = ref(false)
 let refreshTimer: number | undefined
 
@@ -33,6 +33,7 @@ function updateActiveTab() {
   if (hash === '#/tests') activeTab.value = 'tests'
   else if (hash === '#/clients') activeTab.value = 'clients'
   else if (hash === '#/ai-analysis') activeTab.value = 'ai-analysis'
+  else if (hash === '#/statistics') activeTab.value = 'statistics'
   else {
     activeTab.value = 'troubles'
     window.location.hash = '#/troubles'
@@ -53,20 +54,9 @@ async function fetchClients() {
   try {
     const data = await apiJson<Client[]>('/api/clients')
     clients.value = data
-    if (clients.value.length > 0 && !selectedClientId.value) {
-      selectedClientId.value = clients.value[0]?.id
-    }
   } finally {
     loadingClients.value = false
   }
-}
-
-function handleClientSelect(value: unknown) {
-  if (value) selectedClientId.value = value.toString()
-}
-
-function handleAIAnalysis() {
-  if (selectedClientId.value) aiAnalysisModalOpen.value = true
 }
 
 function startRefresh() {
@@ -152,30 +142,10 @@ onUnmounted(() => {
           <TroubleManagement v-if="activeTab === 'troubles'" />
           <TestManagement v-else-if="activeTab === 'tests'" :clients="clients" />
           <ClientMonitoring v-else-if="activeTab === 'clients'" :clients="clients" @refresh="fetchClients" />
-
-          <div v-else style="min-height:480px;display:flex;flex-direction:column;gap:12px;">
-            <h2>AI 大模型分析</h2>
-            <div style="display:flex;gap:12px;align-items:center;">
-              <Select
-                v-model:value="selectedClientId"
-                style="width:300px"
-                placeholder="请选择客户机"
-                :loading="loadingClients"
-                @change="handleClientSelect"
-              >
-                <Select.Option v-for="client in clients" :key="client.id" :value="client.id">
-                  {{ client.name }} ({{ client.ip }})
-                  <span v-if="client.testSession?.finishedScore !== undefined"> - 分数: {{ client.testSession.finishedScore }}</span>
-                  <span v-else-if="client.testSession"> - 测验中</span>
-                </Select.Option>
-              </Select>
-              <Button type="primary" :disabled="!selectedClientId" @click="handleAIAnalysis">开始分析</Button>
-            </div>
-          </div>
+          <Statistics v-else-if="activeTab === 'statistics'" />
+          <AIAnalysisPage v-else :clients="clients" :loading-clients="loadingClients" />
         </Content>
       </Layout>
     </Layout>
   </ConfigProvider>
-
-  <AIAnalysisModal v-model:open="aiAnalysisModalOpen" :client-id="selectedClientId" />
 </template>
