@@ -1,11 +1,11 @@
 const apiKey = Deno.env.get("OPENAI_API_KEY");
-const baseUrl = Deno.env.get("OPENAI_BASE_URL");
+const baseUrl: string = Deno.env.get("OPENAI_BASE_URL") || "";
 const model = "deepseek-r1-distill-llama-8b";
 let reasoning_finished = false;
 export function analyzeStream(prompt: string) {
   const stream = new ReadableStream({
     async start(controller) { 
-      const response = await fetch(baseUrl + "/chat/completions", {
+      const response = await fetch(baseUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -24,12 +24,14 @@ export function analyzeStream(prompt: string) {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        console.error("DeepSeek 服务端连接识别:", response.status, await response.text());
+        controller.close();
       }
-
+      
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       const encoder = new TextEncoder();
+      controller.enqueue(encoder.encode("*正在分析...*\n\n"));
 
       while (true) {
         const { done, value } = await reader?.read() || {};
@@ -38,7 +40,6 @@ export function analyzeStream(prompt: string) {
           break;
         }
         const chunk = decoder.decode(value, { stream: true });
-        console.log(chunk);
         const text = chunk.replace(/^data: /, "");
         const obj = JSON.parse(text);
 
