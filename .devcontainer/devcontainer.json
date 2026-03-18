@@ -13,7 +13,7 @@
 	// "forwardPorts": [],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "sudo apt update && sudo apt install python3-venv -y",
+	// "postCreateCommand": "sudo apt update && sudo apt install python3-venv -y",
 
 	// Configure tool-specific properties.
 	"customizations": {
@@ -35,10 +35,9 @@
 		"--network",
 		"host" // for API get ip to communicate with the esp32
 		// dont use port-forwarding
-	],
+	]
 	// "containerUser": "node",
 	// "updateRemoteUserUID": true
-	"privileged": true
 	// "runArgs": [
 	// ],
 }

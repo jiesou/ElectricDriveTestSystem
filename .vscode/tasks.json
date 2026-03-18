@@ -1,0 +1,32 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "dev: client",
+            "type": "shell",
+            "command": "cd client && deno task dev",
+            "presentation": {
+                "group": "dev"
+            }
+        },
+        {
+            "label": "dev: server",
+            "type": "shell",
+            "command": "cd server && deno task dev",
+            "presentation": {
+                "group": "dev"
+            }
+        },
+        {
+            "label": "dev",
+            "dependsOn": [
+                "dev: client",
+                "dev: server"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}
