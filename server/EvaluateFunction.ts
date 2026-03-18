@@ -4,6 +4,7 @@ import {
   EvaluateFunctionBoardUpdateRequestMessage,
   EvaluateWiringSession,
   getSecondTimestamp,
+  XiaoxinStatus,
 } from "./types.ts";
 
 clientManager.addWSMessageHandler((client, socket, message) => {
@@ -18,6 +19,28 @@ clientManager.addWSMessageHandler((client, socket, message) => {
       console.log(
         `[evaluate] Updated evaluate board for client ${client.id}: ${board.description}`,
       );
+
+      // 更新小新智能体状态
+      if (client.cvClient) {
+        // 检查是否有未通过的步骤
+        const hasFailedStep = msg.function_steps.some(step => step.finished && !step.passed);
+
+        if (hasFailedStep) {
+          // 有步骤未通过，需要排故
+          const xiaoxinStatus: XiaoxinStatus = {
+            type: "evaluate_need_troubleshoot",
+            evaluate_need_troubleshoot_type: "M1_NOT_START",
+          };
+          client.cvClient.xiaoxin_status = xiaoxinStatus;
+        } else {
+          // 正在功能评估
+          const xiaoxinStatus: XiaoxinStatus = {
+            type: "status_text_update",
+            status_text: "我在检查你的功能！",
+          };
+          client.cvClient.xiaoxin_status = xiaoxinStatus;
+        }
+      }
       break;
     }
     case "evaluate_wiring_yolo_request": {

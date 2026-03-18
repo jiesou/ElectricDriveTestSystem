@@ -158,9 +158,14 @@ export interface DeskCleanSession extends CvSession {
   finalResult?: DeskCleanResult;
 }
 
-export interface CvClientXiaoxinUpdateMessage {
-  type: "idle" | "evaluate_need_troubleshoot",
-  evaluate_need_troubleshoot_type?: "M1_NOT_START" | "M2_NOT_START",
+// 小新智能体状态
+export interface XiaoxinStatus {
+  type: "status_text_update" | "evaluate_need_troubleshoot";
+  evaluate_need_troubleshoot_type?: "M1_NOT_START" | "M2_NOT_START";
+  status_text?: string;
+}
+
+export interface CvClientXiaoxinUpdateMessage extends XiaoxinStatus {
   timestamp: number; // 时间戳(秒)
 }
 
@@ -187,6 +192,7 @@ export interface CvClient {
   ip: string;
   session?: EvaluateWiringSession | FaceSigninSession | DeskCleanSession; // 当前会话
   latest_frame?: Uint8Array; // 最新接收到的 JPEG 帧数据
+  xiaoxin_status?: XiaoxinStatus; // 小新智能体状态
 }
 
 // ESP32-CAM客户机

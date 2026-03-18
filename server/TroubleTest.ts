@@ -12,6 +12,7 @@ import {
   TroubleTestPullRequestMessage,
   TroubleTestPushMessage,
   TroubleTestUpdateRequestMessage,
+  XiaoxinStatus,
 } from "./types.ts";
 import { getSecondTimestamp } from "./types.ts";
 import { clientManager } from "./ClientManager.ts";
@@ -186,6 +187,15 @@ export class TroubleTest {
       logs: [startLog],
     };
     client.testSession = session;
+
+    // 更新小新智能体状态：排故进行时
+    if (client.cvClient) {
+      const xiaoxinStatus: XiaoxinStatus = {
+        type: "status_text_update",
+        status_text: "排故进行时！",
+      };
+      client.cvClient.xiaoxin_status = xiaoxinStatus;
+    }
 
     this.pushTestToClient(client, test);
     return true;
