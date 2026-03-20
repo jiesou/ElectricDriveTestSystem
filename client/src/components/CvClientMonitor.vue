@@ -64,31 +64,6 @@ async function clearSession(cvClient: CvClient) {
     background: #f0f0f0;
     margin: 10px;">摄像头图传</div>
         </div>
-        <!--会话信息-->
-        <div v-if="client.cvClient?.session?.type == 'evaluate_wiring'" style="font-size:16px">
-          <strong >已经拍摄{{ client.cvClient?.session?.shots?.length || 0 }}张照片</strong>
-          <div v-for="(shot, idx) in client.cvClient?.session?.shots" :key="idx">
-            <strong style="color: blue"># 照片{{ idx + 1 }}</strong><br />
-            <img :src="shot.image"
-              style="width: 400px; height: auto; margin-right: 8px; border-radius: 8px; margin-bottom: 8px;" /><br />
-            号码管：{{ shot.result.sleeves_num }} 个<br />
-            线路交叉：{{ shot.result.cross_num }} 个<br />
-            露铜：{{ shot.result.excopper_num }} 个<br />
-            露端子：{{ shot.result.exterminal_num }} 个<br />
-            <Divider />
-          </div>
-
-          <Card v-if="client.cvClient?.session?.finalResult" style="margin-top: 10px; font-size: 16px">
-            <h3>✅ 最终评估结果已经确认：</h3><br />
-            <strong style="color: green;">得分：{{ client.cvClient?.session?.finalResult.scores }}</strong><br />
-            <strong>未套号码管：</strong>{{ client.cvClient?.session?.finalResult.no_sleeves_num }}<br />
-            <strong>线路交叉：</strong>{{ client.cvClient?.session?.finalResult.cross_num }}<br />
-            <strong>露铜：</strong>{{ client.cvClient?.session?.finalResult.excopper_num }}<br />
-            <strong>露端子：</strong>{{ client.cvClient?.session?.finalResult.exterminal_num }}<br />
-          </Card>
-
-        </div>
-
 
         <div v-if="client.cvClient?.session" style="margin-top: 8px;">
           <!-- 装接评估会话详情 -->
@@ -121,6 +96,7 @@ async function clearSession(cvClient: CvClient) {
             <!-- finalResult 不要忘记 -->
             <div v-if="client.cvClient.session.finalResult" style="font-size: 12px; margin-top: 8px;">
               <div style="color: #52c41a; margin-bottom: 4px;"><strong>✅ 评估完成</strong></div>
+              <div style="font-size: 12px; color: #999;">时间戳: {{ new Date(client.cvClient.session.startTime * 1000).toLocaleString() }}</div>
               <div style="color: #666; margin-top: 4px;">
                 <strong>得分:</strong> {{ client.cvClient.session.finalResult.scores }} 分
               </div>
@@ -149,7 +125,7 @@ async function clearSession(cvClient: CvClient) {
                   style="width: 640px; height: auto; object-fit: cover; background: #000; border-radius: 4px;" />
                 <div style="font-size: 13px; color: #555;">
                   <div><strong>识别到:</strong> {{ client.cvClient.session.finalResult.who || '未知' }}</div>
-                  <div style="font-size: 12px; color: #999;">时间戳: {{ new Date(client.cvClient.session.startTime).toLocaleString() }}</div>
+                  <div style="font-size: 12px; color: #999;">时间戳: {{ new Date(client.cvClient.session.startTime * 1000).toLocaleString() }}</div>
                 </div>
             </div>
           </div>
@@ -168,7 +144,7 @@ async function clearSession(cvClient: CvClient) {
                 <div><strong>万用表:</strong> {{ client.cvClient.session.finalResult.multimeter_ready ? '归位' : '未归位' }}</div>
                 <div><strong>斜口钳:</strong> {{ client.cvClient.session.finalResult.crimping_ready ? '归位' : '未归位' }}</div>
                 <div><strong>清洁进度:</strong> {{ (client.cvClient.session.finalResult.clean_progress * 100).toFixed(0) }}%</div>
-                <div style="font-size: 12px; color: #999;">时间戳: {{ new Date(client.cvClient.session.startTime).toLocaleString() }}</div>
+                <div style="font-size: 12px; color: #999;">时间戳: {{ new Date(client.cvClient.session.startTime * 1000).toLocaleString() }}</div>
               </div>
             </div>
           </div>
