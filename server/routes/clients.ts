@@ -24,18 +24,12 @@ clientsRouter.get("/clients", (ctx) => {
   };
 });
 
-// 修改客户端名字
+// 修改客户端信息（名称、CV客户端绑定）
 clientsRouter.put("/clients/:id", async (ctx) => {
   try {
     const id = ctx.params.id!;
     const body = await ctx.request.body.json();
-    const { name } = body as { name?: string };
-
-    if (typeof name !== "string" || name.trim() === "") {
-      ctx.response.status = 400;
-      ctx.response.body = { success: false, error: "Invalid name" };
-      return;
-    }
+    const { name, cvClientIp } = body as { name?: string; cvClientIp?: string };
 
     const client = clientManager.clients[id];
     if (!client) {
@@ -44,7 +38,22 @@ clientsRouter.put("/clients/:id", async (ctx) => {
       return;
     }
 
-    client.name = name.trim();
+    // 修改名称
+    if (name !== undefined) {
+      if (typeof name !== "string" || name.trim() === "") {
+        ctx.response.status = 400;
+        ctx.response.body = { success: false, error: "Invalid name" };
+        return;
+      }
+      client.name = name.trim();
+    }
+
+    // 绑定/解绑 CV 客户端
+    if (cvClientIp !== undefined) {
+      client.cvClient = cvClientIp
+        ? { clientType: "jetson_nano", ip: cvClientIp.trim() }
+        : undefined;
+    }
 
     ctx.response.body = { success: true };
   } catch (_error) {

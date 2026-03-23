@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
-import { Table, Tag, Input, message } from 'ant-design-vue'
+import { ref, nextTick, computed } from 'vue'
+import { Table, Tag, Input, Select, message } from 'ant-design-vue'
 import { EditOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons-vue'
 import type { Client, Question, Trouble } from '../types'
 import { apiJson } from '../api-client'
@@ -36,6 +36,33 @@ const columns = [
 // local editable state map: clientId -> editing name
 const editingNames = ref<Record<string, string>>({})
 const editingId = ref<string | null>(null)
+
+// CV客户端选项（从所有客户端中收集已知的cvClient）
+const cvClientOptions = computed(() => {
+  const ips = new Set<string>()
+  props.clients.forEach(c => {
+    if (c.cvClient?.ip) ips.add(c.cvClient.ip)
+  })
+  return [
+    { value: '', label: '无' },
+    ...Array.from(ips).map(ip => ({ value: ip, label: ip }))
+  ]
+})
+
+// 更新客户端绑定的CV客户端
+async function updateCvClient(clientId: string, cvClientIp: string) {
+  const ip = cvClientIp || ''
+  try {
+    await apiJson(`/api/clients/${clientId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ cvClientIp: ip }),
+    })
+    message.success(ip ? `已绑定 ${ip}` : '已解绑')
+  } catch (err) {
+    console.error('Failed to update CV client binding', err)
+    message.error('绑定失败')
+  }
+}
 
 async function saveClientName(clientId: string) {
   const newName = editingNames.value[clientId]
@@ -84,8 +111,13 @@ function startEdit(record: any) {
       </template>
 
       <template v-if="column.key === 'cvClient'">
-        <span v-if="record.cvClient">{{ record.cvClient.ip }}</span>
-        <span v-else style="color: #999;">无</span>
+        <Select
+          :value="record.cvClient?.ip || ''"
+          :options="cvClientOptions"
+          size="small"
+          style="width: 140px"
+          @change="(val: unknown) => updateCvClient(record.id, String(val || ''))"
+        />
       </template>
 
       <template v-if="column.key === 'name'">

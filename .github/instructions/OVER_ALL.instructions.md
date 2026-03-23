@@ -16,3 +16,67 @@ trigger: always_on
 OPENAI_API_KEY="******"
 OPENAI_BASE_URL="https://dashscope.aliyuncs.com/compatible-mode/v1"
 OPENAI_MODEL="deepseek-r1-distill-llama-8b"
+
+# 客户端架构
+
+## 两种客户端类型
+
+| 类型 | 接口 | 连接方式 | 用途 |
+|------|------|----------|------|
+| 普通客户端 (Client) | WebSocket | 主动连接服务器 | 用户操作终端（ESP32/浏览器） |
+| 视觉客户端 (CvClient) | HTTP/UDP | 被动接收请求 | 图像采集和AI处理（Jetson Nano） |
+
+## 核心数据结构
+
+```typescript
+// ClientManager 中
+clients: Record<string, Client>     // clientId -> Client
+cvClients: Record<string, CvClient> // cvClientIp -> CvClient (private)
+
+// Client 中
+client.cvClient?: CvClient  // 引用，多个Client可指向同一个CvClient
+```
+
+## 绑定关系形成流程
+
+```
+服务器启动
+    │
+    ▼
+CV_CLIENT_MAP = 加载 cvClientMap.json（静态配置数组）
+clients = {}, cvClients = {}  // 都为空
+    │
+    ▼
+普通客户端 WebSocket 连接
+    │
+    ▼
+connectClient(ip, socket)
+    │
+    ├── 创建/复用 Client 实例
+    │
+    └── 查找 CV_CLIENT_MAP.find(m => m.clientIp === ip)
+          │
+          ├─ 无匹配 → Client.cvClient = undefined
+          │
+          └─ 有匹配 → 创建/获取 CvClient
+                       │
+                       ▼
+                     client.cvClient = this.cvClients[cvIp]  // 绑定
+```
+
+## 关键特性
+
+1. **延迟创建**：CvClient 只有在普通客户端连接且匹配配置时才创建
+2. **对象引用**：多个 Client.cvClient 指向同一个 CvClient 对象
+3. **状态共享**：CvClient 的 session、latest_frame 被所有绑定的 Client 共享
+
+## cvClientMap.json 格式
+
+```json
+[
+  { "clientIp": "192.168.100.100", "cvClientIp": "192.168.11.121", "cvClientType": "jetson_nano" }
+]
+```
+
+- 支持多对一：多个 clientIp 可映射到同一个 cvClientIp
+- 仅在客户端连接时生效，不预加载
