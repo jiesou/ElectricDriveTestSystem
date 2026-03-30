@@ -122,5 +122,5 @@ defineExpose({ startAnalysis, stopAnalysis, reset })
 
 ## 后端环境变量可用
 OPENAI_API_KEY="******"
-OPENAI_BASE_URL="https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+OPENAI_BASE_URL="https://dashscope.aliyuncs.com/compatible-mode/v1"
 OPENAI_MODEL="deepseek-r1-distill-llama-8b"

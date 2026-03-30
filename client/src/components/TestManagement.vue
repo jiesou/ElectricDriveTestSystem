@@ -258,7 +258,7 @@ onMounted(() => {
           </Popconfirm>
         </template>
         <template v-else>
-          <Button type="primary" @click="openCreateTestModal">
+          <Button type="primary" @click="openCreateTestModal" style="font-variant-emoji: text;">
             ▶ 安排新测验
           </Button>
         </template>
