@@ -354,6 +354,11 @@ cvRouter.post("/upload_face", async (ctx) => {
 
   const cvClientIp: string = ctx.request.ip;
   const clients = clientManager.findClientsByCvIp(cvClientIp);
+  if (!clients) {
+    ctx.response.status = 400;
+    ctx.response.body = { success: false, error: "未绑定客户机" };
+    return;
+  }
   const cvClient = clients[0].cvClient!;
 
   // 没有会话就建立

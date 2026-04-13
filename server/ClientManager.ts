@@ -195,16 +195,21 @@ export class ClientManager {
     );
     if (matched.length > 0) return matched;
 
-    const allClients = Object.values(this.clients);
-    if (allClients.length === 1) {
-      const onlyClient = allClients[0];
-      onlyClient.cvClient = this.cvClients[cvClientIp] ?? {
-        clientType: "jetson_nano",
-        ip: cvClientIp,
-      };
-      this.cvClients[cvClientIp] = onlyClient.cvClient;
-      return [onlyClient];
+    // 如果找不到绑定，则自动创建并全部绑定
+    const newCvClient: CvClient = {
+      clientType: "jetson_nano",
+      ip: cvClientIp,
+    };
+    this.cvClients[cvClientIp] = newCvClient;
+    for (const client of Object.values(this.clients)) {
+      if (!client.cvClient) {
+        client.cvClient = newCvClient;
+      }
     }
+    const newMatched = Object.values(this.clients).filter(
+      (c) => c.cvClient?.ip === cvClientIp,
+    );
+    if (newMatched.length > 0) return newMatched;
     return [];
   }
 

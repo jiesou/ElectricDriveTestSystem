@@ -5,7 +5,7 @@ let reasoning_finished = false;
 export function analyzeStream(prompt: string) {
   const stream = new ReadableStream({
     async start(controller) { 
-      const response = await fetch(baseUrl, {
+      const response = await fetch(baseUrl + "/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
