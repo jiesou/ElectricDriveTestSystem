@@ -25,7 +25,7 @@ async function clearSession(cvClient: CvClient) {
     <div v-if="displayCvClients.length === 0">
       <Empty description="暂无视觉客户端连接" />
     </div>
-    <div v-else style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px;">
+    <div v-else style="display: flex; flex-direction: column; gap: 16px;">
       <Card v-for="client in displayCvClients" :key="client.id" size="small" :title="`${client.name} - 视觉客户端`" style="width: 880px;">
         <template #extra>
           <div style="display: flex; align-items: center; gap: 8px;">

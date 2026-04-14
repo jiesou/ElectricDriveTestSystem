@@ -14,18 +14,14 @@ export async function apiJson<T>(path: string, init: RequestInit = {}): Promise<
   }
 
   const resp = await fetch(path, finalInit)
-  if (!resp.ok) {
-    message.error(`请求失败 ${resp.status}`)
-    throw new Error(`Request failed ${resp.status}`)
-  }
 
   const json: ApiResult<T> = await resp.json()
   if (typeof json === 'object' && json) {
     const maybe = json as { success?: boolean; data?: T; error?: string }
     if ('success' in maybe) {
       if (maybe.success === false) {
-        const err = maybe.error || '请求失败'
-        message.error(err)
+        const err = maybe.error || '请求操作中'
+        message.warn(err)
         throw new Error(err)
       }
       return (maybe.data ?? json) as T

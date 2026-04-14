@@ -30,6 +30,11 @@ export const cvRouter = new Router({ prefix: "/cv" });
 cvRouter.get("/stream/:cvClientIp", (ctx) => {
   const cvClientIp = ctx.params.cvClientIp;
   const clients = clientManager.findClientsByCvIp(cvClientIp);
+  if (!clients.length) {
+    ctx.response.status = 400;
+    ctx.response.body = { success: false, error: "未绑定客户机" };
+    return;
+  }
   const cvClient = clients[0].cvClient!;
   
   // 设置 MJPEG 流响应头
@@ -132,6 +137,11 @@ cvRouter.post("/upload_wiring", async (ctx) => {
 
   const cvClientIp: string = ctx.request.ip;
   const clients = clientManager.findClientsByCvIp(cvClientIp);
+  if (!clients.length) {
+    ctx.response.status = 400;
+    ctx.response.body = { success: false, error: "未绑定客户机" };
+    return;
+  }
   const cvClient = clients[0].cvClient!;
 
   // 没有会话就建立
@@ -251,6 +261,11 @@ cvRouter.post("/upload_wiring", async (ctx) => {
 cvRouter.post("/confirm_wiring", (ctx) => {
   const cvClientIp: string = ctx.request.ip;
   const clients = clientManager.findClientsByCvIp(cvClientIp);
+  if (!clients.length) {
+    ctx.response.status = 400;
+    ctx.response.body = { success: false, error: "未绑定客户机" };
+    return;
+  }
   const cvClient = clients[0].cvClient!;
 
   if (!cvClient.session || cvClient.session.type !== "evaluate_wiring") {
@@ -354,7 +369,7 @@ cvRouter.post("/upload_face", async (ctx) => {
 
   const cvClientIp: string = ctx.request.ip;
   const clients = clientManager.findClientsByCvIp(cvClientIp);
-  if (!clients) {
+  if (!clients.length) {
     ctx.response.status = 400;
     ctx.response.body = { success: false, error: "未绑定客户机" };
     return;
@@ -443,6 +458,11 @@ cvRouter.post("/upload_deskclean", async (ctx) => {
 
   const cvClientIp: string = ctx.request.ip;
   const clients = clientManager.findClientsByCvIp(cvClientIp);
+  if (!clients.length) {
+    ctx.response.status = 400;
+    ctx.response.body = { success: false, error: "未绑定客户机" };
+    return;
+  }
   const cvClient = clients[0].cvClient!;
 
   // 没有会话就建立
@@ -496,6 +516,11 @@ cvRouter.post("/upload_deskclean", async (ctx) => {
 cvRouter.post("/clear_session/:cvClientIp", (ctx) => {
   const cvClientIp: string = ctx.request.ip;
   const clients = clientManager.findClientsByCvIp(cvClientIp);
+  if (!clients.length) {
+    ctx.response.status = 400;
+    ctx.response.body = { success: false, error: "未绑定客户机" };
+    return;
+  }
   const cvClient = clients[0].cvClient!;
   // 删除会话（清空当前 session）
   delete cvClient.session;
@@ -516,6 +541,11 @@ cvRouter.post("/clear_session/:cvClientIp", (ctx) => {
 cvRouter.get("/pull_xiaoxin_update", (ctx) => {
   const cvClientIp: string = ctx.request.ip;
   const clients = clientManager.findClientsByCvIp(cvClientIp);
+  if (!clients.length) {
+    ctx.response.status = 400;
+    ctx.response.body = { success: false, error: "未绑定客户机" };
+    return;
+  }
 
   // 默认空闲状态
   const defaultStatus: XiaoxinStatus = { type: "status_text_update", status_text: "小新智能体就绪" };

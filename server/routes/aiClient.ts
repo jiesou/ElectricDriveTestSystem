@@ -4,8 +4,8 @@ const model = "deepseek-r1-distill-llama-8b";
 let reasoning_finished = false;
 export function analyzeStream(prompt: string) {
   const stream = new ReadableStream({
-    async start(controller) { 
-      const response = await fetch(baseUrl + "/chat/completions", {
+    async start(controller) {
+      const response = await fetch(baseUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
