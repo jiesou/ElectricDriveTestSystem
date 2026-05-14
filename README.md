@@ -1,7 +1,7 @@
-# 电力拖动测试系统 (Electric Drive Test System)
+# 低压电气装调测试系统 (Electric Drive Test System)
 
 ## 项目概述
-这是一个基于 WebSocket 的电力拖动测试系统，支持多个 ESP32 客户机同时连接，实现故障检测和测验管理功能。
+这是一个基于 WebSocket 的低压电气装调测试系统，支持多个 ESP32 客户机同时连接，实现故障检测和测验管理功能。
 
 ## 技术架构
 - **后端**: Deno + Oak 框架 + WebSocket

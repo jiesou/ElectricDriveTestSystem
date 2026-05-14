@@ -27,7 +27,7 @@ use([
   GridComponent,
 ])
 
-// Mock 数据 - 同学列表
+// Mock 数据 - 学员列表
 const students = ['A', 'B', 'C', 'D', 'E']
 
 // Mock 数据 - 历史答题分数（每次测验）
@@ -231,7 +231,7 @@ const lineChartOption = computed(() => ({
     trigger: 'axis',
   },
   legend: {
-    data: students.map(s => `同学 ${s}`),
+    data: students.map(s => `学员 ${s}`),
     bottom: 0,
   },
   grid: {
@@ -252,7 +252,7 @@ const lineChartOption = computed(() => ({
     max: 100,
   },
   series: students.map((student, index) => ({
-    name: `同学 ${student}`,
+    name: `学员 ${student}`,
     type: 'line',
     smooth: true,
     data: mockScoreHistory.value[student],
@@ -367,7 +367,7 @@ onUnmounted(() => {
             >
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                  <strong>同学 {{ record.studentName }}</strong>
+                  <strong>学员 {{ record.studentName }}</strong>
                   <Tag :color="record.type === '排故' ? 'blue' : 'green'" style="margin-left: 8px;">
                     {{ record.type }}
                   </Tag>

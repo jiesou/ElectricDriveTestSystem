@@ -60,10 +60,10 @@ function formatLogEntry(log: TestLog, index: number): string {
 function buildPrompt(client: Client): string {
   const markdown: string[] = [];
   
-  markdown.push("# 电力拖动测试系统 - 综合结果分析\n");
-  markdown.push("请分析以下学生的测验和装接评估表现，给出详细的评价和建议。\n");
+  markdown.push("# 低压电气装调测试系统 - 综合结果分析\n");
+  markdown.push("请分析以下学员的测验和装接评估表现，给出详细的评价和建议。\n");
   
-  markdown.push(`## 学生: ${client.name} (${client.ip})\n`);
+  markdown.push(`## 学员: ${client.name} (${client.ip})\n`);
   
   // 排故测验信息
   if (client.testSession) {
@@ -178,10 +178,18 @@ function buildPrompt(client: Client): string {
   
   markdown.push("\n## 分析要求");
   markdown.push("请针对以上数据进行综合分析，包括但不限于：");
-  markdown.push("1. 每位学生的整体表现评价（综合排故测验和装接评估）");
+  markdown.push("1. 每位学员的整体表现评价（综合排故测验和装接评估）");
   markdown.push("2. 排故测验表现：操作效率分析（答题速度、错误率等）、知识点掌握情况");
   markdown.push("3. 装接评估表现：功能测试完成情况、操作规范性、工艺质量");
-  markdown.push("4. 改进建议和学习重点");
+  markdown.push("4. 素养7S评价：结合以下7个维度对学员的操作过程进行评价");
+  markdown.push("   - 整理(Seiri)：是否区分必要与非必要的工具/物料，工作区域是否有不需要的物品");
+  markdown.push("   - 整顿(Seiton)：工具、仪表、导线等是否定量定位摆放整齐，取用是否便捷");
+  markdown.push("   - 清扫(Seiso)：作业完成后是否清扫工作台面，保持设备/工位整洁");
+  markdown.push("   - 清洁(Seiketsu)：是否将整理、整顿、清扫的要求固化为习惯，保持长期整洁");
+  markdown.push("   - 素养(Shitsuke)：是否严格遵守操作规程和安全制度，养成规范作业的习惯（7S核心）");
+  markdown.push("   - 安全(Safety)：操作过程中是否存在安全隐患，是否注意人身与设备安全防护");
+  markdown.push("   - 节约(Saving)：是否合理使用导线、元器件等物料，减少浪费");
+  markdown.push("5. 改进建议和学习重点（结合知识点掌握情况和7S素养表现）");
 
   const text = markdown.join("\n");
   console.log(text);
