@@ -9,6 +9,7 @@ import { apiJson } from '../api-client'
 const sch = new URL('../assets/sch.png', import.meta.url).href
 
 const troubles = ref<Trouble[]>([])
+const loading = ref(false)
 
 const troubleColumns = [
   { title: 'ID', dataIndex: 'id', key: 'id' },
@@ -19,10 +20,13 @@ const troubleColumns = [
 
 async function fetchTroubles() {
   try {
+    loading.value = true
     troubles.value = await apiJson<Trouble[]>('/api/troubles')
   } catch (error) {
     console.error('Failed to fetch troubles:', error)
     message.error('获取故障列表失败')
+  } finally {
+    loading.value = false
   }
 }
 
@@ -47,6 +51,7 @@ onMounted(async () => {
             size="small"
             :pagination="false"
             rowKey="id"
+            :loading="loading"
           />
         </div>
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { Card, Row, Col, Statistic, Tag } from 'ant-design-vue'
+import { Card, Row, Col, Statistic, Tag, Skeleton } from 'ant-design-vue'
 import { ArrowDownOutlined, ArrowUpOutlined, ClockCircleOutlined } from '@ant-design/icons-vue'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
@@ -27,22 +27,16 @@ use([
   GridComponent,
 ])
 
-// Mock 数据 - 学员列表
-const students = ['A', 'B', 'C', 'D', 'E']
+const loading = ref(true)
+const loadingChart = ref(true)
+const loadingStats = ref(true)
+const loadingRecords = ref(true)
+const loadingPie = ref(true)
 
-// Mock 数据 - 历史答题分数（每次测验）
-const mockScoreHistory = ref<Record<string, number[]>>({
-  'A': [85, 78, 92, 88, 95, 82, 90],
-  'B': [72, 68, 75, 80, 78, 85, 82],
-  'C': [90, 95, 88, 92, 85, 90, 93],
-  'D': [65, 70, 72, 68, 75, 78, 80],
-  'E': [88, 82, 85, 90, 87, 92, 88],
-})
-
-// Mock 数据 - 测验日期标签
-const mockDateLabels = ref([
-  '03-01', '03-05', '03-08', '03-10', '03-12', '03-14', '03-15'
-])
+const students = ref<string[]>([])
+const mockScoreHistory = ref<Record<string, number[]>>({})
+const mockDateLabels = ref<string[]>([])
+const mockTestRecords = ref<TestRecord[]>([])
 
 // 生成模拟的测验日志
 function generateMockLogs(startTime: number, score: number): TestLogType[] {
@@ -179,7 +173,7 @@ function generateMockTestRecords(): TestRecord[] {
 
   let id = 1
   dates.forEach((d, dateIdx) => {
-    students.forEach((student, studentIdx) => {
+    students.value.forEach((student, studentIdx) => {
       const startTime = d.baseTime + studentIdx * 3600
       const studentScore = scores[student as keyof typeof scores][dateIdx]
       records.push({
@@ -197,8 +191,6 @@ function generateMockTestRecords(): TestRecord[] {
   return records
 }
 
-const mockTestRecords = ref<TestRecord[]>(generateMockTestRecords())
-
 // 系统时间
 const systemTime = ref(dayjs().format('HH:mm:ss'))
 let timeTimer: number | undefined
@@ -206,6 +198,7 @@ let timeTimer: number | undefined
 // 计算平均得分
 const averageScore = computed(() => {
   const allScores = Object.values(mockScoreHistory.value).flat()
+  if (allScores.length === 0) return '0.0'
   return (allScores.reduce((a, b) => a + b, 0) / allScores.length).toFixed(1)
 })
 
@@ -215,7 +208,8 @@ const recentAverage = computed(() => {
     const last = scores[scores.length - 1]
     return typeof last === 'number' ? last : 0
   })
-  return (recentScores.reduce((a, b) => a + b, 0) / (recentScores.length || 1)).toFixed(1)
+  if (recentScores.length === 0) return '0.0'
+  return (recentScores.reduce((a, b) => a + b, 0) / recentScores.length).toFixed(1)
 })
 
 // 折线图配置
@@ -231,7 +225,7 @@ const lineChartOption = computed(() => ({
     trigger: 'axis',
   },
   legend: {
-    data: students.map(s => `学员 ${s}`),
+    data: students.value.map(s => `学员 ${s}`),
     bottom: 0,
   },
   grid: {
@@ -251,7 +245,7 @@ const lineChartOption = computed(() => ({
     min: 50,
     max: 100,
   },
-  series: students.map((student, index) => ({
+  series: students.value.map((student, index) => ({
     name: `学员 ${student}`,
     type: 'line',
     smooth: true,
@@ -309,7 +303,28 @@ const pieChartOption = computed(() => {
   }
 })
 
-onMounted(() => {
+async function loadMockData() {
+  await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000))
+  students.value = ['A', 'B', 'C', 'D', 'E']
+  mockScoreHistory.value = {
+    'A': [85, 78, 92, 88, 95, 82, 90],
+    'B': [72, 68, 75, 80, 78, 85, 82],
+    'C': [90, 95, 88, 92, 85, 90, 93],
+    'D': [65, 70, 72, 68, 75, 78, 80],
+    'E': [88, 82, 85, 90, 87, 92, 88],
+  }
+  mockDateLabels.value = ['03-01', '03-05', '03-08', '03-10', '03-12', '03-14', '03-15']
+  mockTestRecords.value = generateMockTestRecords()
+}
+
+onMounted(async () => {
+  await loadMockData()
+  loading.value = false
+  // 逐个区域揭示，模拟真实加载感
+  setTimeout(() => { loadingChart.value = false }, 200)
+  setTimeout(() => { loadingStats.value = false }, 400)
+  setTimeout(() => { loadingPie.value = false }, 600)
+  setTimeout(() => { loadingRecords.value = false }, 800)
   timeTimer = window.setInterval(() => {
     systemTime.value = dayjs().format('HH:mm:ss')
   }, 1000)
@@ -328,12 +343,16 @@ onUnmounted(() => {
     <Row :gutter="16" style="margin-bottom: 20px;">
       <Col :span="18">
         <Card :bordered="false" style="height: 400px;">
-          <VChart :option="lineChartOption" style="height: 350px; width: 100%;" />
+          <Skeleton v-if="loadingChart" active :paragraph="{ rows: 12 }" />
+          <VChart v-else :option="lineChartOption" style="height: 350px; width: 100%;" />
         </Card>
       </Col>
       <Col :span="6">
         <Card :bordered="false" style="height: 400px;">
-          <div style="display: flex; flex-direction: column; gap: 24px; height: 100%; justify-content: center;">
+          <div v-if="loadingStats" style="padding: 20px 0;">
+            <Skeleton active :paragraph="{ rows: 6 }" />
+          </div>
+          <div v-else style="display: flex; flex-direction: column; gap: 24px; height: 100%; justify-content: center;">
             <Statistic title="系统时间" :value="systemTime">
               <template #prefix>
                 <ClockCircleOutlined style="color: #1890ff;" />
@@ -359,7 +378,10 @@ onUnmounted(() => {
     <Row :gutter="16">
       <Col :span="16">
         <Card title="历史测验记录">
-          <div style="max-height: 500px; overflow-y: auto;">
+          <div v-if="loadingRecords">
+            <Skeleton active :paragraph="{ rows: 10 }" />
+          </div>
+          <div v-else style="max-height: 500px; overflow-y: auto;">
             <div
               v-for="record in mockTestRecords"
               :key="record.id"
@@ -381,7 +403,6 @@ onUnmounted(() => {
               <div style="margin-top: 8px; font-size: 12px; color: #666;">
                 测验时间: {{ record.date }} | 用时: {{ record.duration }} 分钟
               </div>
-              <!-- 使用 TestLog 组件展示完整日志 -->
               <div style="margin-top: 8px;">
                 <TestLog :session="record.testSession" />
               </div>
@@ -391,7 +412,8 @@ onUnmounted(() => {
       </Col>
       <Col :span="8">
         <Card :bordered="false" style="height: 100%;">
-          <VChart :option="pieChartOption" style="height: 350px; width: 100%;" />
+          <Skeleton v-if="loadingPie" active :paragraph="{ rows: 10 }" />
+          <VChart v-else :option="pieChartOption" style="height: 350px; width: 100%;" />
         </Card>
       </Col>
     </Row>
