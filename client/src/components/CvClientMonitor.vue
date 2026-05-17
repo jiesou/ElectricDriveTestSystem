@@ -138,7 +138,6 @@ async function clearSession(cvClient: CvClient) {
               <img :src="client.cvClient.session.finalResult.image" alt="工位清洁截图"
                 style="width: 640px; height: auto; object-fit: cover; background: #000; border-radius: 4px;" />
               <div style="font-size: 13px; color: #555; margin-top: 6px;">
-                <div><strong>号码管:</strong> {{ client.cvClient.session.finalResult.sleeves_num }} 个</div>
                 <div><strong>螺丝刀:</strong> {{ client.cvClient.session.finalResult.screwdriver_ready ? '归位' : '未归位' }}</div>
                 <div><strong>剥线钳:</strong> {{ client.cvClient.session.finalResult.wire_stripper_ready ? '归位' : '未归位' }}</div>
                 <div><strong>万用表:</strong> {{ client.cvClient.session.finalResult.multimeter_ready ? '归位' : '未归位' }}</div>
