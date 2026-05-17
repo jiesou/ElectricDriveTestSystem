@@ -18,7 +18,7 @@ export class ClientManager {
   // 所有客户机实例 (clientId -> Client)
   public clients: Record<string, Client> = {};
   // 所有 CV 客户端实例 (cvClientIp -> CvClient)
-  private cvClients: Record<string, CvClient> = {};
+  public cvClients: Record<string, CvClient> = {};
   
   // relay_rainbow 响应回调 (clientId -> resolve function)
   public relayRainbowCallbacks: Map<string, (latencyMs: number) => void> = new Map();
@@ -101,6 +101,14 @@ export class ClientManager {
         };
       }
       client.cvClient = this.cvClients[cvIp];
+    }
+
+    // 如果仍未绑定，尝试从已有 cvClients 中拾取第一个
+    if (!client.cvClient) {
+      const cvClientValues = Object.values(this.cvClients);
+      if (cvClientValues.length > 0) {
+        client.cvClient = cvClientValues[0];
+      }
     }
 
     return client;

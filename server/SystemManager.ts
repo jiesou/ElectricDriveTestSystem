@@ -34,6 +34,17 @@ export class SystemManager {
           };
           clientManager.clients[clientId] = restoredClient;
         }
+
+        // 重建 cvClients 共享引用（避免恢复后每个客户端持有独立的 cvClient 副本）
+        for (const client of Object.values(clientManager.clients)) {
+          if (client.cvClient) {
+            const cvIp = client.cvClient.ip;
+            if (!clientManager.cvClients[cvIp]) {
+              clientManager.cvClients[cvIp] = client.cvClient;
+            }
+            client.cvClient = clientManager.cvClients[cvIp];
+          }
+        }
       }
     } catch (error) {
       console.error("读取 data/data.json 数据库时出错，自动使用全新默认数据:", error);

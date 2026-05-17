@@ -547,8 +547,8 @@ cvRouter.get("/pull_xiaoxin_update", (ctx) => {
     return;
   }
 
-  // 默认空闲状态
-  const defaultStatus: XiaoxinStatus = { type: "status_text_update", status_text: "小新智能体就绪" };
+  // 默认空闲状态不显示内容
+  const defaultStatus: XiaoxinStatus = { type: "status_text_update", status_text: "" };
 
   if (clients.length === 0 || !clients[0].cvClient) {
     ctx.response.body = {

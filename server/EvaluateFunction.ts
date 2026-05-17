@@ -9,7 +9,7 @@ import {
 
 clientManager.addWSMessageHandler((client, socket, message) => {
   switch (message.type) {
-    case "evaluate_function_board_update": {
+    case "evaluate_function_board_update_request": {
       const msg = message as EvaluateFunctionBoardUpdateRequestMessage;
       const board: EvaluateBoard = {
         description: msg.description,
