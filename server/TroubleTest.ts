@@ -90,6 +90,7 @@ clientManager.addWSMessageHandler((client, _socket, message) => {
             details: { score: msg.finished_score },
           };
           client.testSession.logs.push(log);
+          troubleTest.finishTest(client, msg.finish_time);
         }
       } else {
         // 如果没有 testSession，则当场创建一个新的（虽然正常情况下不应该发生，但总之这相当于允许客户机主动发起测验）
@@ -232,14 +233,21 @@ export class TroubleTest {
 
   finishTest(client: Client, timestamp?: number) {
     if (!client?.testSession) return;
-    if (client.testSession.finishTime) return;
+
+    const now = timestamp || getSecondTimestamp();
+    client.testSession.finishTime = now;
 
     const finishMessage: TroubleTestFinishMessage = {
       type: "trouble_test_finish",
-      timestamp: timestamp || getSecondTimestamp(),
+      timestamp: now,
     };
 
     clientManager.sendWSMessage(client.socket, finishMessage);
+
+    // 测验结束，清除小新状态
+    if (client.cvClient) {
+      client.cvClient.xiaoxin_status = undefined;
+    }
   }
 
   getTroubles(): Trouble[] {

@@ -61,6 +61,9 @@ export class SystemManager {
               {
                 ...client,
                 socket: undefined, // 移除 socket 引用
+                cvClient: client.cvClient
+                  ? { ...client.cvClient, xiaoxin_status: undefined }
+                  : undefined, // xiaoxin_status 不应该持久化
               },
             ]),
           ),
