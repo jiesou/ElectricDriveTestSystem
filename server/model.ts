@@ -296,8 +296,7 @@ async function drawBoxes(
 
     // 绘制矩形框
     svgElements.push(
-      `<rect x="${box.x1}" y="${box.y1}" width="${box.x2 - box.x1}" height="${box.y2 - box.y1}" ` +
-      `fill="none" stroke="rgb(${color.r},${color.g},${color.b})" stroke-width="3"/>`
+      `<rect x="${box.x1}" y="${box.y1}" width="${box.x2 - box.x1}" height="${box.y2 - box.y1}" ` +`stroke="rgb(${color.r},${color.g},${color.b})" stroke-width="3"/>`
     );
 
     // 绘制标签背景

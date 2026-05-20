@@ -5,9 +5,6 @@ import type { Trouble } from '../types'
 import QuestionManagement from './QuestionManagement.vue'
 import { apiJson } from '../api-client'
 
-// 使用 Vite 兼容的方式获取静态资源路径
-const sch = new URL('../assets/sch.png', import.meta.url).href
-
 const troubles = ref<Trouble[]>([])
 const loading = ref(false)
 
@@ -40,7 +37,7 @@ onMounted(async () => {
     <h2>题库管理</h2>
 
     <div style="display:flex; gap:20px; align-items:flex-start;">
-      <img :src="sch" alt="示意图" style="width:60%; height:auto; object-fit:contain;" />
+      <img src="../assets/sch.png" alt="示意图" style="width:60%; height:auto; object-fit:contain;" />
 
       <div style="flex:1;">
         <div style="margin-bottom: 20px;">
