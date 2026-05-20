@@ -116,37 +116,9 @@ async function clearSession(cvClient: CvClient) {
           </div>
 
           <!-- 人脸签到会话详情 -->
-          <div v-else-if="client.cvClient.session.type === 'face_signin'">
-            <div v-if="client.cvClient.session.finalResult">
-              <div style="color: green; font-size: 12px; margin-bottom: 6px;">
-                <strong>✅ 人脸签到完成</strong>
-              </div>
-                <img :src="client.cvClient.session.finalResult.image" alt="人脸截图"
-                  style="width: 640px; height: auto; object-fit: cover; background: #000; border-radius: 4px;" />
-                <div style="font-size: 13px; color: #555;">
-                  <div><strong>识别到:</strong> {{ client.cvClient.session.finalResult.who || '未知' }}</div>
-                  <div style="font-size: 12px; color: #999;">时间戳: {{ new Date(client.cvClient.session.startTime * 1000).toLocaleString() }}</div>
-                </div>
-            </div>
-          </div>
+
           <!-- 工位清洁会话详情 -->
-          <div v-else-if="client.cvClient.session.type === 'desk_clean'">
-            <div v-if="client.cvClient.session.finalResult">
-              <div style="color: green; font-size: 12px; margin-bottom: 6px;">
-                <strong>✅ 工位清洁已提交</strong>
-              </div>
-              <img :src="client.cvClient.session.finalResult.image" alt="工位清洁截图"
-                style="width: 640px; height: auto; object-fit: cover; background: #000; border-radius: 4px;" />
-              <div style="font-size: 13px; color: #555; margin-top: 6px;">
-                <div><strong>螺丝刀:</strong> {{ client.cvClient.session.finalResult.screwdriver_ready ? '归位' : '未归位' }}</div>
-                <div><strong>剥线钳:</strong> {{ client.cvClient.session.finalResult.wire_stripper_ready ? '归位' : '未归位' }}</div>
-                <div><strong>万用表:</strong> {{ client.cvClient.session.finalResult.multimeter_ready ? '归位' : '未归位' }}</div>
-                <div><strong>斜口钳:</strong> {{ client.cvClient.session.finalResult.crimping_ready ? '归位' : '未归位' }}</div>
-                <div><strong>清洁进度:</strong> {{ (client.cvClient.session.finalResult.clean_progress * 100).toFixed(0) }}%</div>
-                <div style="font-size: 12px; color: #999;">时间戳: {{ new Date(client.cvClient.session.startTime * 1000).toLocaleString() }}</div>
-              </div>
-            </div>
-          </div>
+
         </div>
       </Card>
     </div>
