@@ -70,11 +70,11 @@ wsRouter.get("/ws", (ctx) => {
   };
 
   socket.onerror = (error) => {
-    console.error(`WebSocket error for ${client.id}:`, error);
+    console.error(`WebSocket error for ${client.name}:`, error);
     clientManager.disconnectClient(client);
   };
 
-  console.log(`WebSocket connection established for client ${client.id}`);
+  console.log(`WebSocket connection established for client ${client.name}`);
   ctx.response.with(response);
 });
 
