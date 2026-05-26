@@ -467,7 +467,7 @@ cvRouter.post("/upload_deskclean", async (ctx) => {
  * POST /api/cv/clear_session/:cvClientIp
  */
 cvRouter.post("/clear_session/:cvClientIp", (ctx) => {
-  const cvClientIp: string = ctx.request.ip;
+  const cvClientIp: string = ctx.params.cvClientIp;
   const clients = clientManager.findClientsByCvIp(cvClientIp);
   if (!clients.length) {
     ctx.response.status = 400;
