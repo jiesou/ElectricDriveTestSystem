@@ -125,6 +125,7 @@ export interface EvaluateWiringSession extends CvSession {
   shots: WiringShot[]; // 拍摄记录数组
   finalResult?: {
     no_sleeves_num: number; // 未标号码管总数
+    seleeves_num: number; // 已标号码管总数
     cross_num: number; // 交叉接线总数
     excopper_num: number; // 露铜总数
     exterminal_num: number; // 露端子总数

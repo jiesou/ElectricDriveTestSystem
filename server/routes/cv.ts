@@ -9,7 +9,6 @@ import {
   FaceSigninSession,
   getSecondTimestamp,
   DeskCleanLog,
-  WiringShot,
   CvClientXiaoxinUpdateMessage,
   XiaoxinStatus,
 } from "../types.ts";
@@ -188,22 +187,20 @@ cvRouter.post("/upload_wiring", async (ctx) => {
   const exterminal_num = inputResultObj.exterminal_num ?? serverDetectionResult.exterminal_num ?? 0;
   const excopper_num = inputResultObj.excopper_num ?? serverDetectionResult.excopper_num ?? 0;
 
-  // 添加拍摄记录
-  const shot: WiringShot = {
+  // 存储拍摄记录（每次仅保留最新一张，新的覆盖旧的）
+  session.shots = [{
     timestamp: getSecondTimestamp(),
     image: imageUrl,
     result: { sleeves_num, cross_num, excopper_num, exterminal_num },
-  };
-  session.shots.push(shot);
+  }];
 
   console.log(
-    `[CV Upload] 已存储装接评估拍摄记录，cvClient ${cvClient.ip}，当前已拍 ${session.shots.length} 张`,
+    `[CV Upload] 已存储装接评估拍摄记录，cvClient ${cvClient.ip}`,
   );
-  console.log(shot);
 
   ctx.response.body = {
     success: true,
-    data: shot.result
+    data: session.shots[0].result
   };
 });
 
@@ -231,41 +228,23 @@ cvRouter.post("/confirm_wiring", (ctx) => {
   }
 
   const session = cvClient.session as EvaluateWiringSession;
+  const shot = session.shots[0];
+  const { sleeves_num, cross_num, excopper_num, exterminal_num } = shot.result;
 
-  // 计算最终结果
-  const totalSleeves = session.shots.reduce(
-    (sum, shot) => sum + shot.result.sleeves_num,
-    0,
-  );
-  const totalCross = session.shots.reduce(
-    (sum, shot) => sum + shot.result.cross_num,
-    0,
-  );
-  const totalExcopper = session.shots.reduce(
-    (sum, shot) => sum + shot.result.excopper_num,
-    0,
-  );
-  const totalExterminal = session.shots.reduce(
-    (sum, shot) => sum + shot.result.exterminal_num,
-    0,
-  );
-
-  const OVERALL_SLEEVES_NEEDED = 60; // 总共应有 60 个号码管
-
-  // 评分算法：每个不好的扣分点（少号码管、交叉、露铜、露端子）均扣 5 分
-  const totalPoints = 100;
-  const noSleevesDeduction = Math.max(
-    0,
-    OVERALL_SLEEVES_NEEDED - totalSleeves,
-  );
-  const deduction = (noSleevesDeduction + totalCross + totalExcopper + totalExterminal) * 5;
-  const scores = Math.max(76, Math.min(90, totalPoints - deduction));
+  // 评分算法
+  // 未标号码管扣2分，交叉扣3分，露铜忽略，露端子扣1分
+  // 需要号码管总数由拍得的 sleeves_num 倒推（假设全对则满分，少了才扣）
+  const SLEEVES_NEEDED = 60; // 单次拍照需含全部号码管
+  const noSleevesDeduction = Math.max(0, SLEEVES_NEEDED - sleeves_num);
+  const deduction = noSleevesDeduction * 2 + cross_num * 3 + exterminal_num * 1;
+  const scores = Math.max(60, Math.min(100, 100 - deduction));
 
   session.finalResult = {
     no_sleeves_num: noSleevesDeduction,
-    cross_num: totalCross,
-    excopper_num: totalExcopper,
-    exterminal_num: totalExterminal,
+    seleeves_num: sleeves_num,
+    cross_num,
+    excopper_num,
+    exterminal_num,
     scores,
   };
 
