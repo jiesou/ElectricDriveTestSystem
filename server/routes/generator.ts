@@ -68,7 +68,7 @@ function buildPrompt(client: Client): string {
   // 排故测验信息
   if (client.testSession) {
     const session = client.testSession;
-    markdown.push("### 排故测验\n");
+    markdown.push("### 调试单元\n");
     
     // 基本信息
     markdown.push("#### 基本信息");
@@ -87,7 +87,7 @@ function buildPrompt(client: Client): string {
     markdown.push(`- 题目数量: ${session.test.questions.length}`);
     
     // 题目信息
-    markdown.push("\n#### 测验题目");
+    markdown.push("\n#### 调试单元 - 预设故障题目");
     session.test.questions.forEach((question: Question, idx: number) => {
       markdown.push(`**题目 ${idx + 1} (ID: ${question.id})**`);
       markdown.push("含故障:");
@@ -97,7 +97,7 @@ function buildPrompt(client: Client): string {
     });
     
     // 操作日志
-    markdown.push("\n#### 详细操作日志");
+    markdown.push("\n#### 调试单元 - 学员详细操作日志");
     markdown.push(`共 ${session.logs.length} 条操作记录:\n`);
     session.logs.forEach((log, idx) => {
       markdown.push(formatLogEntry(log, idx));
@@ -108,7 +108,7 @@ function buildPrompt(client: Client): string {
   // 装接评估-功能部分
   if (client.evaluateBoard) {
     const board = client.evaluateBoard;
-    markdown.push("### 装接评估-功能测试\n");
+    markdown.push("### 接线单元 - 功能测试详情\n");
     markdown.push(`**电路名称**: ${board.description}\n`);
     
     const totalSteps = board.function_steps.length;
@@ -141,7 +141,7 @@ function buildPrompt(client: Client): string {
   // 装接评估-视觉推理部分
   if (client.cvClient && client.cvClient.session) {
     const cvSession = client.cvClient.session;
-    markdown.push("### 装接评估-视觉检测\n");
+    markdown.push("### 接线单元 - 工艺检测\n");
     
     if (cvSession.type === "evaluate_wiring") {
       markdown.push("**评估类型**: 装接工艺检测\n");
