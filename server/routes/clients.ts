@@ -1,13 +1,10 @@
-import { Router } from "@oak/oak";
+import { Hono } from "hono";
 import { clientManager } from "../ClientManager.ts";
 
-/**
- * 客户端管理路由
- */
-export const clientsRouter = new Router();
+export const clientsRouter = new Hono();
 
 // 获取客户端列表
-clientsRouter.get("/clients", (ctx) => {
+clientsRouter.get("/", (c) => {
   const clients = Object.values(clientManager.clients).map((client) => ({
     id: client.id,
     name: client.name,
@@ -18,32 +15,25 @@ clientsRouter.get("/clients", (ctx) => {
     evaluateBoard: client.evaluateBoard || null,
   }));
 
-  ctx.response.body = {
-    success: true,
-    data: clients,
-  };
+  return c.json({ success: true, data: clients });
 });
 
 // 修改客户端信息（名称、CV客户端绑定）
-clientsRouter.put("/clients/:id", async (ctx) => {
+clientsRouter.put("/:id", async (c) => {
   try {
-    const id = ctx.params.id!;
-    const body = await ctx.request.body.json();
+    const id = c.req.param("id");
+    const body = await c.req.json();
     const { name, cvClientIp } = body as { name?: string; cvClientIp?: string };
 
     const client = clientManager.clients[id];
     if (!client) {
-      ctx.response.status = 404;
-      ctx.response.body = { success: false, error: "Client not found" };
-      return;
+      return c.json({ success: false, error: "Client not found" }, 404);
     }
 
     // 修改名称
     if (name !== undefined) {
       if (typeof name !== "string" || name.trim() === "") {
-        ctx.response.status = 400;
-        ctx.response.body = { success: false, error: "Invalid name" };
-        return;
+        return c.json({ success: false, error: "Invalid name" }, 400);
       }
       client.name = name.trim();
     }
@@ -55,20 +45,15 @@ clientsRouter.put("/clients/:id", async (ctx) => {
         : undefined;
     }
 
-    ctx.response.body = { success: true };
+    await clientManager.persistClient(client);
+    return c.json({ success: true });
   } catch (_error) {
-    ctx.response.status = 400;
-    ctx.response.body = { success: false, error: "Invalid request" };
+    return c.json({ success: false, error: "Invalid request" }, 400);
   }
 });
 
 // 忘记所有客户端
-clientsRouter.post("/clients/forget", (ctx) => {
+clientsRouter.post("/forget", (c) => {
   clientManager.clients = {};
-  const clearedCount = Object.keys(clientManager.clients).length;
-
-  ctx.response.body = {
-    success: true,
-    data: { cleared: clearedCount },
-  };
+  return c.json({ success: true, data: { cleared: 0 } });
 });

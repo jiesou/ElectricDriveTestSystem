@@ -1,4 +1,4 @@
-import { Router } from "@oak/oak";
+import { Hono } from "hono";
 import { clientManager } from "../ClientManager.ts";
 import {
   DeskCleanResult,
@@ -19,38 +19,25 @@ import { saveUploadedImage } from "../utils/upload.ts";
  * CV上传路由
  * 处理来自ESP32-CAM或Jetson Nano的图片上传和推理结果
  */
-export const cvRouter = new Router({ prefix: "/cv" });
+export const cvRouter = new Hono();
 
 /**
  * MJPEG 流端点：实时显示 CV 客户端的图像流
  * GET /api/cv/stream/:cvClientIp
  * 返回 MJPEG 流
  */
-cvRouter.get("/stream/:cvClientIp", (ctx) => {
-  const cvClientIp = ctx.params.cvClientIp;
+cvRouter.get("/stream/:cvClientIp", (c) => {
+  const cvClientIp = c.req.param("cvClientIp");
   const clients = clientManager.findClientsByCvIp(cvClientIp);
   if (!clients.length) {
-    ctx.response.status = 400;
-    ctx.response.body = { success: false, error: "未绑定客户机" };
-    return;
+    return c.json({ success: false, error: "未绑定客户机" }, 400);
   }
   const cvClient = clients[0].cvClient!;
-  
+
   // 设置 MJPEG 流响应头
-  ctx.response.headers.set(
-    "Content-Type",
-    "multipart/x-mixed-replace; boundary=frame",
-  );
-  ctx.response.headers.set(
-    "Cache-Control",
-    "no-cache, no-store, must-revalidate",
-  );
-  ctx.response.headers.set("Pragma", "no-cache");
-  ctx.response.headers.set("Expires", "0");
+  let intervalId: ReturnType<typeof setInterval> | null = null;
 
   // 创建响应体流
-  let intervalId: number | null = null;
-
   const body = new ReadableStream({
     start(controller) {
       const encoder = new TextEncoder();
@@ -69,7 +56,7 @@ cvRouter.get("/stream/:cvClientIp", (ctx) => {
             controller.enqueue(frame);
             controller.enqueue(encoder.encode("\r\n"));
           }
-        } catch (_error) {
+        } catch {
           // 流已关闭或其他错误，停止发送
           if (intervalId !== null) {
             clearInterval(intervalId);
@@ -87,7 +74,14 @@ cvRouter.get("/stream/:cvClientIp", (ctx) => {
     },
   });
 
-  ctx.response.body = body;
+  return c.newResponse(body, {
+    headers: {
+      "Content-Type": "multipart/x-mixed-replace; boundary=frame",
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      "Pragma": "no-cache",
+      "Expires": "0",
+    },
+  });
 });
 
 /**
@@ -105,34 +99,25 @@ cvRouter.get("/stream/:cvClientIp", (ctx) => {
  * 
  * result 为空则使用服务端推理
  */
-cvRouter.post("/upload_wiring", async (ctx) => {
+cvRouter.post("/upload_wiring", async (c) => {
   // 校验请求格式
-  const body = ctx.request.body;
-  if (body.type() !== "form-data") {
-    ctx.response.status = 400;
-    ctx.response.body = {
-      success: false,
-      error: "必须使用 multipart/form-data",
-    };
-    return;
+  const contentType = c.req.header("Content-Type") || "";
+  if (!contentType.includes("multipart/form-data")) {
+    return c.json({ success: false, error: "必须使用 multipart/form-data" }, 400);
   }
-  const formData = await body.formData();
+  const formData = await c.req.raw.formData();
 
   const inputImageFile = formData.get("image"); // 对应客户端 files={'image': ...}
   const inputResultStr = formData.get("result") as string | null; // 对应客户端 data={'result': ...}
 
   if (!inputImageFile || !(inputImageFile instanceof File)) {
-    ctx.response.status = 400;
-    ctx.response.body = { success: false, error: "未上传图片文件" };
-    return;
+    return c.json({ success: false, error: "未上传图片文件" }, 400);
   }
 
-  const cvClientIp: string = ctx.request.ip;
+  const cvClientIp: string = c.req.header("x-forwarded-for") || c.req.header("host") || "unknown";
   const clients = clientManager.findClientsByCvIp(cvClientIp);
   if (!clients.length) {
-    ctx.response.status = 400;
-    ctx.response.body = { success: false, error: "未绑定客户机" };
-    return;
+    return c.json({ success: false, error: "未绑定客户机" }, 400);
   }
   const cvClient = clients[0].cvClient!;
 
@@ -149,12 +134,13 @@ cvRouter.post("/upload_wiring", async (ctx) => {
   const session = cvClient.session as EvaluateWiringSession;
 
   // 解析客户端提交的推理结果
+
   const inputResultObj: {
-    sleeves_num: number,
-    cross_num: number,
-    excopper_num: number,
-    exterminal_num: number
-  } = inputResultStr ? JSON.parse(inputResultStr as string) : {};
+    sleeves_num: number;
+    cross_num: number;
+    excopper_num: number;
+    exterminal_num: number;
+  } = inputResultStr ? JSON.parse(inputResultStr) : {};
 
   // 将 File 转为 Uint8Array 供后续处理
   const inputImageBuffer = new Uint8Array(await inputImageFile.arrayBuffer());
@@ -194,37 +180,28 @@ cvRouter.post("/upload_wiring", async (ctx) => {
     result: { sleeves_num, cross_num, excopper_num, exterminal_num },
   }];
 
-  console.log(
-    `[CV Upload] 已存储装接评估拍摄记录，cvClient ${cvClient.ip}`,
-  );
+  console.log(`[CV Upload] 已存储装接评估拍摄记录，cvClient ${cvClient.ip}`);
 
-  ctx.response.body = {
-    success: true,
-    data: session.shots[0].result
-  };
+  return c.json({ success: true, data: session.shots[0].result });
 });
 
 /**
  * 装接评估：确认并计算最终结果
  * POST /api/cv/confirm_wiring
  */
-cvRouter.post("/confirm_wiring", (ctx) => {
-  const cvClientIp: string = ctx.request.ip;
+cvRouter.post("/confirm_wiring", (c) => {
+  const cvClientIp: string = c.req.header("x-forwarded-for") || c.req.header("host") || "unknown";
   const clients = clientManager.findClientsByCvIp(cvClientIp);
   if (!clients.length) {
-    ctx.response.status = 400;
-    ctx.response.body = { success: false, error: "未绑定客户机" };
-    return;
+    return c.json({ success: false, error: "未绑定客户机" }, 400);
   }
   const cvClient = clients[0].cvClient!;
 
   if (!cvClient.session || cvClient.session.type !== "evaluate_wiring") {
-    ctx.response.status = 400;
-    ctx.response.body = {
+    return c.json({
       success: false,
       error: "当前视觉客户端没有拍过照片，没有工艺评估会话，请先拍照",
-    };
-    return;
+    }, 400);
   }
 
   const session = cvClient.session as EvaluateWiringSession;
@@ -248,9 +225,7 @@ cvRouter.post("/confirm_wiring", (ctx) => {
     scores,
   };
 
-  console.log(
-    `[CV Upload] 工艺评估已确认 cvClient ${cvClient.ip}, score: ${scores}`,
-  );
+  console.log(`[CV Upload] 工艺评估已确认 cvClient ${cvClient.ip}, score: ${scores}`);
 
   // 发送工艺评估确认结果给相关客户端
   for (const client of clients) {
@@ -262,10 +237,7 @@ cvRouter.post("/confirm_wiring", (ctx) => {
     clientManager.sendWSMessage(client.socket, responseMsg);
   }
 
-  ctx.response.body = {
-    success: true,
-    data: session.finalResult,
-  };
+  return c.json({ success: true, data: session.finalResult });
 });
 
 /**
@@ -276,34 +248,25 @@ cvRouter.post("/confirm_wiring", (ctx) => {
  *   image: File,
  *   who: "张三"
  */
-cvRouter.post("/upload_face", async (ctx) => {
+cvRouter.post("/upload_face", async (c) => {
   // 校验请求格式
-  const body = ctx.request.body;
-  if (body.type() !== "form-data") {
-    ctx.response.status = 400;
-    ctx.response.body = {
-      success: false,
-      error: "必须使用 multipart/form-data",
-    };
-    return;
+  const contentType = c.req.header("Content-Type") || "";
+  if (!contentType.includes("multipart/form-data")) {
+    return c.json({ success: false, error: "必须使用 multipart/form-data" }, 400);
   }
-  const formData = await body.formData();
+  const formData = await c.req.raw.formData();
 
   const inputImageFile = formData.get("image") as File; // 对应客户端 files={'image': ...}
   const inputWho = formData.get("who") as string; // 图片位置数据
 
   if (!inputImageFile || !(inputImageFile instanceof File)) {
-    ctx.response.status = 400;
-    ctx.response.body = { success: false, error: "未上传图片文件" };
-    return;
+    return c.json({ success: false, error: "未上传图片文件" }, 400);
   }
 
-  const cvClientIp: string = ctx.request.ip;
+  const cvClientIp: string = c.req.header("x-forwarded-for") || c.req.header("host") || "unknown";
   const clients = clientManager.findClientsByCvIp(cvClientIp);
   if (!clients.length) {
-    ctx.response.status = 400;
-    ctx.response.body = { success: false, error: "未绑定客户机" };
-    return;
+    return c.json({ success: false, error: "未绑定客户机" }, 400);
   }
   const cvClient = clients[0].cvClient!;
 
@@ -337,10 +300,7 @@ cvRouter.post("/upload_face", async (ctx) => {
     clientManager.sendWSMessage(client.socket, responseMsg);
   }
 
-  ctx.response.body = {
-    success: true,
-    data: session.finalResult,
-  };
+  return c.json({ success: true, data: session.finalResult });
 });
 
 /**
@@ -351,48 +311,35 @@ cvRouter.post("/upload_face", async (ctx) => {
  *   image: File,
  *   result: str = '{"sleeves_num":0,"screwdriver_ready":true,"wire_stripper_ready":true,"multimeter_ready":true,"crimping_ready":true,"clean_progress":0.8}'
  */
-cvRouter.post("/upload_deskclean", async (ctx) => {
-  const body = ctx.request.body;
-  if (body.type() !== "form-data") {
-    ctx.response.status = 400;
-    ctx.response.body = {
-      success: false,
-      error: "必须使用 multipart/form-data",
-    };
-    return;
+cvRouter.post("/upload_deskclean", async (c) => {
+  const contentType = c.req.header("Content-Type") || "";
+  if (!contentType.includes("multipart/form-data")) {
+    return c.json({ success: false, error: "必须使用 multipart/form-data" }, 400);
   }
-  const formData = await body.formData();
+  const formData = await c.req.raw.formData();
 
   const inputImageFile = formData.get("image") as File;
   const inputResultStr = formData.get("result") as string | null;
 
   if (!inputImageFile || !(inputImageFile instanceof File)) {
-    ctx.response.status = 400;
-    ctx.response.body = { success: false, error: "未上传图片文件" };
-    return;
+    return c.json({ success: false, error: "未上传图片文件" }, 400);
   }
 
   if (!inputResultStr) {
-    ctx.response.status = 400;
-    ctx.response.body = { success: false, error: "需要 result 参数" };
-    return;
+    return c.json({ success: false, error: "需要 result 参数" }, 400);
   }
 
   let inputResultObj: Omit<DeskCleanResult, "image">;
   try {
     inputResultObj = JSON.parse(inputResultStr);
-  } catch (_error) {
-    ctx.response.status = 400;
-    ctx.response.body = { success: false, error: "result 不是合法 JSON" };
-    return;
+  } catch {
+    return c.json({ success: false, error: "result 不是合法 JSON" }, 400);
   }
 
-  const cvClientIp: string = ctx.request.ip;
+  const cvClientIp: string = c.req.header("x-forwarded-for") || c.req.header("host") || "unknown";
   const clients = clientManager.findClientsByCvIp(cvClientIp);
   if (!clients.length) {
-    ctx.response.status = 400;
-    ctx.response.body = { success: false, error: "未绑定客户机" };
-    return;
+    return c.json({ success: false, error: "未绑定客户机" }, 400);
   }
   const cvClient = clients[0].cvClient!;
 
@@ -434,62 +381,50 @@ cvRouter.post("/upload_deskclean", async (ctx) => {
     client.testSession.logs.push(log);
   }
 
-  ctx.response.body = {
-    success: true,
-    data: session.finalResult,
-  };
+  return c.json({ success: true, data: session.finalResult });
 });
 
 /**
  * 清除 CV 客户端上的会话
  * POST /api/cv/clear_session/:cvClientIp
  */
-cvRouter.post("/clear_session/:cvClientIp", (ctx) => {
-  const cvClientIp: string = ctx.params.cvClientIp;
+cvRouter.post("/clear_session/:cvClientIp", (c) => {
+  const cvClientIp: string = c.req.param("cvClientIp");
   const clients = clientManager.findClientsByCvIp(cvClientIp);
   if (!clients.length) {
-    ctx.response.status = 400;
-    ctx.response.body = { success: false, error: "未绑定客户机" };
-    return;
+    return c.json({ success: false, error: "未绑定客户机" }, 400);
   }
   const cvClient = clients[0].cvClient!;
   // 删除会话（清空当前 session）
   delete cvClient.session;
 
-  console.log(
-    `[CV] Cleared session for CV client ${cvClient.ip} (client ${clients[0].ip})`,
-  );
+  console.log(`[CV] Cleared session for CV client ${cvClient.ip} (client ${clients[0].ip})`);
 
-  ctx.response.body = {
-    success: true
-  };
+  return c.json({ success: true });
 });
 
 /**
  * 小新智能体状态更新（即是否需要 装接故障排除）
  * GET /api/cv/pull_xiaoxin_update
  */
-cvRouter.get("/pull_xiaoxin_update", (ctx) => {
-  const cvClientIp: string = ctx.request.ip;
+cvRouter.get("/pull_xiaoxin_update", (c) => {
+  const cvClientIp: string = c.req.header("x-forwarded-for") || c.req.header("host") || "unknown";
   const clients = clientManager.findClientsByCvIp(cvClientIp);
   if (!clients.length) {
-    ctx.response.status = 400;
-    ctx.response.body = { success: false, error: "未绑定客户机" };
-    return;
+    return c.json({ success: false, error: "未绑定客户机" }, 400);
   }
 
   // 默认空闲状态不显示内容
   const defaultStatus: XiaoxinStatus = { type: "status_text_update", status_text: "" };
 
-  if (clients.length === 0 || !clients[0].cvClient) {
-    ctx.response.body = {
+  if (!clients[0].cvClient) {
+    return c.json({
       success: true,
       data: {
         ...defaultStatus,
         timestamp: getSecondTimestamp(),
       } as CvClientXiaoxinUpdateMessage,
-    };
-    return;
+    });
   }
 
   const cvClient = clients[0].cvClient;
@@ -500,8 +435,5 @@ cvRouter.get("/pull_xiaoxin_update", (ctx) => {
     timestamp: getSecondTimestamp(),
   };
 
-  ctx.response.body = {
-    success: true,
-    data: updateMessage,
-  };
+  return c.json({ success: true, data: updateMessage });
 });

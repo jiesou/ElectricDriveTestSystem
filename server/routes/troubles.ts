@@ -1,15 +1,9 @@
-import { Router } from "@oak/oak";
+import { Hono } from "hono";
 import { troubleTest } from "../TroubleTest.ts";
 
-/**
- * 故障管理路由
- */
-export const troublesRouter = new Router({ prefix: "/troubles" });
+export const troublesRouter = new Hono();
 
 // 获取故障列表
-troublesRouter.get("/", (ctx) => {
-  ctx.response.body = {
-    success: true,
-    data: troubleTest.getTroubles(),
-  };
+troublesRouter.get("/", (c) => {
+  return c.json({ success: true, data: troubleTest.getTroubles() });
 });
