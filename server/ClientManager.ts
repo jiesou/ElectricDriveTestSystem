@@ -9,6 +9,7 @@ import {
   ClientNameUpdateRequestMessage,
   ClientNamePushMessage,
 } from "./types.ts";
+import { prisma } from "./prisma/client.ts";
 
 /**
  * ClientManager 负责管理WebSocket连接和客户端状态
@@ -19,27 +20,27 @@ export class ClientManager {
   public clients: Record<string, Client> = {};
   // 所有 CV 客户端实例 (cvClientIp -> CvClient)
   public cvClients: Record<string, CvClient> = {};
-  
+
   // relay_rainbow 响应回调 (clientId -> resolve function)
   public relayRainbowCallbacks: Map<string, (latencyMs: number) => void> = new Map();
-  
+
   private readonly HEARTBEAT_TIMEOUT = 10; // 心跳超时时间（秒）
   private readonly HEARTBEAT_CHECK_INTERVAL = 2000; // 心跳检查间隔（毫秒）
 
-  constructor() {
+  startHeartbeat(): void {
     setInterval(() => {
       const now = getSecondTimestamp();
-      
+
       for (const [_id, client] of Object.entries(this.clients)) {
         if (!client.online) continue;
         if (!client.lastPing) continue;
-        
+
         const timeSinceLastPing = now - client.lastPing;
         if (timeSinceLastPing > this.HEARTBEAT_TIMEOUT) {
           console.log(
             `[ClientManager] Client ${client.id} timed out (no ping for ${timeSinceLastPing}s), disconnecting`,
           );
-          
+
           // 尝试关闭WebSocket连接
           if (client.socket && client.socket.readyState === WebSocket.OPEN) {
             try {
@@ -48,7 +49,7 @@ export class ClientManager {
               // 忽略关闭错误
             }
           }
-          
+
           this.disconnectClient(client);
         }
       }
@@ -159,7 +160,8 @@ export class ClientManager {
       if (typeof updateMsg.name === "string" && updateMsg.name.trim() !== "") {
         client.name = updateMsg.name.trim();
         console.log(`[ClientManager] Client ${client.id} name updated to ${client.name}`);
-        
+        this.persistClient(client);
+
         // 回复确认消息
         const pushMessage: ClientNamePushMessage = {
           type: "client_name_push",
@@ -183,7 +185,6 @@ export class ClientManager {
   sendWSMessage(socket: WebSocket | undefined, message: WSMessage): void {
     if (socket) {
       try {
-        console.log("Sent message:", message);
         socket.send(JSON.stringify(message));
       } catch (error) {
         console.error("[ClientManager] Failed to send WebSocket message:", error);
@@ -224,6 +225,72 @@ export class ClientManager {
   findClientByCvIp(cvClientIp: string): Client | null {
     const list = this.findClientsByCvIp(cvClientIp);
     return list[0] || null;
+  }
+
+  async persistClient(client: Client): Promise<void> {
+    await prisma.storedClient.upsert({
+      where: { id: client.id },
+      update: {
+        name: client.name,
+        ip: client.ip,
+        cvClientIp: client.cvClient?.ip || null,
+        testSessionJson: client.testSession ? JSON.stringify(client.testSession) : null,
+        evaluateBoardJson: client.evaluateBoard ? JSON.stringify(client.evaluateBoard) : null,
+      },
+      create: {
+        id: client.id,
+        name: client.name,
+        ip: client.ip,
+        cvClientIp: client.cvClient?.ip || null,
+        testSessionJson: client.testSession ? JSON.stringify(client.testSession) : null,
+        evaluateBoardJson: client.evaluateBoard ? JSON.stringify(client.evaluateBoard) : null,
+      },
+    });
+
+    // 独立持久化 CV 客户端（session 等运行时状态可跨重启恢复）
+    if (client.cvClient) {
+      await prisma.storedCvClient.upsert({
+        where: { ip: client.cvClient.ip },
+        update: {
+          clientType: client.cvClient.clientType,
+          sessionJson: client.cvClient.session ? JSON.stringify(client.cvClient.session) : null,
+        },
+        create: {
+          ip: client.cvClient.ip,
+          clientType: client.cvClient.clientType,
+          sessionJson: client.cvClient.session ? JSON.stringify(client.cvClient.session) : null,
+        },
+      });
+    }
+  }
+
+  async loadAllClients(): Promise<void> {
+    // 先从独立表恢复所有 CV 客户端（含 session）
+    const storedCvClients = await prisma.storedCvClient.findMany();
+    for (const cv of storedCvClients) {
+      this.cvClients[cv.ip] = {
+        clientType: cv.clientType as CvClient["clientType"],
+        ip: cv.ip,
+        session: cv.sessionJson ? JSON.parse(cv.sessionJson) : undefined,
+      };
+    }
+
+    const storedClients = await prisma.storedClient.findMany();
+    for (const sc of storedClients) {
+      this.clients[sc.id] = {
+        id: sc.id,
+        name: sc.name,
+        ip: sc.ip,
+        online: false,
+        testSession: sc.testSessionJson ? JSON.parse(sc.testSessionJson) : undefined,
+        evaluateBoard: sc.evaluateBoardJson ? JSON.parse(sc.evaluateBoardJson) : undefined,
+      };
+
+      // 绑定已恢复的 cvClient（共享引用）
+      if (sc.cvClientIp && this.cvClients[sc.cvClientIp]) {
+        this.clients[sc.id].cvClient = this.cvClients[sc.cvClientIp];
+      }
+    }
   }
 }
 

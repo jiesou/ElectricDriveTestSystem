@@ -1,6 +1,7 @@
-import { Router } from "@oak/oak";
+import { Hono } from "hono";
 import { clientManager } from "../ClientManager.ts";
 import { TestLog, Client, Trouble, Question } from "../types.ts";
+
 let analyzeStream: (prompt: string) => ReadableStream<Uint8Array>;
 
 try {
@@ -19,18 +20,18 @@ try {
         const encoder = new TextEncoder();
         controller.enqueue(encoder.encode("DeepSeek 服务端连接失败"));
         controller.close();
-      }
+      },
     });
   };
   console.error("分析流功能未实现", e);
 }
 
-export const generatorRouter = new Router({ prefix: "/generator" });
+export const generatorRouter = new Hono();
 
-function formatLogEntry(log: TestLog, index: number): string {
+export function formatLogEntry(log: TestLog, index: number): string {
   const time = new Date(log.timestamp * 1000).toLocaleString("zh-CN");
   let detail = "";
-  
+
   switch (log.action) {
     case "start":
       detail = `开始测验 - 题目: ${log.details.question?.id}`;
@@ -53,39 +54,39 @@ function formatLogEntry(log: TestLog, index: number): string {
     default:
       detail = "未知操作";
   }
-  
+
   return `${index + 1}. [${time}] ${log.action.toUpperCase()}: ${detail}`;
 }
 
-function buildPrompt(client: Client): string {
+export function buildPrompt(client: Client): string {
   const markdown: string[] = [];
-  
+
   markdown.push("# 低压电气装调测试系统 - 综合结果分析\n");
   markdown.push("请分析以下学员的测验和装接评估表现，给出详细的评价和建议。\n");
-  
+
   markdown.push(`## 学员: ${client.name} (${client.ip})\n`);
-  
-  // 排故测验信息
+
   if (client.testSession) {
     const session = client.testSession;
+    // 排故测验信息
     markdown.push("### 调试单元\n");
-    
     // 基本信息
     markdown.push("#### 基本信息");
     const startTime = new Date(session.test.startTime * 1000).toLocaleString("zh-CN");
-    const finishTime = session.finishTime 
+    const finishTime = session.finishTime
       ? new Date(session.finishTime * 1000).toLocaleString("zh-CN")
       : "未完成";
     const duration = session.finishTime
       ? Math.floor((session.finishTime - session.test.startTime) / 60)
       : "N/A";
-    
+
     markdown.push(`- 开始时间: ${startTime}`);
     markdown.push(`- 完成时间: ${finishTime}`);
     markdown.push(`- 用时: ${duration} 分钟`);
     markdown.push(`- 最终得分: ${session.finishedScore || "未完成"}/100`);
     markdown.push(`- 题目数量: ${session.test.questions.length}`);
-    
+
+    // 题目信息
     // 题目信息
     markdown.push("\n#### 调试单元 - 预设故障题目");
     session.test.questions.forEach((question: Question, idx: number) => {
@@ -95,7 +96,7 @@ function buildPrompt(client: Client): string {
         markdown.push(`${index + 1}. 所设: ${trouble.description}，用户所选 ${trouble.submitted_from_wire} - ${trouble.submitted_to_wire}`);
       });
     });
-    
+
     // 操作日志
     markdown.push("\n#### 调试单元 - 学员详细操作日志");
     markdown.push(`共 ${session.logs.length} 条操作记录:\n`);
@@ -104,30 +105,30 @@ function buildPrompt(client: Client): string {
     });
     markdown.push("");
   }
-  
+
   // 装接评估-功能部分
   if (client.evaluateBoard) {
     const board = client.evaluateBoard;
     markdown.push("### 接线单元 - 功能测试详情\n");
     markdown.push(`**电路名称**: ${board.description}\n`);
-    
+
     const totalSteps = board.function_steps.length;
     const finishedSteps = board.function_steps.filter(s => s.finished).length;
     const passedSteps = board.function_steps.filter(s => s.passed).length;
-    
+
     markdown.push(`- 总步骤数: ${totalSteps}`);
     markdown.push(`- 完成步骤数: ${finishedSteps}`);
     markdown.push(`- 通过步骤数: ${passedSteps}`);
     markdown.push(`- 通过率: ${totalSteps > 0 ? ((passedSteps / totalSteps) * 100).toFixed(1) : 0}%\n`);
-    
+
     markdown.push("#### 各步骤详情:");
     board.function_steps.forEach((step, idx) => {
-      const status = step.finished 
+      const status = step.finished
         ? (step.passed ? "✓ 通过" : "✗ 失败")
         : "⏳ 进行中";
       const waitTime = (step.waited_for_ms / 1000).toFixed(1);
       const maxWaitTime = (step.can_wait_for_ms / 1000).toFixed(1);
-      
+
       markdown.push(`${idx + 1}. ${step.description}`);
       markdown.push(`   - 状态: ${status}`);
       markdown.push(`   - 等待时间: ${waitTime}s / ${maxWaitTime}s`);
@@ -137,19 +138,18 @@ function buildPrompt(client: Client): string {
     });
     markdown.push("");
   }
-  
+
   // 装接评估-视觉推理部分
   if (client.cvClient && client.cvClient.session) {
     const cvSession = client.cvClient.session;
     markdown.push("### 接线单元 - 工艺检测\n");
-    
     if (cvSession.type === "evaluate_wiring") {
       markdown.push("**评估类型**: 装接工艺检测\n");
-      
+
       const wiringSession = cvSession;
       if (wiringSession.shots && wiringSession.shots.length > 0) {
         markdown.push(`- 拍摄次数: ${wiringSession.shots.length}\n`);
-        
+
         markdown.push("#### 各次拍摄结果:");
         wiringSession.shots.forEach((shot, idx) => {
           const shotTime = new Date(shot.timestamp * 1000).toLocaleString("zh-CN");
@@ -161,7 +161,7 @@ function buildPrompt(client: Client): string {
           markdown.push("");
         });
       }
-      
+
       if (wiringSession.finalResult) {
         markdown.push("#### 最终评估结果:");
         markdown.push(`- 未标号码管总数: ${wiringSession.finalResult.no_sleeves_num}`);
@@ -173,9 +173,9 @@ function buildPrompt(client: Client): string {
       }
     }
   }
-  
+
   markdown.push("---");
-  
+
   markdown.push("\n## 分析要求");
   markdown.push("请针对以上数据进行综合分析，包括但不限于：");
   markdown.push("1. 每位学员的整体表现评价（综合排故测验和装接评估）");
@@ -197,27 +197,21 @@ function buildPrompt(client: Client): string {
   return text;
 }
 
-
 // AI分析接口 - 支持流式响应
-generatorRouter.get("/analyze", (ctx) => {
-  const clientId = ctx.request.url.searchParams.get("clientId");
+generatorRouter.get("/analyze", (c) => {
+  const clientId = c.req.query("clientId");
 
   if (!clientId) {
-    ctx.response.status = 400;
-    ctx.response.body = "clientId is required";
-    return;
+    return c.text("clientId is required", 400);
   }
 
   const client = clientManager.clients[clientId];
 
   if (!client) {
-    ctx.response.status = 404;
-    ctx.response.body = "Client not found";
-    return;
+    return c.text("Client not found", 404);
   }
 
   const prompt = buildPrompt(client);
-
   const stream = analyzeStream(prompt);
-  ctx.response.body = stream;
+  return c.body(stream);
 });

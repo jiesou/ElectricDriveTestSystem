@@ -16,6 +16,7 @@ import {
 } from "./types.ts";
 import { getSecondTimestamp } from "./types.ts";
 import { clientManager } from "./ClientManager.ts";
+import { prisma } from "./prisma/client.ts";
 
 clientManager.addWSMessageHandler((client, _socket, message) => {
   switch (message.type) {
@@ -30,7 +31,6 @@ clientManager.addWSMessageHandler((client, _socket, message) => {
       // 客户端上传或更新整个 test 的相关信息（主要就是 all_questions）
       const msg = message as TroubleTestUpdateRequestMessage;
       if (client.testSession) {
-        /* 核心：差分 diff 计算实现 TestLog 记录 */
         const oldQuestions = client.testSession.test.questions;
         const newQuestions = msg.all_questions;
 
@@ -132,33 +132,22 @@ export class TroubleTest {
   public tests: Test[] = [];
   private questionBank: Question[] = [];
 
-  constructor() {
-    // 尝试从持久化存储恢复数据
-    try {
-      const data = JSON.parse(Deno.readTextFileSync("data/data.json"));
-      this.tests = data.tests || [];
-      this.questionBank = data.questionBank || [];
-    } catch (error) {
-      console.error("读取 data.json 中的测验数据时出错，使用默认数据:", error);
-    }
+  async init(): Promise<void> {
+    const storedQuestions = await prisma.storedQuestion.findMany() as Array<{ id: number; troubles: string }>;
+    this.questionBank = storedQuestions.map(sq => ({
+      id: sq.id,
+      troubles: JSON.parse(sq.troubles),
+    }));
 
-    // 自动保存测验数据
-    setInterval(
-      () => {
-        const dataToSave = {
-          tests: this.tests,
-          questionBank: this.questionBank,
-        };
-        try {
-          const existingData = JSON.parse(Deno.readTextFileSync("data/data.json"));
-          const mergedData = { ...existingData, ...dataToSave };
-          Deno.writeTextFileSync("data/data.json", JSON.stringify(mergedData));
-        } catch {
-          Deno.writeTextFileSync("data/data.json", JSON.stringify(dataToSave));
-        }
-      },
-      5000,
-    );
+    const storedTests = await prisma.storedTest.findMany() as Array<{ id: bigint; questions: string; startTime: number; durationTime: number | null }>;
+    this.tests = storedTests.map(st => ({
+      id: Number(st.id),
+      questions: JSON.parse(st.questions),
+      startTime: st.startTime,
+      durationTime: st.durationTime,
+    }));
+
+    console.log(`[TroubleTest] Loaded ${this.questionBank.length} questions, ${this.tests.length} tests from database`);
   }
 
   pushTestToClient(client: Client, test: Test) {
@@ -206,28 +195,39 @@ export class TroubleTest {
     return [...this.questionBank];
   }
 
-  addQuestion(question: Omit<Question, "id">): Question {
+  async addQuestion(question: Omit<Question, "id">): Promise<Question> {
     const newQuestion: Question = {
       id: Math.max(...this.questionBank.map((q) => q.id), 0) + 1,
       ...question,
     };
     this.questionBank.push(newQuestion);
+    await prisma.storedQuestion.upsert({
+      where: { id: newQuestion.id },
+      update: { troubles: JSON.stringify(newQuestion.troubles) },
+      create: { id: newQuestion.id, troubles: JSON.stringify(newQuestion.troubles) },
+    });
     return newQuestion;
   }
 
-  updateQuestion(id: number, updates: Partial<Question>): boolean {
+  async updateQuestion(id: number, updates: Partial<Question>): Promise<boolean> {
     const index = this.questionBank.findIndex((q) => q.id === id);
     if (index === -1) return false;
 
     this.questionBank[index] = { ...this.questionBank[index], ...updates };
+    await prisma.storedQuestion.upsert({
+      where: { id },
+      update: { troubles: JSON.stringify(this.questionBank[index].troubles) },
+      create: { id, troubles: JSON.stringify(this.questionBank[index].troubles) },
+    });
     return true;
   }
 
-  deleteQuestion(id: number): boolean {
+  async deleteQuestion(id: number): Promise<boolean> {
     const index = this.questionBank.findIndex((q) => q.id === id);
     if (index === -1) return false;
 
     this.questionBank.splice(index, 1);
+    await prisma.storedQuestion.delete({ where: { id } }).catch(() => {});
     return true;
   }
 
@@ -254,11 +254,11 @@ export class TroubleTest {
     return [...TROUBLES];
   }
 
-  createTest(
+  async createTest(
     questions: Question[],
     startTime: number,
     durationTime: number | null = null,
-  ): Test {
+  ): Promise<Test> {
     const test: Test = {
       id: Date.now(),
       questions,
@@ -266,6 +266,14 @@ export class TroubleTest {
       durationTime,
     };
     this.tests.push(test);
+    await prisma.storedTest.create({
+      data: {
+        id: BigInt(test.id),
+        questions: JSON.stringify(test.questions),
+        startTime: test.startTime,
+        durationTime: test.durationTime,
+      },
+    });
     return test;
   }
 }

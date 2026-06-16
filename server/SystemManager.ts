@@ -1,79 +1,45 @@
+import { prisma } from "./prisma/client.ts";
 import { clientManager } from "./ClientManager.ts";
-import { join } from "@std/path";
 
-// 数据文件路径
-const DATA_DIR = join(Deno.cwd(), "data");
-const DATA_FILE = join(DATA_DIR, "data.json");
-
-// SystemManager 负责存储和数据持久化
-export class SystemManager {
-  constructor() {
-    /* 野鸡持久存储方案 */
-    try {
-      // 确保 data 目录存在
-      try {
-        Deno.mkdirSync(DATA_DIR, { recursive: true });
-      } catch (_e) {
-        // 忽略已存在的错误
-      }
-
-      const data = JSON.parse(Deno.readTextFileSync(DATA_FILE));
-
-      // 恢复客户端数据到 clientManager
-      if (data.clients) {
-        for (const [clientId, clientDataRaw] of Object.entries(data.clients)) {
-          const clientData = clientDataRaw as any;
-          if (!clientData || typeof clientData !== "object") {
-            continue;
-          }
-          // 恢复客户端状态，但保持离线状态（因为重启后WebSocket连接都断了）
-          const restoredClient = {
-            ...clientData,
-            online: false,
-            socket: undefined, // 移除 socket 引用
-          };
-          clientManager.clients[clientId] = restoredClient;
-        }
-
-        // 重建 cvClients 共享引用（避免恢复后每个客户端持有独立的 cvClient 副本）
-        for (const client of Object.values(clientManager.clients)) {
-          if (client.cvClient) {
-            const cvIp = client.cvClient.ip;
-            if (!clientManager.cvClients[cvIp]) {
-              clientManager.cvClients[cvIp] = client.cvClient;
-            }
-            client.cvClient = clientManager.cvClients[cvIp];
-          }
-        }
-      }
-    } catch (error) {
-      console.error("读取 data/data.json 数据库时出错，自动使用全新默认数据:", error);
-    }
-
-    // 自动保存
-    setInterval(
-      () => {
-        // 保存前移除 socket 对象（不能序列化）
-        const dataToSave = {
-          clients: Object.fromEntries(
-            Object.entries(clientManager.clients).map(([id, client]) => [
-              id,
-              {
-                ...client,
-                socket: undefined, // 移除 socket 引用
-                cvClient: client.cvClient
-                  ? { ...client.cvClient, xiaoxin_status: undefined }
-                  : undefined, // xiaoxin_status 不应该持久化
-              },
-            ]),
-          ),
-        };
-        Deno.writeTextFileSync(DATA_FILE, JSON.stringify(dataToSave));
-      },
-      5000,
-    );
-  }
+// 系统初始化：从数据库恢复所有客户端状态（包括 cvClient 绑定）
+export async function initSystem() {
+  await clientManager.loadAllClients();
+  console.log(`[System] Loaded ${Object.keys(clientManager.clients).length} clients from database`);
 }
 
-// 全局单例
-export const systemManager = new SystemManager();
+// 将客户端状态持久化到数据库（含独立 CvClient 表）
+export async function persistClient(client: import("./types.ts").Client) {
+  await prisma.storedClient.upsert({
+    where: { id: client.id },
+    update: {
+      name: client.name,
+      ip: client.ip,
+      cvClientIp: client.cvClient?.ip || null,
+      testSessionJson: client.testSession ? JSON.stringify(client.testSession) : null,
+      evaluateBoardJson: client.evaluateBoard ? JSON.stringify(client.evaluateBoard) : null,
+    },
+    create: {
+      id: client.id,
+      name: client.name,
+      ip: client.ip,
+      cvClientIp: client.cvClient?.ip || null,
+      testSessionJson: client.testSession ? JSON.stringify(client.testSession) : null,
+      evaluateBoardJson: client.evaluateBoard ? JSON.stringify(client.evaluateBoard) : null,
+    },
+  });
+
+  if (client.cvClient) {
+    await prisma.storedCvClient.upsert({
+      where: { ip: client.cvClient.ip },
+      update: {
+        clientType: client.cvClient.clientType,
+        sessionJson: client.cvClient.session ? JSON.stringify(client.cvClient.session) : null,
+      },
+      create: {
+        ip: client.cvClient.ip,
+        clientType: client.cvClient.clientType,
+        sessionJson: client.cvClient.session ? JSON.stringify(client.cvClient.session) : null,
+      },
+    });
+  }
+}

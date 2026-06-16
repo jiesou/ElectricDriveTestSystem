@@ -1,0 +1,37 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model StoredCvClient {
+  ip          String         @id
+  clientType  String
+  sessionJson String?
+  clients     StoredClient[]
+}
+
+model StoredClient {
+  id                String          @id
+  name              String
+  ip                String
+  cvClientIp        String?
+  cvClient          StoredCvClient? @relation(fields: [cvClientIp], references: [ip])
+  testSessionJson   String?
+  evaluateBoardJson String?
+}
+
+model StoredQuestion {
+  id       Int    @id
+  troubles String
+}
+
+model StoredTest {
+  id           BigInt @id
+  questions    String
+  startTime    Int
+  durationTime Int?
+}

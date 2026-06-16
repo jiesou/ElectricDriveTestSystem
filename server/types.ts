@@ -320,7 +320,7 @@ export interface FaceSigninResultPushMessage extends WSMessage {
 
 // 写死的类型
 // 默认 troubles，当执行目录下没有 troubles.json 时使用
-const DEFAULT_TROUBLES: Trouble[] = [
+export const DEFAULT_TROUBLES: Trouble[] = [
   { id: 1, description: "101 和 102 断路", from_wire: 101, to_wire: 102 },
   { id: 2, description: "102 和 103 断路", from_wire: 102, to_wire: 103 },
   { id: 3, description: "103 和 104 断路", from_wire: 103, to_wire: 104 },
@@ -380,7 +380,7 @@ export interface CvClientMapConfig {
 }
 
 // 默认CV客户机映射表（当cvClientMap.json不存在时使用）
-const DEFAULT_CV_CLIENT_MAP: CvClientMapConfig[] = [];
+export const DEFAULT_CV_CLIENT_MAP: CvClientMapConfig[] = [];
 
 // 从cvClientMap.json加载CV客户机映射表
 export const CV_CLIENT_MAP: CvClientMapConfig[] = (() => {

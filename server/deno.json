@@ -3,13 +3,19 @@
   "tasks": {
     "dev": "deno run -A --env-file --watch main.ts",
     "start": "deno run -A main.ts",
-    "build": "deno compile -A --target x86_64-pc-windows-msvc main.ts"
+    "build": "deno compile -A --target x86_64-pc-windows-msvc main.ts",
+    "db:generate": "deno run -A npm:prisma generate --schema=prisma/schema.prisma",
+    "db:push": "deno run -A npm:prisma db push --schema=prisma/schema.prisma"
   },
   "imports": {
-    "@oak/oak": "jsr:@oak/oak@^17.1.6",
-    "@std/assert": "jsr:@std/assert@1",
+    "hono": "jsr:@hono/hono@^4.7.6",
+    "@prisma/client": "npm:@prisma/client@7.8.0",
+    "@prisma/adapter-libsql": "npm:@prisma/adapter-libsql@7.8.0",
+    "prisma": "npm:prisma@7.8.0",
+    "@std/assert": "jsr:@std/assert@^1.0.19",
     "@std/path": "jsr:@std/path@^1.0.8",
     "onnxruntime-node": "npm:onnxruntime-node@^1.23.2",
     "sharp": "npm:sharp@^0.34.5"
-  }
+  },
+  "allowScripts": ["npm:@prisma/client@7.8.0", "npm:prisma@7.8.0"]
 }
