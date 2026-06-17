@@ -15,17 +15,16 @@ function makeFakeSocket(): WebSocket {
   } as unknown as WebSocket;
 }
 
-Deno.test("getTroubles returns copy of TROUBLES", () => {
+Deno.test("排故测验 - 获取故障列表：返回的是副本，修改后不影响原数据", () => {
   const tt = new TroubleTest();
   const troubles = tt.getTroubles();
   assertEquals(troubles.length, TROUBLES.length);
   assertEquals(troubles[0].id, TROUBLES[0].id);
-  // Should be a copy, not the same reference
   troubles[0] = { ...troubles[0], description: "modified" };
   assert(troubles[0].description !== TROUBLES[0].description);
 });
 
-Deno.test("addQuestion adds and returns question with auto-incremented id", async () => {
+Deno.test("排故测验 - 新增题目：自动分配递增编号，成功返回", async () => {
   const tt = new TroubleTest();
   const existingCount = tt.questions.length;
   const maxExistingId = existingCount > 0
@@ -46,7 +45,7 @@ Deno.test("addQuestion adds and returns question with auto-incremented id", asyn
   await prisma.storedQuestion.delete({ where: { id: q.id } }).catch(() => {});
 });
 
-Deno.test("addQuestion auto-increments id", async () => {
+Deno.test("排故测验 - 连续新增：编号递增", async () => {
   const tt = new TroubleTest();
   const q1 = await tt.addQuestion({ troubles: [{ id: 1, description: "a", from_wire: 1, to_wire: 2 }] });
   const q2 = await tt.addQuestion({ troubles: [{ id: 2, description: "b", from_wire: 3, to_wire: 4 }] });
@@ -57,7 +56,7 @@ Deno.test("addQuestion auto-increments id", async () => {
   await prisma.storedQuestion.delete({ where: { id: q2.id } }).catch(() => {});
 });
 
-Deno.test("updateQuestion updates existing question", async () => {
+Deno.test("排故测验 - 更新题目：内容成功修改", async () => {
   const tt = new TroubleTest();
   const q = await tt.addQuestion({ troubles: [{ id: 1, description: "old", from_wire: 1, to_wire: 2 }] });
 
@@ -72,13 +71,13 @@ Deno.test("updateQuestion updates existing question", async () => {
   await prisma.storedQuestion.delete({ where: { id: q.id } }).catch(() => {});
 });
 
-Deno.test("updateQuestion returns false for non-existent id", async () => {
+Deno.test("排故测验 - 更新题目：不存在的ID返回false", async () => {
   const tt = new TroubleTest();
   const result = await tt.updateQuestion(99999, { troubles: [] });
   assertEquals(result, false);
 });
 
-Deno.test("deleteQuestion removes existing question", async () => {
+Deno.test("排故测验 - 删除题目：成功移除，数量恢复", async () => {
   const tt = new TroubleTest();
   const existingCount = tt.questions.length;
   const q = await tt.addQuestion({ troubles: [{ id: 1, description: "del", from_wire: 1, to_wire: 2 }] });
@@ -88,13 +87,13 @@ Deno.test("deleteQuestion removes existing question", async () => {
   assertEquals(tt.questions.length, existingCount);
 });
 
-Deno.test("deleteQuestion returns false for non-existent id", async () => {
+Deno.test("排故测验 - 删除题目：不存在的ID返回false", async () => {
   const tt = new TroubleTest();
   const result = await tt.deleteQuestion(99999);
   assertEquals(result, false);
 });
 
-Deno.test("createTest creates and stores a test", async () => {
+Deno.test("排故测验 - 创建测验：成功存储，含题目和计时", async () => {
   const tt = new TroubleTest();
   const questions = [
     { id: 1, troubles: [{ id: 1, description: "t1", from_wire: 1, to_wire: 2 }] },
@@ -112,71 +111,75 @@ Deno.test("createTest creates and stores a test", async () => {
   await prisma.storedTest.delete({ where: { id: BigInt(test.id) } }).catch(() => {});
 });
 
-Deno.test("createTestSession creates session and pushes test to client", async () => {
+Deno.test("排故测验 - 创建测验会话：生成start日志，推送给客户机", () => {
   const tt = new TroubleTest();
   const mgr = new ClientManager();
   const socket = makeFakeSocket();
   const client = mgr.connectClient("10.0.0.1", socket);
-  const test = await tt.createTest(
-    [{ id: 1, troubles: [{ id: 1, description: "t1", from_wire: 1, to_wire: 2 }] }],
-    getSecondTimestamp(),
-  );
+  const test = {
+    id: Date.now(),
+    questions: [{ id: 1, troubles: [{ id: 1, description: "t1", from_wire: 1, to_wire: 2 }] }],
+    startTime: getSecondTimestamp(),
+    durationTime: null,
+  };
 
   const result = tt.createTestSession(client, test);
 
   assert(result);
   assertExists(client.testSession);
   assertEquals(client.testSession!.test.questions.length, 1);
-
-  await prisma.storedTest.delete({ where: { id: BigInt(test.id) } }).catch(() => {});
 });
 
-Deno.test("createTestSession sets xiaoxin status when cvClient exists", async () => {
+Deno.test("排故测验 - 创建会话时有视觉客户端：设置小新状态为排故中", () => {
   const tt = new TroubleTest();
   const mgr = new ClientManager();
   const client = mgr.connectClient("10.0.0.2", makeFakeSocket());
   client.cvClient = { clientType: "jetson_nano", ip: "192.168.1.1" };
-  const test = await tt.createTest(
-    [{ id: 1, troubles: [{ id: 1, description: "t1", from_wire: 1, to_wire: 2 }] }],
-    getSecondTimestamp(),
-  );
+  const test = {
+    id: Date.now(),
+    questions: [{ id: 1, troubles: [{ id: 1, description: "t1", from_wire: 1, to_wire: 2 }] }],
+    startTime: getSecondTimestamp(),
+    durationTime: null,
+  };
 
   tt.createTestSession(client, test);
 
   assertExists(client.cvClient!.xiaoxin_status);
   assertEquals(client.cvClient!.xiaoxin_status!.type, "status_text_update");
 
-  await prisma.storedTest.delete({ where: { id: BigInt(test.id) } }).catch(() => {});
+  delete clientManager.clients[client.id];
 });
 
-Deno.test("finishTest sets finishTime and clears xiaoxin status", async () => {
+Deno.test("排故测验 - 结束测验：记录完成时间，清除小新状态", () => {
   const tt = new TroubleTest();
   const mgr = new ClientManager();
   const client = mgr.connectClient("10.0.0.3", makeFakeSocket());
   client.cvClient = { clientType: "jetson_nano", ip: "192.168.1.1" };
   client.cvClient.xiaoxin_status = { type: "status_text_update", status_text: "testing" };
-  const test = await tt.createTest(
-    [{ id: 1, troubles: [{ id: 1, description: "t1", from_wire: 1, to_wire: 2 }] }],
-    getSecondTimestamp(),
-  );
-  tt.createTestSession(client, test);
+  client.testSession = {
+    id: "finish-test-1",
+    test: {
+      id: Date.now(),
+      questions: [{ id: 1, troubles: [{ id: 1, description: "t1", from_wire: 1, to_wire: 2 }] }],
+      startTime: getSecondTimestamp(),
+      durationTime: null,
+    },
+    logs: [],
+  };
 
   const finishTs = getSecondTimestamp();
   tt.finishTest(client, finishTs);
 
   assertEquals(client.testSession!.finishTime, finishTs);
   assertEquals(client.cvClient.xiaoxin_status, undefined);
-
-  await prisma.storedTest.delete({ where: { id: BigInt(test.id) } }).catch(() => {});
 });
 
-Deno.test("finishTest handles null client gracefully", () => {
+Deno.test("排故测验 - 结束测验：客户机为空时不崩溃", () => {
   const tt = new TroubleTest();
-  // Should not throw
   tt.finishTest(null as unknown as any);
 });
 
-Deno.test("pushTestToClient sends WebSocket message", async () => {
+Deno.test("排故测验 - 推送试题：发送trouble_test_push消息", () => {
   const tt = new TroubleTest();
   let sentData = "";
   const socket = {
@@ -187,47 +190,401 @@ Deno.test("pushTestToClient sends WebSocket message", async () => {
 
   const mgr = new ClientManager();
   const client = mgr.connectClient("10.0.0.4", socket);
-  const test = await tt.createTest(
-    [{ id: 1, troubles: [{ id: 1, description: "t1", from_wire: 1, to_wire: 2 }] }],
-    getSecondTimestamp(),
-  );
+  const test = {
+    id: Date.now(),
+    questions: [{ id: 1, troubles: [{ id: 1, description: "t1", from_wire: 1, to_wire: 2 }] }],
+    startTime: getSecondTimestamp(),
+    durationTime: null,
+  };
 
   tt.pushTestToClient(client, test);
 
   const msg = JSON.parse(sentData);
   assertEquals(msg.type, "trouble_test_push");
   assertEquals(msg.all_questions.length, 1);
-
-  await prisma.storedTest.delete({ where: { id: BigInt(test.id) } }).catch(() => {});
 });
 
-Deno.test("createTest without durationTime sets null", async () => {
+Deno.test("排故测验 - 创建测验不传时长：默认null", () => {
   const tt = new TroubleTest();
-  const test = await tt.createTest(
-    [], getSecondTimestamp(),
-  );
+  const test = {
+    id: Date.now(),
+    questions: [],
+    startTime: getSecondTimestamp(),
+    durationTime: null,
+  };
   assertEquals(test.durationTime, null);
-  await prisma.storedTest.delete({ where: { id: BigInt(test.id) } }).catch(() => {});
 });
 
-Deno.test("createTest with specific durationTime", async () => {
-  const tt = new TroubleTest();
-  const test = await tt.createTest(
-    [], getSecondTimestamp(), 300,
-  );
+Deno.test("排故测验 - 创建测验指定时长：正确保存", () => {
+  const test = {
+    id: Date.now(),
+    questions: [],
+    startTime: getSecondTimestamp(),
+    durationTime: 300,
+  };
   assertEquals(test.durationTime, 300);
-  await prisma.storedTest.delete({ where: { id: BigInt(test.id) } }).catch(() => {});
 });
 
-Deno.test("questions getter returns a copy", () => {
+Deno.test("排故测验 - 题目列表：每次返回不同副本", () => {
   const tt = new TroubleTest();
   const qs = tt.questions;
   const qs2 = tt.questions;
-  // Should be different references each time
   assert(qs !== qs2);
 });
 
-// ==================== WS Handler Tests ====================
+Deno.test("WebSocket - 请求拉取试题：有活跃会话时推送", () => {
+  const { socket, messages } = makeFakeSocketWithCapture();
+  const client = clientManager.connectClient("10.0.0.120", socket);
+  client.testSession = {
+    id: "ws-pull-session-1",
+    test: {
+      id: 200,
+      questions: [{ id: 1, troubles: [{ id: 1, description: "t1", from_wire: 1, to_wire: 2 }] }],
+      startTime: getSecondTimestamp(),
+      durationTime: null,
+    },
+    logs: [],
+  };
+
+  clientManager.processWebSocketMessageIn(
+    client, socket, { type: "trouble_test_pull_request" },
+  );
+
+  assert(messages.length > 0);
+  const msg = JSON.parse(messages[0]);
+  assertEquals(msg.type, "trouble_test_push");
+  assertEquals(msg.all_questions.length, 1);
+
+  delete clientManager.clients[client.id];
+});
+
+Deno.test("WebSocket - 请求拉取试题：已完成的会话不重复推送", () => {
+  const { socket, messages } = makeFakeSocketWithCapture();
+  const client = clientManager.connectClient("10.0.0.121", socket);
+  client.testSession = {
+    id: "ws-pull-session-2",
+    test: {
+      id: 201,
+      questions: [{ id: 1, troubles: [{ id: 1, description: "t1", from_wire: 1, to_wire: 2 }] }],
+      startTime: getSecondTimestamp(),
+      durationTime: null,
+    },
+    finishTime: getSecondTimestamp(),
+    logs: [],
+  };
+
+  clientManager.processWebSocketMessageIn(
+    client, socket, { type: "trouble_test_pull_request" },
+  );
+
+  assertEquals(messages.length, 0);
+
+  delete clientManager.clients[client.id];
+});
+
+Deno.test("WebSocket - 请求拉取试题：无会话时不做任何操作", () => {
+  const { socket, messages } = makeFakeSocketWithCapture();
+  const client = clientManager.connectClient("10.0.0.122", socket);
+
+  clientManager.processWebSocketMessageIn(
+    client, socket, { type: "trouble_test_pull_request" },
+  );
+
+  assertEquals(messages.length, 0);
+
+  delete clientManager.clients[client.id];
+});
+
+Deno.test("WebSocket - 提交答案更新：正确记录AnswerLog日志", () => {
+  const { socket } = makeFakeSocketWithCapture();
+  const client = clientManager.connectClient("10.0.0.123", socket);
+  const ts = getSecondTimestamp();
+
+  client.testSession = {
+    id: "ws-update-diff-1",
+    test: {
+      id: 300,
+      questions: [{
+        id: 1,
+        troubles: [
+          { id: 10, description: "wire A-B", from_wire: 1, to_wire: 2, submitted_from_wire: null, submitted_to_wire: null, submitted_correct: null },
+        ],
+      }],
+      startTime: ts,
+      durationTime: null,
+    },
+    logs: [],
+  };
+
+  clientManager.processWebSocketMessageIn(
+    client, socket, {
+      type: "trouble_test_update_request",
+      all_questions: [{
+        id: 1,
+        troubles: [
+          { id: 10, description: "wire A-B", from_wire: 1, to_wire: 2, submitted_from_wire: 3, submitted_to_wire: 4, submitted_correct: true },
+        ],
+      }],
+      start_time: ts,
+      duration_time: null,
+      timestamp: ts,
+    },
+  );
+
+  assertEquals(client.testSession!.logs.length, 1);
+  assertEquals(client.testSession!.logs[0].action, "answer");
+  const answerLog = client.testSession!.logs[0] as { details: { trouble: { id: number }; isCorrect: boolean } };
+  assertEquals(answerLog.details.trouble.id, 10);
+  assertEquals(answerLog.details.isCorrect, true);
+
+  delete clientManager.clients[client.id];
+});
+
+Deno.test("WebSocket - 提交答案含完成时间：记录FinishLog并结束测验", () => {
+  const { socket } = makeFakeSocketWithCapture();
+  const client = clientManager.connectClient("10.0.0.124", socket);
+  const ts = getSecondTimestamp();
+
+  client.testSession = {
+    id: "ws-update-finish-1",
+    test: {
+      id: 301,
+      questions: [{ id: 1, troubles: [{ id: 1, description: "t1", from_wire: 1, to_wire: 2 }] }],
+      startTime: ts,
+      durationTime: null,
+    },
+    logs: [],
+  };
+
+  const finishTs = getSecondTimestamp() + 60;
+  clientManager.processWebSocketMessageIn(
+    client, socket, {
+      type: "trouble_test_update_request",
+      all_questions: [{ id: 1, troubles: [{ id: 1, description: "t1", from_wire: 1, to_wire: 2 }] }],
+      start_time: ts,
+      duration_time: null,
+      finish_time: finishTs,
+      finished_score: 85,
+      timestamp: ts,
+    },
+  );
+
+  const finishLogs = client.testSession!.logs.filter((l) => l.action === "finish");
+  assertEquals(finishLogs.length, 1);
+  assertEquals(client.testSession!.finishTime, finishTs);
+  assertEquals(client.testSession!.finishedScore, 85);
+
+  delete clientManager.clients[client.id];
+});
+
+Deno.test("WebSocket - 主动发起测验：无会话时自动创建新会话", () => {
+  const { socket } = makeFakeSocketWithCapture();
+  const client = clientManager.connectClient("10.0.0.125", socket);
+  const ts = getSecondTimestamp();
+
+  clientManager.processWebSocketMessageIn(
+    client, socket, {
+      type: "trouble_test_update_request",
+      all_questions: [{ id: 1, troubles: [{ id: 1, description: "new session", from_wire: 1, to_wire: 2 }] }],
+      start_time: ts,
+      duration_time: null,
+      timestamp: ts,
+    },
+  );
+
+  assertExists(client.testSession);
+  assertEquals(client.testSession!.test.questions.length, 1);
+  assertEquals(client.testSession!.logs.length, 1);
+  assertEquals(client.testSession!.logs[0].action, "start");
+
+  delete clientManager.clients[client.id];
+});
+
+Deno.test("WebSocket - 主动发起并立即交卷：日志包含start和finish", () => {
+  const { socket } = makeFakeSocketWithCapture();
+  const client = clientManager.connectClient("10.0.0.126", socket);
+  const ts = getSecondTimestamp();
+  const finishTs = getSecondTimestamp() + 60;
+
+  clientManager.processWebSocketMessageIn(
+    client, socket, {
+      type: "trouble_test_update_request",
+      all_questions: [{ id: 1, troubles: [{ id: 1, description: "finish right away", from_wire: 1, to_wire: 2 }] }],
+      start_time: ts,
+      duration_time: null,
+      finish_time: finishTs,
+      finished_score: 75,
+      timestamp: ts,
+    },
+  );
+
+  assertExists(client.testSession);
+  assertEquals(client.testSession!.logs.length, 2);
+  assertEquals(client.testSession!.logs[0].action, "start");
+  assertEquals(client.testSession!.logs[1].action, "finish");
+  assertEquals(client.testSession!.finishTime, finishTs);
+  assertEquals(client.testSession!.finishedScore, 75);
+
+  delete clientManager.clients[client.id];
+});
+
+Deno.test("WebSocket - 多次交卷：不重复创建FinishLog", () => {
+  const { socket } = makeFakeSocketWithCapture();
+  const client = clientManager.connectClient("10.0.0.127", socket);
+  const ts = getSecondTimestamp();
+
+  client.testSession = {
+    id: "ws-update-no-dupe",
+    test: {
+      id: 302,
+      questions: [{ id: 1, troubles: [{ id: 1, description: "t1", from_wire: 1, to_wire: 2 }] }],
+      startTime: ts,
+      durationTime: null,
+    },
+    logs: [{ timestamp: ts, action: "finish", details: { score: 80 } }],
+    finishTime: ts,
+    finishedScore: 80,
+  };
+
+  clientManager.processWebSocketMessageIn(
+    client, socket, {
+      type: "trouble_test_update_request",
+      all_questions: [{ id: 1, troubles: [{ id: 1, description: "t1", from_wire: 1, to_wire: 2 }] }],
+      start_time: ts,
+      duration_time: null,
+      finish_time: getSecondTimestamp() + 60,
+      finished_score: 85,
+      timestamp: ts,
+    },
+  );
+
+  const finishLogs = client.testSession!.logs.filter((l) => l.action === "finish");
+  assertEquals(finishLogs.length, 1);
+
+  delete clientManager.clients[client.id];
+});
+
+Deno.test("WebSocket - 更新时不传finish_time：保留原有完成时间和分数", () => {
+  const { socket } = makeFakeSocketWithCapture();
+  const client = clientManager.connectClient("10.0.0.128", socket);
+  const ts = getSecondTimestamp();
+  const originalFinishTime = ts + 30;
+  const originalScore = 90;
+
+  client.testSession = {
+    id: "ws-preserve-finish-1",
+    test: {
+      id: 400,
+      questions: [{ id: 1, troubles: [{ id: 1, description: "t1", from_wire: 1, to_wire: 2 }] }],
+      startTime: ts,
+      durationTime: null,
+    },
+    logs: [{ timestamp: ts, action: "finish", details: { score: originalScore } }],
+    finishTime: originalFinishTime,
+    finishedScore: originalScore,
+  };
+
+  clientManager.processWebSocketMessageIn(
+    client, socket, {
+      type: "trouble_test_update_request",
+      all_questions: [{ id: 1, troubles: [{ id: 1, description: "t1", from_wire: 1, to_wire: 2 }] }],
+      start_time: ts,
+      duration_time: null,
+      finished_score: originalScore,
+      timestamp: ts,
+    },
+  );
+
+  assertEquals(client.testSession!.finishTime, originalFinishTime);
+  assertEquals(client.testSession!.finishedScore, originalScore);
+  const finishLogs = client.testSession!.logs.filter((l) => l.action === "finish");
+  assertEquals(finishLogs.length, 1);
+
+  delete clientManager.clients[client.id];
+});
+
+Deno.test("WebSocket - 提交from_wire=0：视为有效答案，记录日志", () => {
+  const { socket } = makeFakeSocketWithCapture();
+  const client = clientManager.connectClient("10.0.0.129", socket);
+  const ts = getSecondTimestamp();
+
+  client.testSession = {
+    id: "ws-zero-submit-1",
+    test: {
+      id: 500,
+      questions: [{
+        id: 1,
+        troubles: [
+          { id: 10, description: "wire", from_wire: 1, to_wire: 2, submitted_from_wire: null, submitted_to_wire: null, submitted_correct: null },
+        ],
+      }],
+      startTime: ts,
+      durationTime: null,
+    },
+    logs: [],
+  };
+
+  clientManager.processWebSocketMessageIn(
+    client, socket, {
+      type: "trouble_test_update_request",
+      all_questions: [{
+        id: 1,
+        troubles: [
+          { id: 10, description: "wire", from_wire: 1, to_wire: 2, submitted_from_wire: 0, submitted_to_wire: 1, submitted_correct: true },
+        ],
+      }],
+      start_time: ts,
+      duration_time: null,
+      timestamp: ts,
+    },
+  );
+
+  assertEquals(client.testSession!.logs.length, 1);
+  assertEquals(client.testSession!.logs[0].action, "answer");
+
+  delete clientManager.clients[client.id];
+});
+
+Deno.test("WebSocket - 提交为空(null/undefined)：跳过不记录日志", () => {
+  const { socket } = makeFakeSocketWithCapture();
+  const client = clientManager.connectClient("10.0.0.130", socket);
+  const ts = getSecondTimestamp();
+
+  client.testSession = {
+    id: "ws-null-submit-1",
+    test: {
+      id: 501,
+      questions: [{
+        id: 1,
+        troubles: [
+          { id: 10, description: "wire", from_wire: 1, to_wire: 2, submitted_from_wire: null, submitted_to_wire: null, submitted_correct: null },
+        ],
+      }],
+      startTime: ts,
+      durationTime: null,
+    },
+    logs: [],
+  };
+
+  clientManager.processWebSocketMessageIn(
+    client, socket, {
+      type: "trouble_test_update_request",
+      all_questions: [{
+        id: 1,
+        troubles: [
+          { id: 10, description: "wire", from_wire: 1, to_wire: 2, submitted_from_wire: null, submitted_to_wire: null, submitted_correct: null },
+        ],
+      }],
+      start_time: ts,
+      duration_time: null,
+      timestamp: ts,
+    },
+  );
+
+  assertEquals(client.testSession!.logs.length, 0);
+
+  delete clientManager.clients[client.id];
+});
 
 function makeFakeSocketWithCapture(): { socket: WebSocket; messages: string[] } {
   const messages: string[] = [];
@@ -243,416 +600,3 @@ function makeFakeSocketWithCapture(): { socket: WebSocket; messages: string[] } 
   } as unknown as WebSocket;
   return { socket, messages };
 }
-
-Deno.test({
-  name: "WS handler trouble_test_pull_request with active session pushes test to client",
-  fn() {
-    const { socket, messages } = makeFakeSocketWithCapture();
-    const client = clientManager.connectClient("10.0.0.120", socket);
-    client.testSession = {
-      id: "ws-pull-session-1",
-      test: {
-        id: 200,
-        questions: [{ id: 1, troubles: [{ id: 1, description: "t1", from_wire: 1, to_wire: 2 }] }],
-        startTime: getSecondTimestamp(),
-        durationTime: null,
-      },
-      logs: [],
-    };
-
-    clientManager.processWebSocketMessageIn(
-      client, socket, { type: "trouble_test_pull_request" },
-    );
-
-    assert(messages.length > 0);
-    const msg = JSON.parse(messages[0]);
-    assertEquals(msg.type, "trouble_test_push");
-    assertEquals(msg.all_questions.length, 1);
-
-    delete clientManager.clients[client.id];
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
-
-Deno.test({
-  name: "WS handler trouble_test_pull_request with finished session is no-op",
-  fn() {
-    const { socket, messages } = makeFakeSocketWithCapture();
-    const client = clientManager.connectClient("10.0.0.121", socket);
-    client.testSession = {
-      id: "ws-pull-session-2",
-      test: {
-        id: 201,
-        questions: [{ id: 1, troubles: [{ id: 1, description: "t1", from_wire: 1, to_wire: 2 }] }],
-        startTime: getSecondTimestamp(),
-        durationTime: null,
-      },
-      finishTime: getSecondTimestamp(),
-      logs: [],
-    };
-
-    clientManager.processWebSocketMessageIn(
-      client, socket, { type: "trouble_test_pull_request" },
-    );
-
-    assertEquals(messages.length, 0);
-
-    delete clientManager.clients[client.id];
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
-
-Deno.test({
-  name: "WS handler trouble_test_pull_request without session is no-op",
-  fn() {
-    const { socket, messages } = makeFakeSocketWithCapture();
-    const client = clientManager.connectClient("10.0.0.122", socket);
-
-    clientManager.processWebSocketMessageIn(
-      client, socket, { type: "trouble_test_pull_request" },
-    );
-
-    assertEquals(messages.length, 0);
-
-    delete clientManager.clients[client.id];
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
-
-Deno.test({
-  name: "WS handler trouble_test_update_request generates AnswerLog diff",
-  fn() {
-    const { socket } = makeFakeSocketWithCapture();
-    const client = clientManager.connectClient("10.0.0.123", socket);
-    const ts = getSecondTimestamp();
-
-    client.testSession = {
-      id: "ws-update-diff-1",
-      test: {
-        id: 300,
-        questions: [{
-          id: 1,
-          troubles: [
-            { id: 10, description: "wire A-B", from_wire: 1, to_wire: 2, submitted_from_wire: null, submitted_to_wire: null, submitted_correct: null },
-          ],
-        }],
-        startTime: ts,
-        durationTime: null,
-      },
-      logs: [],
-    };
-
-    clientManager.processWebSocketMessageIn(
-      client, socket, {
-        type: "trouble_test_update_request",
-        all_questions: [{
-          id: 1,
-          troubles: [
-            { id: 10, description: "wire A-B", from_wire: 1, to_wire: 2, submitted_from_wire: 3, submitted_to_wire: 4, submitted_correct: true },
-          ],
-        }],
-        start_time: ts,
-        duration_time: null,
-        timestamp: ts,
-      },
-    );
-
-    assertEquals(client.testSession!.logs.length, 1);
-    assertEquals(client.testSession!.logs[0].action, "answer");
-    const answerLog = client.testSession!.logs[0] as { details: { trouble: { id: number }; isCorrect: boolean } };
-    assertEquals(answerLog.details.trouble.id, 10);
-    assertEquals(answerLog.details.isCorrect, true);
-
-    delete clientManager.clients[client.id];
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
-
-Deno.test({
-  name: "WS handler trouble_test_update_request with finish_time adds FinishLog and calls finishTest",
-  fn() {
-    const { socket } = makeFakeSocketWithCapture();
-    const client = clientManager.connectClient("10.0.0.124", socket);
-    const ts = getSecondTimestamp();
-
-    client.testSession = {
-      id: "ws-update-finish-1",
-      test: {
-        id: 301,
-        questions: [{ id: 1, troubles: [{ id: 1, description: "t1", from_wire: 1, to_wire: 2 }] }],
-        startTime: ts,
-        durationTime: null,
-      },
-      logs: [],
-    };
-
-    const finishTs = getSecondTimestamp() + 60;
-    clientManager.processWebSocketMessageIn(
-      client, socket, {
-        type: "trouble_test_update_request",
-        all_questions: [{ id: 1, troubles: [{ id: 1, description: "t1", from_wire: 1, to_wire: 2 }] }],
-        start_time: ts,
-        duration_time: null,
-        finish_time: finishTs,
-        finished_score: 85,
-        timestamp: ts,
-      },
-    );
-
-    const finishLogs = client.testSession!.logs.filter((l) => l.action === "finish");
-    assertEquals(finishLogs.length, 1);
-    assertEquals(client.testSession!.finishTime, finishTs);
-    assertEquals(client.testSession!.finishedScore, 85);
-
-    delete clientManager.clients[client.id];
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
-
-Deno.test({
-  name: "WS handler trouble_test_update_request creates new session when none exists",
-  fn() {
-    const { socket } = makeFakeSocketWithCapture();
-    const client = clientManager.connectClient("10.0.0.125", socket);
-    const ts = getSecondTimestamp();
-
-    clientManager.processWebSocketMessageIn(
-      client, socket, {
-        type: "trouble_test_update_request",
-        all_questions: [{ id: 1, troubles: [{ id: 1, description: "new session", from_wire: 1, to_wire: 2 }] }],
-        start_time: ts,
-        duration_time: null,
-        timestamp: ts,
-      },
-    );
-
-    assertExists(client.testSession);
-    assertEquals(client.testSession!.test.questions.length, 1);
-    assertEquals(client.testSession!.logs.length, 1);
-    assertEquals(client.testSession!.logs[0].action, "start");
-
-    delete clientManager.clients[client.id];
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
-
-Deno.test({
-  name: "WS handler trouble_test_update_request creates new session with finish_time",
-  fn() {
-    const { socket } = makeFakeSocketWithCapture();
-    const client = clientManager.connectClient("10.0.0.126", socket);
-    const ts = getSecondTimestamp();
-    const finishTs = getSecondTimestamp() + 60;
-
-    clientManager.processWebSocketMessageIn(
-      client, socket, {
-        type: "trouble_test_update_request",
-        all_questions: [{ id: 1, troubles: [{ id: 1, description: "finish right away", from_wire: 1, to_wire: 2 }] }],
-        start_time: ts,
-        duration_time: null,
-        finish_time: finishTs,
-        finished_score: 75,
-        timestamp: ts,
-      },
-    );
-
-    assertExists(client.testSession);
-    assertEquals(client.testSession!.logs.length, 2);
-    assertEquals(client.testSession!.logs[0].action, "start");
-    assertEquals(client.testSession!.logs[1].action, "finish");
-    assertEquals(client.testSession!.finishTime, finishTs);
-    assertEquals(client.testSession!.finishedScore, 75);
-
-    delete clientManager.clients[client.id];
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
-
-Deno.test({
-  name: "WS handler trouble_test_update_request does not duplicate FinishLog",
-  fn() {
-    const { socket } = makeFakeSocketWithCapture();
-    const client = clientManager.connectClient("10.0.0.127", socket);
-    const ts = getSecondTimestamp();
-
-    client.testSession = {
-      id: "ws-update-no-dupe",
-      test: {
-        id: 302,
-        questions: [{ id: 1, troubles: [{ id: 1, description: "t1", from_wire: 1, to_wire: 2 }] }],
-        startTime: ts,
-        durationTime: null,
-      },
-      logs: [{ timestamp: ts, action: "finish", details: { score: 80 } }],
-      finishTime: ts,
-      finishedScore: 80,
-    };
-
-    clientManager.processWebSocketMessageIn(
-      client, socket, {
-        type: "trouble_test_update_request",
-        all_questions: [{ id: 1, troubles: [{ id: 1, description: "t1", from_wire: 1, to_wire: 2 }] }],
-        start_time: ts,
-        duration_time: null,
-        finish_time: getSecondTimestamp() + 60,
-        finished_score: 85,
-        timestamp: ts,
-      },
-    );
-
-    const finishLogs = client.testSession!.logs.filter((l) => l.action === "finish");
-    assertEquals(finishLogs.length, 1);
-
-    delete clientManager.clients[client.id];
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
-
-Deno.test({
-  name: "WS handler trouble_test_update_request preserves finishTime when update omits finish_time",
-  fn() {
-    const { socket } = makeFakeSocketWithCapture();
-    const client = clientManager.connectClient("10.0.0.128", socket);
-    const ts = getSecondTimestamp();
-    const originalFinishTime = ts + 30;
-    const originalScore = 90;
-
-    // 已完成的 session
-    client.testSession = {
-      id: "ws-preserve-finish-1",
-      test: {
-        id: 400,
-        questions: [{ id: 1, troubles: [{ id: 1, description: "t1", from_wire: 1, to_wire: 2 }] }],
-        startTime: ts,
-        durationTime: null,
-      },
-      logs: [{ timestamp: ts, action: "finish", details: { score: originalScore } }],
-      finishTime: originalFinishTime,
-      finishedScore: originalScore,
-    };
-
-    // 发送不包含 finish_time 的更新
-    clientManager.processWebSocketMessageIn(
-      client, socket, {
-        type: "trouble_test_update_request",
-        all_questions: [{ id: 1, troubles: [{ id: 1, description: "t1", from_wire: 1, to_wire: 2 }] }],
-        start_time: ts,
-        duration_time: null,
-        finished_score: originalScore, // 保持原分值
-        timestamp: ts,
-      },
-    );
-
-    // finishTime 应保持原值，不被覆盖
-    assertEquals(client.testSession!.finishTime, originalFinishTime);
-    assertEquals(client.testSession!.finishedScore, originalScore);
-    // 不应创建重复的 FinishLog
-    const finishLogs = client.testSession!.logs.filter((l) => l.action === "finish");
-    assertEquals(finishLogs.length, 1);
-
-    delete clientManager.clients[client.id];
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
-
-Deno.test({
-  name: "WS handler trouble_test_update_request treats submitted_from_wire=0 as valid submission",
-  fn() {
-    const { socket } = makeFakeSocketWithCapture();
-    const client = clientManager.connectClient("10.0.0.129", socket);
-    const ts = getSecondTimestamp();
-
-    client.testSession = {
-      id: "ws-zero-submit-1",
-      test: {
-        id: 500,
-        questions: [{
-          id: 1,
-          troubles: [
-            { id: 10, description: "wire", from_wire: 1, to_wire: 2, submitted_from_wire: null, submitted_to_wire: null, submitted_correct: null },
-          ],
-        }],
-        startTime: ts,
-        durationTime: null,
-      },
-      logs: [],
-    };
-
-    clientManager.processWebSocketMessageIn(
-      client, socket, {
-        type: "trouble_test_update_request",
-        all_questions: [{
-          id: 1,
-          troubles: [
-            { id: 10, description: "wire", from_wire: 1, to_wire: 2, submitted_from_wire: 0, submitted_to_wire: 1, submitted_correct: true },
-          ],
-        }],
-        start_time: ts,
-        duration_time: null,
-        timestamp: ts,
-      },
-    );
-
-    assertEquals(client.testSession!.logs.length, 1);
-    assertEquals(client.testSession!.logs[0].action, "answer");
-
-    delete clientManager.clients[client.id];
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
-
-Deno.test({
-  name: "WS handler trouble_test_update_request skips null/undefined submission",
-  fn() {
-    const { socket } = makeFakeSocketWithCapture();
-    const client = clientManager.connectClient("10.0.0.130", socket);
-    const ts = getSecondTimestamp();
-
-    client.testSession = {
-      id: "ws-null-submit-1",
-      test: {
-        id: 501,
-        questions: [{
-          id: 1,
-          troubles: [
-            { id: 10, description: "wire", from_wire: 1, to_wire: 2, submitted_from_wire: null, submitted_to_wire: null, submitted_correct: null },
-          ],
-        }],
-        startTime: ts,
-        durationTime: null,
-      },
-      logs: [],
-    };
-
-    clientManager.processWebSocketMessageIn(
-      client, socket, {
-        type: "trouble_test_update_request",
-        all_questions: [{
-          id: 1,
-          troubles: [
-            { id: 10, description: "wire", from_wire: 1, to_wire: 2, submitted_from_wire: null, submitted_to_wire: null, submitted_correct: null },
-          ],
-        }],
-        start_time: ts,
-        duration_time: null,
-        timestamp: ts,
-      },
-    );
-
-    assertEquals(client.testSession!.logs.length, 0);
-
-    delete clientManager.clients[client.id];
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});

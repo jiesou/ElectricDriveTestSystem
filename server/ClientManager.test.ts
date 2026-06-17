@@ -1,7 +1,6 @@
 import { assertEquals, assert, assertExists } from "@std/assert";
 import { ClientManager } from "./ClientManager.ts";
 import { getSecondTimestamp } from "./types.ts";
-import { prisma } from "./prisma/client.ts";
 
 function makeFakeSocket(): WebSocket {
   return {
@@ -23,7 +22,7 @@ function makeFakeSocket(): WebSocket {
   } as unknown as WebSocket;
 }
 
-Deno.test("connectClient creates a new client with valid fields", () => {
+Deno.test("客户机管理 - 新建连接：创建合法客户机，IP、在线状态正确", () => {
   const mgr = new ClientManager();
   const socket = makeFakeSocket();
   const client = mgr.connectClient("192.168.1.1", socket);
@@ -36,7 +35,7 @@ Deno.test("connectClient creates a new client with valid fields", () => {
   assertExists(client.lastPing);
 });
 
-Deno.test("connectClient reuses existing client on same IP reconnect", () => {
+Deno.test("客户机管理 - 同一IP重连：复用之前的客户机编号", () => {
   const mgr = new ClientManager();
   const socket1 = makeFakeSocket();
   const client1 = mgr.connectClient("192.168.1.2", socket1);
@@ -49,7 +48,7 @@ Deno.test("connectClient reuses existing client on same IP reconnect", () => {
   assertEquals(client2.socket, socket2);
 });
 
-Deno.test("connectClient creates separate clients for different IPs", () => {
+Deno.test("客户机管理 - 不同IP连接：分配不同的客户机编号", () => {
   const mgr = new ClientManager();
   const c1 = mgr.connectClient("10.0.0.1", makeFakeSocket());
   const c2 = mgr.connectClient("10.0.0.2", makeFakeSocket());
@@ -58,7 +57,7 @@ Deno.test("connectClient creates separate clients for different IPs", () => {
   assertEquals(Object.keys(mgr.clients).length, 2);
 });
 
-Deno.test("disconnectClient sets offline and clears socket and lastPing", () => {
+Deno.test("客户机管理 - 断开连接：标记离线，清除 socket 和心跳时间", () => {
   const mgr = new ClientManager();
   const client = mgr.connectClient("10.0.0.3", makeFakeSocket());
 
@@ -69,7 +68,7 @@ Deno.test("disconnectClient sets offline and clears socket and lastPing", () => 
   assertEquals(client.lastPing, undefined);
 });
 
-Deno.test("ping message updates lastPing and sends pong", () => {
+Deno.test("客户机管理 - 收到 ping：更新时间戳，回复 pong", () => {
   const mgr = new ClientManager();
   let sentData = "";
   const socket = {
@@ -88,7 +87,7 @@ Deno.test("ping message updates lastPing and sends pong", () => {
   assertEquals(pong.type, "pong");
 });
 
-Deno.test("client_name_update_request updates name and sends push", () => {
+Deno.test("客户机管理 - 更新名称：保存新名字，回复确认消息", () => {
   const mgr = new ClientManager();
   let sentData = "";
   const socket = {
@@ -109,7 +108,7 @@ Deno.test("client_name_update_request updates name and sends push", () => {
   assertEquals(push.name, "测试台位1");
 });
 
-Deno.test("client_name_update_request rejects empty name", () => {
+Deno.test("客户机管理 - 更新名称为空：拒绝修改", () => {
   const mgr = new ClientManager();
   const socket = makeFakeSocket();
   const client = mgr.connectClient("10.0.0.6", socket);
@@ -123,7 +122,7 @@ Deno.test("client_name_update_request rejects empty name", () => {
   assertEquals(client.name, oldName);
 });
 
-Deno.test("sendWSMessage sends JSON to socket when socket exists", () => {
+Deno.test("客户机管理 - 发送消息：JSON序列化后发送", () => {
   const mgr = new ClientManager();
   let sentData = "";
   const socket = {
@@ -137,13 +136,12 @@ Deno.test("sendWSMessage sends JSON to socket when socket exists", () => {
   assertEquals(parsed.data, "hello");
 });
 
-Deno.test("sendWSMessage handles undefined socket gracefully", () => {
+Deno.test("客户机管理 - 发送消息：socket为空时不报错", () => {
   const mgr = new ClientManager();
-  // Should not throw
   mgr.sendWSMessage(undefined, { type: "test" });
 });
 
-Deno.test("addWSMessageHandler and dispatch work correctly", () => {
+Deno.test("客户机管理 - 消息分发：ping优先处理，其他派发给处理器", () => {
   const mgr = new ClientManager();
   let handledType = "";
   mgr.addWSMessageHandler((_client, _socket, message) => {
@@ -153,12 +151,11 @@ Deno.test("addWSMessageHandler and dispatch work correctly", () => {
   const socket = makeFakeSocket();
   const client = mgr.connectClient("10.0.0.7", socket);
 
-  // ping messages are handled before dispatching to handlers
   mgr.processWebSocketMessageIn(client, socket, { type: "custom_event" });
   assertEquals(handledType, "custom_event");
 });
 
-Deno.test("findClientsByCvIp returns matching clients", () => {
+Deno.test("客户机管理 - 按视觉IP查找客户机：匹配返回", () => {
   const mgr = new ClientManager();
   const client = mgr.connectClient("10.0.0.8", makeFakeSocket());
   client.cvClient = { clientType: "jetson_nano", ip: "192.168.1.100" };
@@ -168,18 +165,17 @@ Deno.test("findClientsByCvIp returns matching clients", () => {
   assertEquals(result[0].id, client.id);
 });
 
-Deno.test("findClientsByCvIp auto-binds when no match exists", () => {
+Deno.test("客户机管理 - 按视觉IP查找客户机：不存在时自动绑定", () => {
   const mgr = new ClientManager();
   mgr.connectClient("10.0.0.9", makeFakeSocket());
 
   const result = mgr.findClientsByCvIp("192.168.1.200");
   assert(result.length > 0);
   assertEquals(result[0].cvClient!.ip, "192.168.1.200");
-  // cvClients should also be created
   assertExists(mgr.cvClients["192.168.1.200"]);
 });
 
-Deno.test("findClientByCvIp returns first client or null", () => {
+Deno.test("客户机管理 - 按视觉IP查找单个客户机：返回第一个或 null", () => {
   const mgr = new ClientManager();
   const client = mgr.connectClient("10.0.0.10", makeFakeSocket());
   client.cvClient = { clientType: "esp32cam", ip: "192.168.1.50" };
@@ -192,9 +188,8 @@ Deno.test("findClientByCvIp returns first client or null", () => {
   assertEquals(notFound, null);
 });
 
-Deno.test("connectClient with CV_CLIENT_MAP matching IP binds cvClient", () => {
+Deno.test("客户机管理 - 新连接匹配配置文件：自动绑定视觉客户机", () => {
   const mgr = new ClientManager();
-  // 127.0.0.1 matches cvClientMap.json -> 192.168.11.121
   const client = mgr.connectClient("127.0.0.1", makeFakeSocket());
 
   assertExists(client.cvClient);
@@ -203,48 +198,41 @@ Deno.test("connectClient with CV_CLIENT_MAP matching IP binds cvClient", () => {
   assertExists(mgr.cvClients["192.168.11.121"]);
 });
 
-Deno.test("connectClient fallback to first cvClient when no exact match", () => {
+Deno.test("客户机管理 - 不匹配配置文件：自动绑定已有视觉客户机", () => {
   const mgr = new ClientManager();
-  // First connect with a CV-mapped IP to seed cvClients
   mgr.connectClient("127.0.0.1", makeFakeSocket());
 
-  // Then connect with a non-mapped IP - should auto-bind to first cvClient
   const client = mgr.connectClient("10.0.0.99", makeFakeSocket());
   assertExists(client.cvClient, "非映射IP应通过fallback绑定第一个cvClient");
   assertEquals(client.cvClient!.ip, "192.168.11.121");
 });
 
-Deno.test("sendWSMessage catch error gracefully", () => {
+Deno.test("客户机管理 - 发送消息：send 报错时不影响后续", () => {
   const mgr = new ClientManager();
   const badSocket = {
     send: () => { throw new Error("send failed"); },
   } as unknown as WebSocket;
 
-  // Should not throw
   mgr.sendWSMessage(badSocket, { type: "test" });
 });
 
-Deno.test("processWebSocketMessageIn with no handlers handles unknown type without error", () => {
+Deno.test("客户机管理 - 未注册处理器时：未知消息类型静默忽略", () => {
   const mgr = new ClientManager();
   const socket = makeFakeSocket();
   const client = mgr.connectClient("10.0.0.11", socket);
 
-  // 未注册 handler 的 ClientManager 遇到未知消息类型应不抛错、不产生影响
   mgr.processWebSocketMessageIn(client, socket, { type: "unknown_type" });
-  assertEquals(client.socket, socket); // socket 引用被更新
+  assertEquals(client.socket, socket);
 });
 
-Deno.test("heartbeat timeout disconnects stale client", async () => {
+Deno.test("客户机管理 - 心跳超时：20秒无ping自动断开", async () => {
   const mgr = new ClientManager();
   const client = mgr.connectClient("10.0.0.99", makeFakeSocket());
 
-  // 手动设置 lastPing 为 20 秒前（HEARTBEAT_TIMEOUT = 10s）
   client.lastPing = getSecondTimestamp() - 20;
 
-  // 启动心跳检查（间隔 2s）
   mgr.startHeartbeat();
 
-  // 等待至少一个检查周期
   await new Promise(r => setTimeout(r, 2100));
 
   assertEquals(client.online, false);

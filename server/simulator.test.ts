@@ -1,7 +1,7 @@
 import { assertEquals, assertExists } from "@std/assert";
 import { OpiJetsonSimulator, SimulatorPool } from "./opi-jetson-simulator.ts";
 
-Deno.test("OpiJetsonSimulator constructor sets default config", () => {
+Deno.test("仿真客户机 - 默认配置：未连接、无ID、测试未激活", () => {
   const sim = new OpiJetsonSimulator();
   assertEquals(sim.isConnected, false);
   assertEquals(sim.clientId, "");
@@ -10,18 +10,17 @@ Deno.test("OpiJetsonSimulator constructor sets default config", () => {
   assertEquals(sim.totalQuestions, 0);
 });
 
-Deno.test("OpiJetsonSimulator custom config overrides defaults", () => {
+Deno.test("仿真客户机 - 自定义配置：传入参数不影响初始状态", () => {
   const sim = new OpiJetsonSimulator({
     pingIntervalMs: 5000,
     answerDelayMs: 200,
     alwaysCorrect: false,
   });
 
-  // Can't access private config directly, but can verify behavior
   assertEquals(sim.isConnected, false);
 });
 
-Deno.test("SimulatorMetrics initial values are zero", () => {
+Deno.test("仿真客户机 - 统计指标初始值全为零", () => {
   const sim = new OpiJetsonSimulator();
   const m = sim.metrics;
 
@@ -36,40 +35,36 @@ Deno.test("SimulatorMetrics initial values are zero", () => {
   assertEquals(m.reconnects, 0);
 });
 
-Deno.test("OpiJetsonSimulator send does nothing when not connected", () => {
+Deno.test("仿真客户机 - 未连接时发送消息：无效操作，不计数", () => {
   const sim = new OpiJetsonSimulator();
-  // Should not throw
   sim.send("ping");
   assertEquals(sim.metrics.messagesSent, 0);
 });
 
-Deno.test("OpiJetsonSimulator disconnect does nothing when not connected", () => {
+Deno.test("仿真客户机 - 未连接时断开：安全，不报错", () => {
   const sim = new OpiJetsonSimulator();
-  // Should not throw
   sim.disconnect();
   assertEquals(sim.isConnected, false);
 });
 
-Deno.test("OpiJetsonSimulator id returns default when not connected", () => {
+Deno.test("仿真客户机 - 获取ID：未连接时返回默认值", () => {
   const sim = new OpiJetsonSimulator();
   assertEquals(sim.id, "not-connected");
 });
 
-Deno.test("OpiJetsonSimulator id returns clientId when connected", () => {
+Deno.test("仿真客户机 - 获取ID：已连接时返回客户机编号", () => {
   const sim = new OpiJetsonSimulator();
-  const fakeClientId = "test-sim-123";
-  // Manually set id as if connected
-  (sim as any).clientId = fakeClientId;
-  assertEquals(sim.id, fakeClientId);
+  (sim as any).clientId = "test-sim-123";
+  assertEquals(sim.id, "test-sim-123");
 });
 
-Deno.test("SimulatorPool can be instantiated", () => {
+Deno.test("仿真管理池 - 创建空池：可以正常使用", () => {
   const pool = new SimulatorPool();
   assertExists(pool);
   assertEquals(pool.getAll().length, 0);
 });
 
-Deno.test("SimulatorPool aggregateMetrics returns zeros when empty", () => {
+Deno.test("仿真管理池 - 空池统计：所有指标为零", () => {
   const pool = new SimulatorPool();
   const metrics = pool.aggregateMetrics;
 
@@ -81,36 +76,31 @@ Deno.test("SimulatorPool aggregateMetrics returns zeros when empty", () => {
   assertEquals(metrics.totalReconnects, 0);
 });
 
-Deno.test("SimulatorPool get returns undefined for unknown id", () => {
+Deno.test("仿真管理池 - 获取不存在的仿真器：返回undefined", () => {
   const pool = new SimulatorPool();
   const result = pool.get("nonexistent");
   assertEquals(result, undefined);
 });
 
-Deno.test("SimulatorPool disconnectAll is safe when empty", () => {
+Deno.test("仿真管理池 - 池空时断开所有：安全，不报错", () => {
   const pool = new SimulatorPool();
-  // Should not throw
   pool.disconnectAll();
   assertEquals(pool.getAll().length, 0);
 });
 
-Deno.test("handleMessage processes 'pong' and increments counter", () => {
+Deno.test("仿真客户机 - 收到pong消息：计数加一", () => {
   const sim = new OpiJetsonSimulator();
-
   (sim as any).handleMessage({ type: "pong" });
-
   assertEquals(sim.metrics.pongsReceived, 1);
 });
 
-Deno.test("handleMessage processes 'connected' and sets clientId", () => {
+Deno.test("仿真客户机 - 收到connected消息：记录客户机编号", () => {
   const sim = new OpiJetsonSimulator();
-
   (sim as any).handleMessage({ type: "connected", clientId: "abc-123" });
-
   assertEquals(sim.clientId, "abc-123");
 });
 
-Deno.test("send increments messagesSent with connected socket", () => {
+Deno.test("仿真客户机 - 已连接时发送消息：计数增加，格式正确", () => {
   const sim = new OpiJetsonSimulator();
   let sentData = "";
   (sim as any).socket = {
@@ -126,7 +116,7 @@ Deno.test("send increments messagesSent with connected socket", () => {
   assertEquals(parsed.type, "ping");
 });
 
-Deno.test("sendAnswer increments answersSent", () => {
+Deno.test("仿真客户机 - 发送答案：计数增加", () => {
   const sim = new OpiJetsonSimulator();
   (sim as any).socket = { send: () => {} };
   sim.isConnected = true;
@@ -136,7 +126,7 @@ Deno.test("sendAnswer increments answersSent", () => {
   assertEquals(sim.metrics.answersSent, 1);
 });
 
-Deno.test("sendAnswer with 0 trouble id", () => {
+Deno.test("仿真客户机 - 发送答案（故障编号0）：也能正常计数", () => {
   const sim = new OpiJetsonSimulator();
   (sim as any).socket = { send: () => {} };
   sim.isConnected = true;
@@ -145,7 +135,7 @@ Deno.test("sendAnswer with 0 trouble id", () => {
   assertEquals(sim.metrics.answersSent, 1);
 });
 
-Deno.test("finishTest sends finish type", () => {
+Deno.test("仿真客户机 - 结束测验：发送 finish 类型消息", () => {
   const sim = new OpiJetsonSimulator();
   let sentData = "";
   (sim as any).socket = {
@@ -158,7 +148,7 @@ Deno.test("finishTest sends finish type", () => {
   assertEquals(parsed.type, "finish");
 });
 
-Deno.test("ackRelayRainbow sends ack_relay_rainbow", () => {
+Deno.test("仿真客户机 - 回复彩虹桥：发送 ack_relay_rainbow", () => {
   const sim = new OpiJetsonSimulator();
   let sentData = "";
   (sim as any).socket = {

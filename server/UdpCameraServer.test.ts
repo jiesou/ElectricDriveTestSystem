@@ -1,49 +1,38 @@
 import { assertEquals, assert, assertExists } from "@std/assert";
 
-// We import the class to test the packet parsing logic
-// The singleton udpCameraServer would bind to a real port, so we instantiate separately.
 import { UdpCameraServer } from "./UdpCameraServer.ts";
 
-Deno.test("UdpCameraServer can be instantiated", () => {
+Deno.test("Udp摄像头服务器 - 可以创建实例", () => {
   const server = new UdpCameraServer();
   assertExists(server);
 });
 
-Deno.test("processPacket parses header correctly for single-chunk frame", () => {
+Deno.test("Udp摄像头服务器 - 单包帧解析：正确读取包头并组装完整帧", () => {
   const server = new UdpCameraServer();
 
-  // Build a packet:
-  // Header: frameIndex=1 (4 bytes LE), chunkIndex=0 (2 bytes), chunkTotal=1 (2 bytes)
-  // Payload: [0xFF, 0xD8, ...JPEG data..., 0xFF, 0xD9]
   const header = new Uint8Array([0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00]);
   const jpegData = new Uint8Array([0xFF, 0xD8, 0x00, 0x01, 0x00, 0x02, 0xFF, 0xD9]);
   const packet = new Uint8Array(header.length + jpegData.length);
   packet.set(header);
   packet.set(jpegData, header.length);
 
-  // Access private method via type assertion
   (server as any).processPacket(packet);
 
-  // The frame buffer should now contain the assembled frame
-  const cvClientIps = Object.keys((server as any).frameBuffer || {});
-  // Frame should have been processed and removed since single chunk assembles immediately
   assert(!(server as any).frameBuffer.has(1));
 });
 
-Deno.test("processPacket ignores packets shorter than 8 bytes", () => {
+Deno.test("Udp摄像头服务器 - 短包（不足8字节）直接忽略", () => {
   const server = new UdpCameraServer();
   const shortPacket = new Uint8Array([0x01, 0x02, 0x03]);
 
   (server as any).processPacket(shortPacket);
 
-  // No frames should be in the buffer
   assertEquals((server as any).frameBuffer.size, 0);
 });
 
-Deno.test("processPacket assembles multi-chunk frame correctly", () => {
+Deno.test("Udp摄像头服务器 - 多包分片帧：按顺序组装完整", () => {
   const server = new UdpCameraServer();
 
-  // Frame 2, 3 chunks
   const buildChunk = (frameIdx: number, chunkIdx: number, total: number, payload: Uint8Array) => {
     const header = new Uint8Array(8);
     const dv = new DataView(header.buffer);
@@ -62,7 +51,6 @@ Deno.test("processPacket assembles multi-chunk frame correctly", () => {
   const chunk2 = buildChunk(2, 2, 3, new Uint8Array([0x03, 0xFF, 0xD9]));
 
   (server as any).processPacket(chunk0);
-  // Not yet complete
   assert((server as any).frameBuffer.has(2));
   assertEquals((server as any).frameBuffer.get(2)!.size, 1);
 
@@ -70,15 +58,13 @@ Deno.test("processPacket assembles multi-chunk frame correctly", () => {
   assertEquals((server as any).frameBuffer.get(2)!.size, 2);
 
   (server as any).processPacket(chunk2);
-  // Should be assembled and removed after all chunks received
   assert(!(server as any).frameBuffer.has(2));
 });
 
-Deno.test("cleanupBuffer removes old frames beyond threshold", () => {
+Deno.test("Udp摄像头服务器 - 清理太旧的帧缓存（超过5帧差距）", () => {
   const server = new UdpCameraServer();
   const buf = server as any;
 
-  // Manually add frames
   buf.frameBuffer.set(1, new Map());
   buf.frameBuffer.set(2, new Map());
   buf.frameBuffer.set(10, new Map());
@@ -88,39 +74,34 @@ Deno.test("cleanupBuffer removes old frames beyond threshold", () => {
 
   buf.cleanupBuffer();
 
-  // Frames 1 and 2 are more than 5 frames behind max (10), should be removed
   assert(!buf.frameBuffer.has(1));
   assert(!buf.frameBuffer.has(2));
-  // Frame 10 should remain
   assert(buf.frameBuffer.has(10));
 });
 
-Deno.test("cleanupBuffer handles empty buffer", () => {
+Deno.test("Udp摄像头服务器 - 空缓存清理不报错", () => {
   const server = new UdpCameraServer();
   const buf = server as any;
 
-  // Should not throw
   buf.cleanupBuffer();
   assertEquals(buf.frameBuffer.size, 0);
 });
 
-Deno.test("stop does nothing when not started", () => {
+Deno.test("Udp摄像头服务器 - 未启动时停止服务器不报错", () => {
   const server = new UdpCameraServer();
-  // Should not throw
   server.stop();
 });
 
-Deno.test("start with port 0 should not throw (will fail to bind but caught)", () => {
+Deno.test("Udp摄像头服务器 - 绑定端口0会失败但不会崩溃", () => {
   const server = new UdpCameraServer();
   server.start(0);
   server.stop();
 });
 
-Deno.test("updateFrame sets latest_frame on all cvClients", async () => {
+Deno.test("Udp摄像头服务器 - 收到完整帧后更新所有关联客户机的最新帧", async () => {
   const server = new UdpCameraServer();
   const { clientManager } = await import("./ClientManager.ts");
 
-  // Create clients with cvClients
   const frame1 = new Uint8Array([0xFF, 0xD8, 0xFF]);
   const frame2 = new Uint8Array([0xFF, 0xD8, 0xFE]);
 
@@ -130,17 +111,14 @@ Deno.test("updateFrame sets latest_frame on all cvClients", async () => {
   const client2 = clientManager.connectClient("10.99.0.2", makeFakeSocket());
   client2.cvClient = { clientType: "esp32cam", ip: "10.99.1.2" };
 
-  // Call private updateFrame
   (server as any).updateFrame(frame1);
 
   assertEquals(client1.cvClient!.latest_frame, frame1);
   assertEquals(client2.cvClient!.latest_frame, frame1);
 
-  // Update again
   (server as any).updateFrame(frame2);
   assertEquals(client1.cvClient!.latest_frame, frame2);
 
-  // 清理全局状态
   delete clientManager.clients[client1.id];
   delete clientManager.clients[client2.id];
 });

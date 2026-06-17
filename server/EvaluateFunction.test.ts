@@ -1,7 +1,5 @@
 import { assertEquals, assertExists } from "@std/assert";
 import { clientManager } from "./ClientManager.ts";
-import { getSecondTimestamp } from "./types.ts";
-// 注册 WSMessageHandler（EvaluateFunction.ts 的模块级代码调用 clientManager.addWSMessageHandler）
 import "./EvaluateFunction.ts";
 
 function makeFakeSocket(): WebSocket {
@@ -28,7 +26,7 @@ function makeFakeSocketWithCapture(): { socket: WebSocket; messages: string[] } 
   return { socket, messages };
 }
 
-Deno.test("evaluate_function_board_update_request stores board on client via WS handler", () => {
+Deno.test("功能评估 - WebSocket收到功能板更新：正确存储到客户机", () => {
   const socket = makeFakeSocket();
   const client = clientManager.connectClient("10.0.0.1", socket);
 
@@ -48,7 +46,7 @@ Deno.test("evaluate_function_board_update_request stores board on client via WS 
   delete clientManager.clients[client.id];
 });
 
-Deno.test("evaluate_function_board_update_request with failed steps sets troubleshoot status", () => {
+Deno.test("功能评估 - 有步骤失败时：设置小新状态为需要排故M1", () => {
   const socket = makeFakeSocket();
   const client = clientManager.connectClient("10.0.0.2", socket);
   client.cvClient = { clientType: "jetson_nano", ip: "192.168.1.1" };
@@ -70,7 +68,7 @@ Deno.test("evaluate_function_board_update_request with failed steps sets trouble
   delete clientManager.clients[client.id];
 });
 
-Deno.test("evaluate_function_board_update_request without failed steps shows status_text_update", () => {
+Deno.test("功能评估 - 全部步骤通过时：小新状态为正在检查", () => {
   const socket = makeFakeSocket();
   const client = clientManager.connectClient("10.0.0.3", socket);
   client.cvClient = { clientType: "jetson_nano", ip: "192.168.1.1" };
@@ -91,7 +89,7 @@ Deno.test("evaluate_function_board_update_request without failed steps shows sta
   delete clientManager.clients[client.id];
 });
 
-Deno.test("evaluate_wiring_yolo_request starts session when cvClient exists", () => {
+Deno.test("功能评估 - 请求YOLO装接评估：有视觉客户端时创建会话", () => {
   const socket = makeFakeSocket();
   const client = clientManager.connectClient("10.0.0.4", socket);
   client.cvClient = { clientType: "jetson_nano", ip: "192.168.1.1" };
@@ -106,7 +104,7 @@ Deno.test("evaluate_wiring_yolo_request starts session when cvClient exists", ()
   delete clientManager.clients[client.id];
 });
 
-Deno.test("evaluate_wiring_yolo_request sends error when no cvClient", () => {
+Deno.test("功能评估 - 请求YOLO装接评估：无视觉客户端时报错", () => {
   const { socket, messages } = makeFakeSocketWithCapture();
   const client = clientManager.connectClient("10.0.0.5", socket);
 
