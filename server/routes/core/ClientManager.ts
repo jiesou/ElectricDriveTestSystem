@@ -11,25 +11,26 @@ import {
 import { getSecondTimestamp } from "../../utils/helpers.ts";
 import { prisma } from "../../prisma/client.ts";
 
+const HEARTBEAT_TIMEOUT = 10; // 心跳超时时间（秒）
+const HEARTBEAT_CHECK_INTERVAL = 2000; // 心跳检查间隔（毫秒）
+let heartbeatId: ReturnType<typeof setInterval> | null = null;
+const wsMessageHandlers: WSMessageHandler[] = [];
+
 /**
  * ClientManager 负责管理WebSocket连接和客户端状态
  * 包括ping/pong心跳检测、连接/断开管理、CV客户端关联
  */
-export class ClientManager {
+export const clientManager = {
   // 所有客户机实例 (clientId -> Client)
-  public clients: Record<string, Client> = {};
+  clients: {} as Record<string, Client>,
   // 所有 CV 客户端实例 (cvClientIp -> CvClient)
-  public cvClients: Record<string, CvClient> = {};
+  cvClients: {} as Record<string, CvClient>,
 
   // relay_rainbow 响应回调 (clientId -> resolve function)
-  public relayRainbowCallbacks: Map<string, (latencyMs: number) => void> = new Map();
-
-  private readonly HEARTBEAT_TIMEOUT = 10; // 心跳超时时间（秒）
-  private readonly HEARTBEAT_CHECK_INTERVAL = 2000; // 心跳检查间隔（毫秒）
-  private heartbeatId: ReturnType<typeof setInterval> | null = null;
+  relayRainbowCallbacks: new Map<string, (latencyMs: number) => void>(),
 
   startHeartbeat(): void {
-    this.heartbeatId = setInterval(() => {
+    heartbeatId = setInterval(() => {
       const now = getSecondTimestamp();
 
       for (const [_id, client] of Object.entries(this.clients)) {
@@ -37,7 +38,7 @@ export class ClientManager {
         if (!client.lastPing) continue;
 
         const timeSinceLastPing = now - client.lastPing;
-        if (timeSinceLastPing > this.HEARTBEAT_TIMEOUT) {
+        if (timeSinceLastPing > HEARTBEAT_TIMEOUT) {
           console.log(
             `[ClientManager] Client ${client.id} timed out (no ping for ${timeSinceLastPing}s), disconnecting`,
           );
@@ -54,15 +55,15 @@ export class ClientManager {
           this.disconnectClient(client);
         }
       }
-    }, this.HEARTBEAT_CHECK_INTERVAL);
-  }
+    }, HEARTBEAT_CHECK_INTERVAL);
+  },
 
   stopHeartbeat(): void {
-    if (this.heartbeatId !== null) {
-      clearInterval(this.heartbeatId);
-      this.heartbeatId = null;
+    if (heartbeatId !== null) {
+      clearInterval(heartbeatId);
+      heartbeatId = null;
     }
-  }
+  },
 
   /**
    * 连接或重连客户端
@@ -121,7 +122,7 @@ export class ClientManager {
     }
 
     return client;
-  }
+  },
 
   /**
    * 断开客户端连接
@@ -131,16 +132,14 @@ export class ClientManager {
     delete client.socket;
     delete client.lastPing;
     console.log(`[ClientManager] Client ${client.id} disconnected`);
-  }
-
-  private wsMessageHandlers: WSMessageHandler[] = [];
+  },
 
   /**
    * 注册WebSocket消息处理器
    */
   addWSMessageHandler(handler: WSMessageHandler): void {
-    this.wsMessageHandlers.push(handler);
-  }
+    wsMessageHandlers.push(handler);
+  },
 
   /**
    * 仅在server.ts由socket.onmessage调用，处理并分发消息给注册的处理器
@@ -181,11 +180,11 @@ export class ClientManager {
       return;
     }
 
-    if (!this.wsMessageHandlers || this.wsMessageHandlers.length === 0) return;
-    for (const handler of this.wsMessageHandlers) {
+    if (!wsMessageHandlers || wsMessageHandlers.length === 0) return;
+    for (const handler of wsMessageHandlers) {
       handler(client, socket, message);
     }
-  }
+  },
 
   /**
    * 安全发送WebSocket消息
@@ -200,7 +199,7 @@ export class ClientManager {
     } else {
       console.warn(`[ClientManager] Cannot send message to client, there is no socket.`);
     }
-  }
+  },
 
   /**
    * 根据CV客户端IP查找关联的普通客户端
@@ -228,12 +227,12 @@ export class ClientManager {
     );
     if (newMatched.length > 0) return newMatched;
     return [];
-  }
+  },
 
   findClientByCvIp(cvClientIp: string): Client | null {
     const list = this.findClientsByCvIp(cvClientIp);
     return list[0] || null;
-  }
+  },
 
   async persistClient(client: Client): Promise<void> {
     // 先持久化 CV 客户端，满足外键依赖
@@ -270,7 +269,7 @@ export class ClientManager {
         evaluateBoardJson: client.evaluateBoard ? JSON.stringify(client.evaluateBoard) : null,
       },
     });
-  }
+  },
 
   async loadAllClients(): Promise<void> {
     // 先从独立表恢复所有 CV 客户端（含 session）
@@ -299,8 +298,5 @@ export class ClientManager {
         this.clients[sc.id].cvClient = this.cvClients[sc.cvClientIp];
       }
     }
-  }
-}
-
-// 全局单例
-export const clientManager = new ClientManager();
+  },
+};

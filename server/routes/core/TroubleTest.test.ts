@@ -1,8 +1,8 @@
 import { assertEquals, assert, assertExists } from "@std/assert";
-import { TroubleTest } from "./TroubleTest.ts";
+import { troubleTest } from "./TroubleTest.ts";
 import { getSecondTimestamp } from "../../utils/helpers.ts";
 import { TROUBLES } from "../../types.ts";
-import { ClientManager, clientManager } from "./ClientManager.ts";
+import { clientManager } from "./ClientManager.ts";
 import { prisma } from "../../prisma/client.ts";
 
 function makeFakeSocket(): WebSocket {
@@ -17,8 +17,7 @@ function makeFakeSocket(): WebSocket {
 }
 
 Deno.test("排故测验 - 获取故障列表：返回的是副本，修改后不影响原数据", () => {
-  const tt = new TroubleTest();
-  const troubles = tt.getTroubles();
+  const troubles = troubleTest.getTroubles();
   assertEquals(troubles.length, TROUBLES.length);
   assertEquals(troubles[0].id, TROUBLES[0].id);
   troubles[0] = { ...troubles[0], description: "modified" };
@@ -26,13 +25,12 @@ Deno.test("排故测验 - 获取故障列表：返回的是副本，修改后不
 });
 
 Deno.test("排故测验 - 新增题目：自动分配递增编号，成功返回", async () => {
-  const tt = new TroubleTest();
-  const existingCount = tt.questions.length;
+  const existingCount = troubleTest.questions.length;
   const maxExistingId = existingCount > 0
-    ? Math.max(...tt.questions.map((q) => q.id))
+    ? Math.max(...troubleTest.questions.map((q) => q.id))
     : 0;
 
-  const q = await tt.addQuestion({
+  const q = await troubleTest.addQuestion({
     troubles: [
       { id: 1, description: "test", from_wire: 1, to_wire: 2 },
     ],
@@ -41,15 +39,14 @@ Deno.test("排故测验 - 新增题目：自动分配递增编号，成功返回
   assertExists(q.id);
   assertEquals(q.id, maxExistingId + 1);
   assertEquals(q.troubles.length, 1);
-  assertEquals(tt.questions.length, existingCount + 1);
+  assertEquals(troubleTest.questions.length, existingCount + 1);
 
   await prisma.storedQuestion.delete({ where: { id: q.id } }).catch(() => {});
 });
 
 Deno.test("排故测验 - 连续新增：编号递增", async () => {
-  const tt = new TroubleTest();
-  const q1 = await tt.addQuestion({ troubles: [{ id: 1, description: "a", from_wire: 1, to_wire: 2 }] });
-  const q2 = await tt.addQuestion({ troubles: [{ id: 2, description: "b", from_wire: 3, to_wire: 4 }] });
+  const q1 = await troubleTest.addQuestion({ troubles: [{ id: 1, description: "a", from_wire: 1, to_wire: 2 }] });
+  const q2 = await troubleTest.addQuestion({ troubles: [{ id: 2, description: "b", from_wire: 3, to_wire: 4 }] });
 
   assertEquals(q2.id, q1.id + 1);
 
@@ -58,65 +55,58 @@ Deno.test("排故测验 - 连续新增：编号递增", async () => {
 });
 
 Deno.test("排故测验 - 更新题目：内容成功修改", async () => {
-  const tt = new TroubleTest();
-  const q = await tt.addQuestion({ troubles: [{ id: 1, description: "old", from_wire: 1, to_wire: 2 }] });
+  const q = await troubleTest.addQuestion({ troubles: [{ id: 1, description: "old", from_wire: 1, to_wire: 2 }] });
 
-  const result = await tt.updateQuestion(q.id, {
+  const result = await troubleTest.updateQuestion(q.id, {
     troubles: [{ id: 2, description: "new", from_wire: 3, to_wire: 4 }],
   });
 
   assert(result);
-  const updated = tt.questions.find((x) => x.id === q.id)!;
+  const updated = troubleTest.questions.find((x) => x.id === q.id)!;
   assertEquals(updated.troubles[0].description, "new");
 
   await prisma.storedQuestion.delete({ where: { id: q.id } }).catch(() => {});
 });
 
 Deno.test("排故测验 - 更新题目：不存在的ID返回false", async () => {
-  const tt = new TroubleTest();
-  const result = await tt.updateQuestion(99999, { troubles: [] });
+  const result = await troubleTest.updateQuestion(99999, { troubles: [] });
   assertEquals(result, false);
 });
 
 Deno.test("排故测验 - 删除题目：成功移除，数量恢复", async () => {
-  const tt = new TroubleTest();
-  const existingCount = tt.questions.length;
-  const q = await tt.addQuestion({ troubles: [{ id: 1, description: "del", from_wire: 1, to_wire: 2 }] });
+  const existingCount = troubleTest.questions.length;
+  const q = await troubleTest.addQuestion({ troubles: [{ id: 1, description: "del", from_wire: 1, to_wire: 2 }] });
 
-  const result = await tt.deleteQuestion(q.id);
+  const result = await troubleTest.deleteQuestion(q.id);
   assert(result);
-  assertEquals(tt.questions.length, existingCount);
+  assertEquals(troubleTest.questions.length, existingCount);
 });
 
 Deno.test("排故测验 - 删除题目：不存在的ID返回false", async () => {
-  const tt = new TroubleTest();
-  const result = await tt.deleteQuestion(99999);
+  const result = await troubleTest.deleteQuestion(99999);
   assertEquals(result, false);
 });
 
 Deno.test("排故测验 - 创建测验：成功存储，含题目和计时", async () => {
-  const tt = new TroubleTest();
   const questions = [
     { id: 1, troubles: [{ id: 1, description: "t1", from_wire: 1, to_wire: 2 }] },
   ];
   const startTime = getSecondTimestamp();
 
-  const test = await tt.createTest(questions, startTime, 600);
+  const test = await troubleTest.createTest(questions, startTime, 600);
 
   assertExists(test.id);
   assertEquals(test.questions.length, 1);
   assertEquals(test.startTime, startTime);
   assertEquals(test.durationTime, 600);
-  assertEquals(tt.tests.length, 1);
+  assertEquals(troubleTest.tests.length, 1);
 
   await prisma.storedTest.delete({ where: { id: BigInt(test.id) } }).catch(() => {});
 });
 
 Deno.test("排故测验 - 创建测验会话：生成start日志，推送给客户机", () => {
-  const tt = new TroubleTest();
-  const mgr = new ClientManager();
   const socket = makeFakeSocket();
-  const client = mgr.connectClient("10.0.0.1", socket);
+  const client = clientManager.connectClient("10.0.0.1", socket);
   const test = {
     id: Date.now(),
     questions: [{ id: 1, troubles: [{ id: 1, description: "t1", from_wire: 1, to_wire: 2 }] }],
@@ -124,7 +114,7 @@ Deno.test("排故测验 - 创建测验会话：生成start日志，推送给客�
     durationTime: null,
   };
 
-  const result = tt.createTestSession(client, test);
+  const result = troubleTest.createTestSession(client, test);
 
   assert(result);
   assertExists(client.testSession);
@@ -132,9 +122,7 @@ Deno.test("排故测验 - 创建测验会话：生成start日志，推送给客�
 });
 
 Deno.test("排故测验 - 创建会话时有视觉客户端：设置小新状态为排故中", () => {
-  const tt = new TroubleTest();
-  const mgr = new ClientManager();
-  const client = mgr.connectClient("10.0.0.2", makeFakeSocket());
+  const client = clientManager.connectClient("10.0.0.2", makeFakeSocket());
   client.cvClient = { clientType: "jetson_nano", ip: "192.168.1.1" };
   const test = {
     id: Date.now(),
@@ -143,7 +131,7 @@ Deno.test("排故测验 - 创建会话时有视觉客户端：设置小新状态
     durationTime: null,
   };
 
-  tt.createTestSession(client, test);
+  troubleTest.createTestSession(client, test);
 
   assertExists(client.cvClient!.xiaoxin_status);
   assertEquals(client.cvClient!.xiaoxin_status!.type, "status_text_update");
@@ -152,9 +140,7 @@ Deno.test("排故测验 - 创建会话时有视觉客户端：设置小新状态
 });
 
 Deno.test("排故测验 - 结束测验：记录完成时间，清除小新状态", () => {
-  const tt = new TroubleTest();
-  const mgr = new ClientManager();
-  const client = mgr.connectClient("10.0.0.3", makeFakeSocket());
+  const client = clientManager.connectClient("10.0.0.3", makeFakeSocket());
   client.cvClient = { clientType: "jetson_nano", ip: "192.168.1.1" };
   client.cvClient.xiaoxin_status = { type: "status_text_update", status_text: "testing" };
   client.testSession = {
@@ -169,19 +155,17 @@ Deno.test("排故测验 - 结束测验：记录完成时间，清除小新状态
   };
 
   const finishTs = getSecondTimestamp();
-  tt.finishTest(client, finishTs);
+  troubleTest.finishTest(client, finishTs);
 
   assertEquals(client.testSession!.finishTime, finishTs);
   assertEquals(client.cvClient.xiaoxin_status, undefined);
 });
 
 Deno.test("排故测验 - 结束测验：客户机为空时不崩溃", () => {
-  const tt = new TroubleTest();
-  tt.finishTest(null as unknown as any);
+  troubleTest.finishTest(null as unknown as any);
 });
 
 Deno.test("排故测验 - 推送试题：发送trouble_test_push消息", () => {
-  const tt = new TroubleTest();
   let sentData = "";
   const socket = {
     readyState: WebSocket.OPEN,
@@ -189,8 +173,7 @@ Deno.test("排故测验 - 推送试题：发送trouble_test_push消息", () => {
     close: () => {},
   } as unknown as WebSocket;
 
-  const mgr = new ClientManager();
-  const client = mgr.connectClient("10.0.0.4", socket);
+  const client = clientManager.connectClient("10.0.0.4", socket);
   const test = {
     id: Date.now(),
     questions: [{ id: 1, troubles: [{ id: 1, description: "t1", from_wire: 1, to_wire: 2 }] }],
@@ -198,7 +181,7 @@ Deno.test("排故测验 - 推送试题：发送trouble_test_push消息", () => {
     durationTime: null,
   };
 
-  tt.pushTestToClient(client, test);
+  troubleTest.pushTestToClient(client, test);
 
   const msg = JSON.parse(sentData);
   assertEquals(msg.type, "trouble_test_push");
@@ -206,7 +189,6 @@ Deno.test("排故测验 - 推送试题：发送trouble_test_push消息", () => {
 });
 
 Deno.test("排故测验 - 创建测验不传时长：默认null", () => {
-  const tt = new TroubleTest();
   const test = {
     id: Date.now(),
     questions: [],
@@ -227,9 +209,8 @@ Deno.test("排故测验 - 创建测验指定时长：正确保存", () => {
 });
 
 Deno.test("排故测验 - 题目列表：每次返回不同副本", () => {
-  const tt = new TroubleTest();
-  const qs = tt.questions;
-  const qs2 = tt.questions;
+  const qs = troubleTest.questions;
+  const qs2 = troubleTest.questions;
   assert(qs !== qs2);
 });
 
