@@ -9,7 +9,7 @@ Deno.test("saveUploadedImage saves bytes and returns URL path", async () => {
   assert(url.startsWith("/uploads/"));
   assert(url.endsWith(".jpg"));
 
-  const filePath = join(Deno.cwd(), "data", "uploads", url.replace("/uploads/", ""));
+  const filePath = join(import.meta.dirname!, "..", "data", "uploads", url.replace("/uploads/", ""));
   const info = await Deno.stat(filePath);
   assert(info.isFile);
   assertEquals(info.size, bytes.length);
@@ -25,7 +25,7 @@ Deno.test("saveUploadedImage works without originalName", async () => {
   assert(url.startsWith("/uploads/"));
   assert(url.endsWith(".jpg"));
 
-  const filePath = join(Deno.cwd(), "data", "uploads", url.replace("/uploads/", ""));
+  const filePath = join(import.meta.dirname!, "..", "data", "uploads", url.replace("/uploads/", ""));
   const info = await Deno.stat(filePath);
   assert(info.isFile);
   assertEquals(info.size, bytes.length);

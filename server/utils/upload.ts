@@ -5,8 +5,8 @@
 
 import { join } from "@std/path";
 
-// 上传目录路径（相对于 server 目录）
-const UPLOAD_DIR = join(Deno.cwd(), "data", "uploads");
+// 上传目录路径（固定到 server/data/uploads）
+const UPLOAD_DIR = join(import.meta.dirname!, "..", "data", "uploads");
 
 /**
  * 确保上传目录存在

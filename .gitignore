@@ -1,5 +1,6 @@
 **.bak
 .env
+node_modules/
 server/public/
 server/data.json
 server/data/
