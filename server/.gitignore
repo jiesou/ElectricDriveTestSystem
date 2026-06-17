@@ -6,4 +6,3 @@ data/
 node_modules/
 *.jpg
 test_*.ts
-*-simulator.ts
