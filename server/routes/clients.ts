@@ -40,9 +40,15 @@ clientsRouter.put("/:id", async (c) => {
 
     // 绑定/解绑 CV 客户端
     if (cvClientIp !== undefined) {
-      client.cvClient = cvClientIp
-        ? { clientType: "jetson_nano", ip: cvClientIp.trim() }
-        : undefined;
+      if (cvClientIp) {
+        const cvIp = cvClientIp.trim();
+        if (!clientManager.cvClients[cvIp]) {
+          clientManager.cvClients[cvIp] = { clientType: "jetson_nano", ip: cvIp };
+        }
+        client.cvClient = clientManager.cvClients[cvIp];
+      } else {
+        client.cvClient = undefined;
+      }
     }
 
     await clientManager.persistClient(client);
@@ -55,5 +61,6 @@ clientsRouter.put("/:id", async (c) => {
 // 忘记所有客户端
 clientsRouter.post("/forget", (c) => {
   clientManager.clients = {};
+  clientManager.cvClients = {};
   return c.json({ success: true, data: { cleared: 0 } });
 });

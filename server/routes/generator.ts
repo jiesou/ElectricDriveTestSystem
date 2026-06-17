@@ -83,7 +83,7 @@ export function buildPrompt(client: Client): string {
     markdown.push(`- 开始时间: ${startTime}`);
     markdown.push(`- 完成时间: ${finishTime}`);
     markdown.push(`- 用时: ${duration} 分钟`);
-    markdown.push(`- 最终得分: ${session.finishedScore || "未完成"}/100`);
+    markdown.push(`- 最终得分: ${session.finishedScore ?? "未完成"}/100`);
     markdown.push(`- 题目数量: ${session.test.questions.length}`);
 
     // 题目信息

@@ -1,7 +1,9 @@
 import { PrismaClient } from "../generated/prisma/client.ts";
 import { PrismaLibSql } from "@prisma/adapter-libsql";
+import { join } from "@std/path";
 
-const adapter = new PrismaLibSql({ url: "file:./data/data.db" });
+const dbPath = join(import.meta.dirname!, "..", "data", "data.db");
+const adapter = new PrismaLibSql({ url: `file:${dbPath}` });
 export const prisma = new PrismaClient({ adapter });
 
 try {

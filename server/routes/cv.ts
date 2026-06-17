@@ -16,6 +16,17 @@ import { detectObjects } from "../model.ts";
 import { saveUploadedImage } from "../utils/upload.ts";
 
 /**
+ * 装接评估评分算法
+ * 未标号码管扣2分，交叉扣3分，露铜忽略，露端子扣1分
+ */
+export function calcWiringScore(sleeves_num: number, cross_num: number, exterminal_num: number): number {
+  const SLEEVES_NEEDED = 60;
+  const noSleevesDeduction = Math.max(0, SLEEVES_NEEDED - sleeves_num);
+  const deduction = noSleevesDeduction * 2 + cross_num * 3 + exterminal_num * 1;
+  return Math.max(60, Math.min(100, 100 - deduction));
+}
+
+/**
  * CV上传路由
  * 处理来自ESP32-CAM或Jetson Nano的图片上传和推理结果
  */
@@ -135,12 +146,9 @@ cvRouter.post("/upload_wiring", async (c) => {
 
   // 解析客户端提交的推理结果
 
-  const inputResultObj: {
-    sleeves_num: number;
-    cross_num: number;
-    excopper_num: number;
-    exterminal_num: number;
-  } = inputResultStr ? JSON.parse(inputResultStr) : {};
+  const inputResultObj: Record<string, number> = inputResultStr
+    ? (() => { try { return JSON.parse(inputResultStr); } catch { return {}; } })()
+    : {};
 
   // 将 File 转为 Uint8Array 供后续处理
   const inputImageBuffer = new Uint8Array(await inputImageFile.arrayBuffer());
@@ -205,16 +213,15 @@ cvRouter.post("/confirm_wiring", (c) => {
   }
 
   const session = cvClient.session as EvaluateWiringSession;
+  if (!session.shots.length) {
+    return c.json({ success: false, error: "没有拍摄记录，请先拍照" }, 400);
+  }
   const shot = session.shots[0];
   const { sleeves_num, cross_num, excopper_num, exterminal_num } = shot.result;
 
-  // 评分算法
-  // 未标号码管扣2分，交叉扣3分，露铜忽略，露端子扣1分
-  // 需要号码管总数由拍得的 sleeves_num 倒推（假设全对则满分，少了才扣）
-  const SLEEVES_NEEDED = 60; // 单次拍照需含全部号码管
+  const SLEEVES_NEEDED = 60;
   const noSleevesDeduction = Math.max(0, SLEEVES_NEEDED - sleeves_num);
-  const deduction = noSleevesDeduction * 2 + cross_num * 3 + exterminal_num * 1;
-  const scores = Math.max(60, Math.min(100, 100 - deduction));
+  const scores = calcWiringScore(sleeves_num, cross_num, exterminal_num);
 
   session.finalResult = {
     no_sleeves_num: noSleevesDeduction,
@@ -404,6 +411,15 @@ cvRouter.post("/clear_session/:cvClientIp", (c) => {
 });
 
 /**
+ * 获取小新智能体状态（可独立测试）
+ */
+export function getXiaoxinStatus(cvClient?: { xiaoxin_status?: XiaoxinStatus }): XiaoxinStatus {
+  const defaultStatus: XiaoxinStatus = { type: "status_text_update", status_text: "" };
+  if (!cvClient) return { ...defaultStatus };
+  return { ...(cvClient.xiaoxin_status || defaultStatus) };
+}
+
+/**
  * 小新智能体状态更新（即是否需要 装接故障排除）
  * GET /api/cv/pull_xiaoxin_update
  */
@@ -414,24 +430,18 @@ cvRouter.get("/pull_xiaoxin_update", (c) => {
     return c.json({ success: false, error: "未绑定客户机" }, 400);
   }
 
-  // 默认空闲状态不显示内容
-  const defaultStatus: XiaoxinStatus = { type: "status_text_update", status_text: "" };
-
   if (!clients[0].cvClient) {
     return c.json({
       success: true,
       data: {
-        ...defaultStatus,
+        ...getXiaoxinStatus(undefined),
         timestamp: getSecondTimestamp(),
       } as CvClientXiaoxinUpdateMessage,
     });
   }
 
-  const cvClient = clients[0].cvClient;
-  const xiaoxinStatus = cvClient.xiaoxin_status || defaultStatus;
-
   const updateMessage: CvClientXiaoxinUpdateMessage = {
-    ...xiaoxinStatus,
+    ...getXiaoxinStatus(clients[0].cvClient),
     timestamp: getSecondTimestamp(),
   };
 

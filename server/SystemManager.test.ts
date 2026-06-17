@@ -1,172 +1,180 @@
 import { assertEquals, assert } from "@std/assert";
-import { join } from "@std/path";
+import { ClientManager } from "./ClientManager.ts";
+import { prisma } from "./prisma/client.ts";
 
-// 构造测试用客户机数据
-function makeClient(id: string, ip: string, extra: Record<string, unknown> = {}) {
-  return { id, name: ip, ip, online: true, socket: {} as WebSocket, lastPing: 1234567890, ...extra };
-}
+// ==================== 数据格式与序列化测试 ====================
 
-// 构造测试用 CV 客户机数据
-function makeCvClient(ip: string, extra: Record<string, unknown> = {}) {
+// 通过 ClientManager 直接测试序列化/反序列化数据格式，
+// 验证 persistClient / loadAllClients 的 JSON 序列化正确性。
+
+function makeClient(ip: string, extra: Record<string, unknown> = {}) {
   return {
-    clientType: "jetson_nano" as const,
+    id: crypto.randomUUID(),
+    name: ip,
     ip,
-    xiaoxin_status: { type: "status_text_update" as const, status_text: "分析中" },
+    online: true,
+    socket: { readyState: WebSocket.OPEN, send: () => {} } as unknown as WebSocket,
+    lastPing: 1234567890,
     ...extra,
   };
 }
 
-// 模拟 SystemManager 存储变换：移除 socket 和 xiaoxin_status
-function applySaveTransform(clients: Record<string, unknown>) {
-  return {
-    clients: Object.fromEntries(
-      Object.entries(clients).map(([id, client]) => [
-        id,
-        {
-          ...(client as Record<string, unknown>),
-          socket: undefined,
-          cvClient: (client as any).cvClient
-            ? { ...(client as any).cvClient, xiaoxin_status: undefined }
-            : undefined,
-        },
-      ]),
-    ),
-  };
-}
+Deno.test("persistClient 序列化数据格式：socket 移除、testSession 转 JSON", async () => {
+  const mgr = new ClientManager();
+  const capturedArgs: any[] = [];
+  const origUpsert = prisma.storedClient.upsert.bind(prisma.storedClient);
 
-// 模拟 SystemManager 恢复逻辑：强制离线 + 重建 cvClients 共享引用
-function applyRestore(data: { clients?: Record<string, unknown> }) {
-  const clients: Record<string, any> = {};
-  const cvClients: Record<string, any> = {};
-
-  if (!data.clients) return { clients, cvClients };
-
-  for (const [id, raw] of Object.entries(data.clients)) {
-    const c = raw as Record<string, unknown>;
-    if (!c || typeof c !== "object") continue;
-    clients[id] = { ...c, online: false, socket: undefined };
-  }
-
-  for (const client of Object.values(clients)) {
-    if (client.cvClient) {
-      const cvIp = client.cvClient.ip;
-      if (!cvClients[cvIp]) cvClients[cvIp] = client.cvClient;
-      client.cvClient = cvClients[cvIp];
-    }
-  }
-
-  return { clients, cvClients };
-}
-
-// 写入临时 JSON 文件并读回
-function writeReadJson(dir: string, data: unknown) {
-  const file = join(dir, "data.json");
-  Deno.writeTextFileSync(file, JSON.stringify(data));
-  return JSON.parse(Deno.readTextFileSync(file));
-}
-
-Deno.test("1. 客户机状态序列化与反序列化——完整字段", () => {
-  const tmpDir = Deno.makeTempDirSync();
   try {
-    const saved = applySaveTransform({
-      "c1": makeClient("c1", "192.168.1.1", {
-        testSession: {
-          id: "s1",
-          test: { id: 1, questions: [], startTime: 100, durationTime: null },
-          logs: [{ timestamp: 200, action: "start", details: {} }],
-        },
-        evaluateBoard: {
-          description: "功能评估",
-          function_steps: [
-            { description: "步骤1", can_wait_for_ms: 1000, waited_for_ms: 500, passed: true, finished: true },
-          ],
-        },
-        cvClient: makeCvClient("10.0.0.1"),
-      }),
-      "c2": makeClient("c2", "192.168.1.2"),
-    });
+    (prisma.storedClient as any).upsert = async (args: any) => {
+      capturedArgs.push(args);
+      return args.create;
+    };
 
-    const loaded = writeReadJson(tmpDir, saved);
-    const { clients } = applyRestore(loaded);
+    const client = mgr.connectClient("10.0.0.1", makeFakeSocket());
+    client.testSession = {
+      id: "s1",
+      test: { id: 1, questions: [], startTime: 100, durationTime: null },
+      logs: [],
+    };
 
-    assertEquals(clients["c1"].name, "192.168.1.1");
-    assertEquals(clients["c1"].testSession.id, "s1");
-    assertEquals(clients["c1"].testSession.test.id, 1);
-    assertEquals(clients["c1"].evaluateBoard.description, "功能评估");
-    assertEquals(clients["c1"].cvClient.ip, "10.0.0.1");
-    assertEquals(clients["c1"].cvClient.clientType, "jetson_nano");
-    assertEquals(clients["c2"].name, "192.168.1.2");
+    await mgr.persistClient(client);
+
+    assertEquals(capturedArgs.length, 1);
+    const saved = capturedArgs[0];
+    assertEquals(saved.create.id, client.id);
+    assertEquals(saved.create.ip, "10.0.0.1");
+    // socket 不应在持久化数据中
+    assert(!("socket" in saved.create));
+    // testSession 被 JSON 序列化
+    assertEquals(typeof saved.create.testSessionJson, "string");
+    const parsedSession = JSON.parse(saved.create.testSessionJson);
+    assertEquals(parsedSession.id, "s1");
   } finally {
-    Deno.removeSync(tmpDir, { recursive: true });
+    (prisma.storedClient as any).upsert = origUpsert;
   }
 });
 
-Deno.test("2. 相同 cvClientIp 的客户机恢复后共享同一 cvClient 引用", () => {
-  const tmpDir = Deno.makeTempDirSync();
+Deno.test("persistClient 序列化不保存 xiaoxin_status", async () => {
+  const mgr = new ClientManager();
+  const capturedArgs: any[] = [];
+  const origUpsert = prisma.storedClient.upsert.bind(prisma.storedClient);
+  const origCvUpsert = prisma.storedCvClient.upsert.bind(prisma.storedCvClient);
+
   try {
-    const saved = applySaveTransform({
-      "c1": makeClient("c1", "192.168.1.1", { cvClient: makeCvClient("10.0.0.1") }),
-      "c2": makeClient("c2", "192.168.1.2", { cvClient: makeCvClient("10.0.0.1") }),
-    });
+    (prisma.storedClient as any).upsert = async (args: any) => {
+      capturedArgs.push(args);
+      return args.create;
+    };
+    (prisma.storedCvClient as any).upsert = async (args: any) => {
+      return args.create;
+    };
 
-    const loaded = writeReadJson(tmpDir, saved);
-    const { clients } = applyRestore(loaded);
+    const client = mgr.connectClient("10.0.0.2", makeFakeSocket());
+    client.cvClient = { clientType: "jetson_nano" as const, ip: "10.0.0.100" };
+    client.cvClient.xiaoxin_status = { type: "status_text_update", status_text: "分析中" };
 
-    assert(clients["c1"].cvClient === clients["c2"].cvClient);
+    await mgr.persistClient(client);
+
+    // verify client data doesn't send cvClient data
+    const savedClient = capturedArgs[0];
+    assertEquals(savedClient.create.cvClientIp, "10.0.0.100");
   } finally {
-    Deno.removeSync(tmpDir, { recursive: true });
+    (prisma.storedClient as any).upsert = origUpsert;
+    (prisma.storedCvClient as any).upsert = origCvUpsert;
   }
 });
 
-Deno.test("3. 恢复后所有客户机 online=false", () => {
-  const tmpDir = Deno.makeTempDirSync();
+Deno.test("loadAllClients 反序列化：相同 cvClientIp 恢复后共享引用", async () => {
+  const mgr = new ClientManager();
+  const origFindMany = prisma.storedClient.findMany.bind(prisma.storedClient);
+  const origCvFindMany = prisma.storedCvClient.findMany.bind(prisma.storedCvClient);
+
   try {
-    const saved = applySaveTransform({
-      "c1": makeClient("c1", "192.168.1.1"),
-      "c2": makeClient("c2", "192.168.1.2"),
-    });
+    (prisma.storedClient as any).findMany = async () => [
+      { id: "c1", name: "c1", ip: "10.0.0.1", cvClientIp: "10.0.0.100", testSessionJson: null, evaluateBoardJson: null },
+      { id: "c2", name: "c2", ip: "10.0.0.2", cvClientIp: "10.0.0.100", testSessionJson: null, evaluateBoardJson: null },
+    ];
+    (prisma.storedCvClient as any).findMany = async () => [
+      { ip: "10.0.0.100", clientType: "jetson_nano", sessionJson: null },
+    ];
 
-    const loaded = writeReadJson(tmpDir, saved);
-    const { clients } = applyRestore(loaded);
+    await mgr.loadAllClients();
 
-    for (const client of Object.values(clients)) {
+    assert(mgr.clients["c1"].cvClient === mgr.clients["c2"].cvClient);
+    assertEquals(mgr.clients["c1"].online, false);
+    assertEquals(mgr.cvClients["10.0.0.100"].clientType, "jetson_nano");
+  } finally {
+    (prisma.storedClient as any).findMany = origFindMany;
+    (prisma.storedCvClient as any).findMany = origCvFindMany;
+    mgr.clients = {};
+    mgr.cvClients = {};
+  }
+});
+
+Deno.test("loadAllClients 恢复后所有客户机 online=false", async () => {
+  const mgr = new ClientManager();
+  const origFindMany = prisma.storedClient.findMany.bind(prisma.storedClient);
+  const origCvFindMany = prisma.storedCvClient.findMany.bind(prisma.storedCvClient);
+
+  try {
+    (prisma.storedClient as any).findMany = async () => [
+      { id: "c1", name: "c1", ip: "10.0.0.1", cvClientIp: null, testSessionJson: null, evaluateBoardJson: null },
+      { id: "c2", name: "c2", ip: "10.0.0.2", cvClientIp: null, testSessionJson: null, evaluateBoardJson: null },
+    ];
+    (prisma.storedCvClient as any).findMany = async () => [];
+
+    await mgr.loadAllClients();
+
+    for (const client of Object.values(mgr.clients)) {
       assertEquals(client.online, false);
     }
   } finally {
-    Deno.removeSync(tmpDir, { recursive: true });
+    (prisma.storedClient as any).findMany = origFindMany;
+    (prisma.storedCvClient as any).findMany = origCvFindMany;
+    mgr.clients = {};
+    mgr.cvClients = {};
   }
 });
 
-Deno.test("4. socket 在持久化前被移除", () => {
-  const tmpDir = Deno.makeTempDirSync();
+Deno.test("loadAllClients 恢复 evaluateBoard 和 testSession", async () => {
+  const mgr = new ClientManager();
+  const origFindMany = prisma.storedClient.findMany.bind(prisma.storedClient);
+  const origCvFindMany = prisma.storedCvClient.findMany.bind(prisma.storedCvClient);
+
   try {
-    const saved = applySaveTransform({
-      "c1": makeClient("c1", "192.168.1.1"),
-    });
+    (prisma.storedClient as any).findMany = async () => [
+      {
+        id: "c1", name: "c1", ip: "10.0.0.1", cvClientIp: null,
+        testSessionJson: JSON.stringify({
+          id: "s1", test: { id: 1, questions: [], startTime: 100, durationTime: null }, logs: [],
+        }),
+        evaluateBoardJson: JSON.stringify({
+          description: "功能评估",
+          function_steps: [{ description: "步骤1", can_wait_for_ms: 1000, waited_for_ms: 500, passed: true, finished: true }],
+        }),
+      },
+    ];
+    (prisma.storedCvClient as any).findMany = async () => [];
 
-    const loaded = writeReadJson(tmpDir, saved);
-    const clientData = loaded.clients["c1"];
+    await mgr.loadAllClients();
 
-    assertEquals(clientData.socket, undefined);
-    assertEquals("socket" in clientData, false);
+    assertEquals(mgr.clients["c1"].testSession!.id, "s1");
+    assertEquals(mgr.clients["c1"].evaluateBoard!.description, "功能评估");
   } finally {
-    Deno.removeSync(tmpDir, { recursive: true });
+    (prisma.storedClient as any).findMany = origFindMany;
+    (prisma.storedCvClient as any).findMany = origCvFindMany;
+    mgr.clients = {};
+    mgr.cvClients = {};
   }
 });
 
-Deno.test("5. xiaoxin_status 在持久化前被移除", () => {
-  const tmpDir = Deno.makeTempDirSync();
-  try {
-    const saved = applySaveTransform({
-      "c1": makeClient("c1", "192.168.1.1", { cvClient: makeCvClient("10.0.0.1") }),
-    });
-
-    const loaded = writeReadJson(tmpDir, saved);
-    const cvClient = loaded.clients["c1"].cvClient;
-
-    assertEquals(cvClient.xiaoxin_status, undefined);
-    assertEquals("xiaoxin_status" in cvClient, false);
-  } finally {
-    Deno.removeSync(tmpDir, { recursive: true });
-  }
-});
+function makeFakeSocket(): WebSocket {
+  return {
+    readyState: WebSocket.OPEN,
+    send: (_data: string | ArrayBufferLike | Blob) => {},
+    close: (_code?: number, _reason?: string) => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  } as unknown as WebSocket;
+}

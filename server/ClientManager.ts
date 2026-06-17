@@ -26,9 +26,10 @@ export class ClientManager {
 
   private readonly HEARTBEAT_TIMEOUT = 10; // 心跳超时时间（秒）
   private readonly HEARTBEAT_CHECK_INTERVAL = 2000; // 心跳检查间隔（毫秒）
+  private heartbeatId: ReturnType<typeof setInterval> | null = null;
 
   startHeartbeat(): void {
-    setInterval(() => {
+    this.heartbeatId = setInterval(() => {
       const now = getSecondTimestamp();
 
       for (const [_id, client] of Object.entries(this.clients)) {
@@ -54,6 +55,13 @@ export class ClientManager {
         }
       }
     }, this.HEARTBEAT_CHECK_INTERVAL);
+  }
+
+  stopHeartbeat(): void {
+    if (this.heartbeatId !== null) {
+      clearInterval(this.heartbeatId);
+      this.heartbeatId = null;
+    }
   }
 
   /**
@@ -228,6 +236,22 @@ export class ClientManager {
   }
 
   async persistClient(client: Client): Promise<void> {
+    // 先持久化 CV 客户端，满足外键依赖
+    if (client.cvClient) {
+      await prisma.storedCvClient.upsert({
+        where: { ip: client.cvClient.ip },
+        update: {
+          clientType: client.cvClient.clientType,
+          sessionJson: client.cvClient.session ? JSON.stringify(client.cvClient.session) : null,
+        },
+        create: {
+          ip: client.cvClient.ip,
+          clientType: client.cvClient.clientType,
+          sessionJson: client.cvClient.session ? JSON.stringify(client.cvClient.session) : null,
+        },
+      });
+    }
+
     await prisma.storedClient.upsert({
       where: { id: client.id },
       update: {
@@ -246,22 +270,6 @@ export class ClientManager {
         evaluateBoardJson: client.evaluateBoard ? JSON.stringify(client.evaluateBoard) : null,
       },
     });
-
-    // 独立持久化 CV 客户端（session 等运行时状态可跨重启恢复）
-    if (client.cvClient) {
-      await prisma.storedCvClient.upsert({
-        where: { ip: client.cvClient.ip },
-        update: {
-          clientType: client.cvClient.clientType,
-          sessionJson: client.cvClient.session ? JSON.stringify(client.cvClient.session) : null,
-        },
-        create: {
-          ip: client.cvClient.ip,
-          clientType: client.cvClient.clientType,
-          sessionJson: client.cvClient.session ? JSON.stringify(client.cvClient.session) : null,
-        },
-      });
-    }
   }
 
   async loadAllClients(): Promise<void> {

@@ -10,7 +10,7 @@ class SimpleESP32Simulator {
   private currentQuestion: number = 0;
   private totalQuestions: number = 0;
   private isTestActive: boolean = false;
-  private pingIntervalId: number | null = null;
+  private pingIntervalId: ReturnType<typeof setInterval> | null = null;
 
   connect(): Promise<void> {
     return new Promise((resolve, reject) => {

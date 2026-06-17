@@ -9,6 +9,7 @@ import { testsRouter } from "./routes/tests.ts";
 import { troubleTest } from "./TroubleTest.ts";
 import { clientManager } from "./ClientManager.ts";
 import { getSecondTimestamp } from "./types.ts";
+import { prisma } from "./prisma/client.ts";
 
 function createTestApp() {
   const app = new Hono();
@@ -170,6 +171,7 @@ Deno.test({
         assertEquals(client.name, "测试工位");
 
         delete clientManager.clients[client.id];
+        await prisma.storedClient.delete({ where: { id: client.id } }).catch(() => {});
       });
 
       await t.step("POST /api/clients/forget clears clients", async () => {
@@ -211,9 +213,11 @@ Deno.test({
         assertEquals(body.data[0].clientId, client.id);
         assertExists(client.testSession);
 
+        const testId = client.testSession!.test.id;
         await troubleTest.deleteQuestion(q.id);
         clientManager.clients = {};
         troubleTest.tests = [];
+        await prisma.storedTest.delete({ where: { id: BigInt(testId) } }).catch(() => {});
       });
 
       await t.step("POST /api/tests/test-sessions with invalid body returns 400", async () => {
