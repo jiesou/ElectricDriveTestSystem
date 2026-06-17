@@ -2,7 +2,7 @@ import { assertEquals, assert } from "@std/assert";
 import { formatLogEntry, buildPrompt } from "./generator.ts";
 import type { Client, StartLog, AnswerLog, FinishLog, ConnectLog, DisconnectLog, DeskCleanLog } from "../types.ts";
 
-Deno.test("formatLogEntry - start 类型", () => {
+Deno.test("分析报告 - 格式化日志：开始测验", () => {
   const log: StartLog = {
     timestamp: 1000000000, action: "start",
     details: { question: { id: 42, troubles: [] } },
@@ -12,7 +12,7 @@ Deno.test("formatLogEntry - start 类型", () => {
   assert(result.includes("] START: 开始测验 - 题目: 42"));
 });
 
-Deno.test("formatLogEntry - answer 正确", () => {
+Deno.test("分析报告 - 格式化日志：答题正确", () => {
   const log: AnswerLog = {
     timestamp: 1000000000, action: "answer",
     details: {
@@ -25,7 +25,7 @@ Deno.test("formatLogEntry - answer 正确", () => {
   assert(result.includes("ANSWER: 选择故障3 (103 和 104 断路) - 正确"));
 });
 
-Deno.test("formatLogEntry - answer 错误", () => {
+Deno.test("分析报告 - 格式化日志：答题错误", () => {
   const log: AnswerLog = {
     timestamp: 1000000000, action: "answer",
     details: {
@@ -37,7 +37,7 @@ Deno.test("formatLogEntry - answer 错误", () => {
   assert(result.includes("ANSWER: 选择故障1 (101 和 102 断路) - 错误"));
 });
 
-Deno.test("formatLogEntry - finish 类型", () => {
+Deno.test("分析报告 - 格式化日志：完成测验", () => {
   const log: FinishLog = {
     timestamp: 1000000000, action: "finish",
     details: { score: 85 },
@@ -46,7 +46,7 @@ Deno.test("formatLogEntry - finish 类型", () => {
   assert(result.includes("FINISH: 完成测验 - 得分: 85"));
 });
 
-Deno.test("formatLogEntry - desk_clean 类型", () => {
+Deno.test("分析报告 - 格式化日志：工位清洁（85%进度）", () => {
   const log: DeskCleanLog = {
     timestamp: 1000000000, action: "desk_clean",
     details: {
@@ -62,7 +62,7 @@ Deno.test("formatLogEntry - desk_clean 类型", () => {
   assert(result.includes("DESK_CLEAN: 工位清洁 - 桌面干净程度: 85%"));
 });
 
-Deno.test("formatLogEntry - desk_clean 0%", () => {
+Deno.test("分析报告 - 格式化日志：工位清洁（0%进度）", () => {
   const log: DeskCleanLog = {
     timestamp: 1000000000, action: "desk_clean",
     details: {
@@ -78,32 +78,32 @@ Deno.test("formatLogEntry - desk_clean 0%", () => {
   assert(result.includes("DESK_CLEAN: 工位清洁 - 桌面干净程度: 0%"));
 });
 
-Deno.test("formatLogEntry - connect 类型", () => {
+Deno.test("分析报告 - 格式化日志：连接服务器", () => {
   const log: ConnectLog = { timestamp: 1000000000, action: "connect", details: {} };
   const result = formatLogEntry(log, 0);
   assert(result.includes("CONNECT: 连接服务器"));
 });
 
-Deno.test("formatLogEntry - disconnect 类型", () => {
+Deno.test("分析报告 - 格式化日志：断开连接", () => {
   const log: DisconnectLog = { timestamp: 1000000000, action: "disconnect", details: {} };
   const result = formatLogEntry(log, 0);
   assert(result.includes("DISCONNECT: 断开连接"));
 });
 
-Deno.test("formatLogEntry - 未知操作", () => {
+Deno.test("分析报告 - 格式化日志：未知操作类型不崩溃", () => {
   const log = { timestamp: 1000000000, action: "unknown_action", details: {} } as never;
   const result = formatLogEntry(log, 0);
   assert(result.includes("UNKNOWN_ACTION: 未知操作"));
 });
 
-Deno.test("buildPrompt - 包含低压电气标题", () => {
+Deno.test("分析报告 - 构建提示词：包含标题和学员信息", () => {
   const client: Client = { id: "c1", name: "张三", ip: "10.0.0.1", online: true };
   const result = buildPrompt(client);
   assert(result.includes("低压电气装调测试系统 - 综合结果分析"));
   assert(result.includes("学员: 张三 (10.0.0.1)"));
 });
 
-Deno.test("buildPrompt - 有testSession时包含排故测验章节", () => {
+Deno.test("分析报告 - 构建提示词：有排故测验时包含测验章节", () => {
   const now = Math.floor(Date.now() / 1000);
   const client: Client = {
     id: "c1", name: "李四", ip: "10.0.0.2", online: true,
@@ -121,7 +121,7 @@ Deno.test("buildPrompt - 有testSession时包含排故测验章节", () => {
   assert(result.includes("题目 1 (ID: 1)"));
 });
 
-Deno.test("buildPrompt - 有evaluateBoard时包含功能测试章节", () => {
+Deno.test("分析报告 - 构建提示词：有功能测试时包含测试章节", () => {
   const client: Client = {
     id: "c1", name: "王五", ip: "10.0.0.3", online: true,
     evaluateBoard: {
@@ -141,7 +141,7 @@ Deno.test("buildPrompt - 有evaluateBoard时包含功能测试章节", () => {
   assert(result.includes("超时或未达到预期目标"));
 });
 
-Deno.test("buildPrompt - 有cvClient装接评估时包含视觉检测章节", () => {
+Deno.test("分析报告 - 构建提示词：有视觉检测时包含检测章节", () => {
   const now = Math.floor(Date.now() / 1000);
   const client: Client = {
     id: "c1", name: "赵六", ip: "10.0.0.4", online: true,
@@ -172,7 +172,7 @@ Deno.test("buildPrompt - 有cvClient装接评估时包含视觉检测章节", ()
   assert(result.includes("**最终评分**: 84"));
 });
 
-Deno.test("buildPrompt - 无cvClient.session时跳过视觉检测章节", () => {
+Deno.test("分析报告 - 构建提示词：视觉客户端无会话时跳过", () => {
   const client: Client = {
     id: "c1", name: "测试", ip: "10.0.0.5", online: true,
     cvClient: { clientType: "esp32cam", ip: "10.0.0.200" },
@@ -181,7 +181,7 @@ Deno.test("buildPrompt - 无cvClient.session时跳过视觉检测章节", () => 
   assert(!result.includes("装接评估-视觉检测"));
 });
 
-Deno.test("buildPrompt - 完整场景包含分析要求", () => {
+Deno.test("分析报告 - 构建提示词：完整场景包含7S分析要求", () => {
   const now = Math.floor(Date.now() / 1000);
   const client: Client = {
     id: "c1", name: "完整测试", ip: "10.0.0.6", online: true,
@@ -206,7 +206,7 @@ Deno.test("buildPrompt - 完整场景包含分析要求", () => {
   assert(result.includes("节约(Saving)"));
 });
 
-Deno.test("buildPrompt - finishedScore为0时不显示为未完成", () => {
+Deno.test("分析报告 - 构建提示词：零分也能正确显示", () => {
   const now = Math.floor(Date.now() / 1000);
   const client: Client = {
     id: "c1", name: "零分测试", ip: "10.0.0.7", online: true,

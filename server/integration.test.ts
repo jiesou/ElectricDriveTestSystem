@@ -30,7 +30,7 @@ Deno.test("WebSocket 通信基础集成测试", async (t) => {
   const server = Deno.serve({ port: 0 }, app.fetch);
   const port = (server.addr as Deno.NetAddr).port;
 
-  await t.step("服务器启动并接受 WebSocket 连接", async () => {
+  await t.step("连接成功：获得客户机编号，状态为在线", async () => {
     const sim = await connectSim("127.0.0.1", port);
     const clientId = sim.clientId;
     assert(sim.isConnected);
@@ -39,7 +39,7 @@ Deno.test("WebSocket 通信基础集成测试", async (t) => {
     sim.disconnect();
   });
 
-  await t.step("Ping/Pong 往返正常", async () => {
+  await t.step("心跳Ping/Pong：仿真器定时发送ping，服务器回复pong", async () => {
     const sim = await connectSim("127.0.0.1", port, { pingIntervalMs: 200 });
     await delay(600);
     assert(sim.metrics.pingsSent > 0);
@@ -49,7 +49,7 @@ Deno.test("WebSocket 通信基础集成测试", async (t) => {
     sim.disconnect();
   });
 
-  await t.step("断开连接后 ClientManager 标记离线", async () => {
+  await t.step("断开连接：服务器正确标记离线、清除socket和心跳", async () => {
     const sim = await connectSim("127.0.0.1", port);
     const { clientId } = sim;
     sim.disconnect();
@@ -59,7 +59,7 @@ Deno.test("WebSocket 通信基础集成测试", async (t) => {
     assertEquals(clientManager.clients[clientId].lastPing, undefined);
   });
 
-  await t.step("同一 IP 重连复用 clientId", async () => {
+  await t.step("重连：同一IP地址重复连接时复用原有客户机编号", async () => {
     const sim1 = await connectSim("127.0.0.1", port);
     const id1 = sim1.clientId;
     sim1.disconnect();
@@ -70,13 +70,15 @@ Deno.test("WebSocket 通信基础集成测试", async (t) => {
     sim2.disconnect();
   });
 
-  await t.step("多客户机并发连接", async () => {
+  await t.step("三个仿真客户机同时连接：全部在线", async () => {
     const sims = await Promise.all(Array.from({ length: 3 }, () => connectSim("127.0.0.1", port)));
     for (const s of sims) assert(s.isConnected);
+    assert(Object.values(clientManager.clients).length >= 1);
+    assert(Object.values(clientManager.clients).every(c => c.online));
     for (const s of sims) s.disconnect();
   });
 
-  await t.step("cvClient 通过 CV_CLIENT_MAP 绑定", async () => {
+  await t.step("WebSocket连接根据配置文件自动绑定视觉客户机", async () => {
     const sim = await connectSim("127.0.0.1", port);
     const client = clientManager.clients[sim.clientId];
     assert(client.cvClient?.ip === "192.168.11.121");
@@ -88,11 +90,11 @@ Deno.test("WebSocket 通信基础集成测试", async (t) => {
   await server.shutdown();
 });
 
-Deno.test("HTTP→WS 交叉路径集成测试", async (t) => {
+Deno.test("排故测验：HTTP创建→WebSocket推送→答题→交卷全流程", async (t) => {
   const server = Deno.serve({ port: 0 }, app.fetch);
   const port = (server.addr as Deno.NetAddr).port;
 
-  await t.step("HTTP创建测验 → WS推送至客户端", async () => {
+  await t.step("通过HTTP创建测验会话，客户机通过WebSocket收到试题", async () => {
     const sim = await connectSim("127.0.0.1", port);
     const clientId = sim.clientId;
 
@@ -112,7 +114,7 @@ Deno.test("HTTP→WS 交叉路径集成测试", async (t) => {
     sim.disconnect();
   });
 
-  await t.step("排故测验完整工作流（答题→交卷→得分）", async () => {
+  await t.step("完整答题流程：提交答案→交卷→服务器记录得分", async () => {
     const sim = await connectSim("127.0.0.1", port);
     const clientId = sim.clientId;
 
@@ -161,11 +163,11 @@ Deno.test("HTTP→WS 交叉路径集成测试", async (t) => {
 const CV_IP = "192.168.11.121";
 const JPEG = new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0, 0, 0, 0, 0]);
 
-Deno.test("CV 机器视觉路由集成测试", async (t) => {
+Deno.test("视觉机器视觉功能：拍照上传、评分推送、签到、清洁记录", async (t) => {
   const server = Deno.serve({ port: 0 }, app.fetch);
   const port = (server.addr as Deno.NetAddr).port;
 
-  await t.step("upload_wiring 返回评分结果", async () => {
+  await t.step("upload_wiring 接收图片和推理结果并存储", async () => {
     const sim = await connectSim("127.0.0.1", port);
     const form = new FormData();
     form.append("image", new Blob([JPEG], { type: "image/jpeg" }), "test.jpg");
@@ -184,7 +186,7 @@ Deno.test("CV 机器视觉路由集成测试", async (t) => {
     sim.disconnect();
   });
 
-  await t.step("confirm_wiring 计算并推送评分到客户端", async () => {
+  await t.step("确认工艺评分：计算分数并通过WebSocket推送给客户机", async () => {
     const sim = await connectSim("127.0.0.1", port);
     const cv = clientManager.clients[sim.clientId]!.cvClient!;
     cv.session = { type: "evaluate_wiring", startTime: getSecondTimestamp(), shots: [{ timestamp: getSecondTimestamp(), image: "/u.jpg", result: { sleeves_num: 58, cross_num: 2, excopper_num: 0, exterminal_num: 1 } }] };
@@ -200,7 +202,7 @@ Deno.test("CV 机器视觉路由集成测试", async (t) => {
     sim.disconnect();
   });
 
-  await t.step("confirm_wiring 无会话返回错误", async () => {
+  await t.step("确认工艺评分：没有拍照时返回错误提示", async () => {
     const sim = await connectSim("127.0.0.1", port);
     const res = await fetch(`http://127.0.0.1:${port}/api/cv/confirm_wiring`, {
       method: "POST", headers: { "x-forwarded-for": CV_IP },
@@ -210,7 +212,7 @@ Deno.test("CV 机器视觉路由集成测试", async (t) => {
     sim.disconnect();
   });
 
-  await t.step("upload_face 创建签到会话并推送结果", async () => {
+  await t.step("人脸签到：上传照片和姓名，客户机收到签到结果推送", async () => {
     const sim = await connectSim("127.0.0.1", port);
     const form = new FormData();
     form.append("image", new Blob([JPEG], { type: "image/jpeg" }), "face.jpg");
@@ -227,7 +229,7 @@ Deno.test("CV 机器视觉路由集成测试", async (t) => {
     sim.disconnect();
   });
 
-  await t.step("upload_deskclean 创建清洁会话并记入日志", async () => {
+  await t.step("工位清洁：上传清洁结果，记入测验日志", async () => {
     const sim = await connectSim("127.0.0.1", port);
     const client = clientManager.clients[sim.clientId];
     client.testSession = { id: `${sim.clientId}_d`, test: { id: 1, questions: [{ id: 1, troubles: [] }], startTime: getSecondTimestamp(), durationTime: null }, logs: [] };
@@ -243,7 +245,7 @@ Deno.test("CV 机器视觉路由集成测试", async (t) => {
     sim.disconnect();
   });
 
-  await t.step("clear_session 清除 CV 客户端会话", async () => {
+  await t.step("清除会话：视觉客户端会话被正确删除", async () => {
     const sim = await connectSim("127.0.0.1", port);
     const cv = clientManager.clients[sim.clientId]!.cvClient!;
     cv.session = { type: "evaluate_wiring", startTime: getSecondTimestamp(), shots: [] };
@@ -254,7 +256,7 @@ Deno.test("CV 机器视觉路由集成测试", async (t) => {
     sim.disconnect();
   });
 
-  await t.step("pull_xiaoxin_update 返回状态", async () => {
+  await t.step("获取小新AI状态：返回正确的状态文本", async () => {
     const sim = await connectSim("127.0.0.1", port);
     const cv = clientManager.clients[sim.clientId]!.cvClient!;
     cv.xiaoxin_status = { type: "status_text_update", status_text: "排故进行时！" };
@@ -270,11 +272,11 @@ Deno.test("CV 机器视觉路由集成测试", async (t) => {
   await server.shutdown();
 });
 
-Deno.test("数据持久化集成测试", async (t) => {
+Deno.test("数据持久化：保存后恢复，客户端状态完整", async (t) => {
   const server = Deno.serve({ port: 0 }, app.fetch);
   const port = (server.addr as Deno.NetAddr).port;
 
-  await t.step("保存后恢复客户端状态", async () => {
+  await t.step("保存并恢复：名称、测验、评估板、视觉绑定都正确还原", async () => {
     const sim = await connectSim("127.0.0.1", port);
     const client = clientManager.clients[sim.clientId];
     client.name = "持久化测试工位";
@@ -299,7 +301,7 @@ Deno.test("数据持久化集成测试", async (t) => {
     sim.disconnect();
   });
 
-  await t.step("多客户端共享同一个 cvClient 引用", async () => {
+  await t.step("多个客户机共享同一个视觉客户端引用", async () => {
     const sim = await connectSim("127.0.0.1", port);
     const clientA = clientManager.clients[sim.clientId];
     const clientB = { ...clientA, id: crypto.randomUUID(), ip: "127.0.0.2", name: "clientB" };
@@ -322,11 +324,11 @@ Deno.test("数据持久化集成测试", async (t) => {
   await server.shutdown();
 });
 
-Deno.test("测验管理集成测试", async (t) => {
+Deno.test("测验管理：结束全部、清除全部、彩虹桥延时测量", async (t) => {
   const server = Deno.serve({ port: 0 }, app.fetch);
   const port = (server.addr as Deno.NetAddr).port;
 
-  await t.step("finish-all 结束所有活跃测验", async () => {
+  await t.step("结束全部测验：所有活跃测验标记完成时间", async () => {
     const sim = await connectSim("127.0.0.1", port);
     const client = clientManager.clients[sim.clientId];
     client.testSession = { id: `${sim.clientId}_f`, test: { id: 800, questions: [{ id: 1, troubles: [] }], startTime: getSecondTimestamp(), durationTime: null }, logs: [] };
@@ -336,7 +338,7 @@ Deno.test("测验管理集成测试", async (t) => {
     sim.disconnect();
   });
 
-  await t.step("clear-all 清除所有测验和会话", async () => {
+  await t.step("清除全部测验：测验会话被清空", async () => {
     const sim = await connectSim("127.0.0.1", port);
     const client = clientManager.clients[sim.clientId];
     client.testSession = { id: `${sim.clientId}_c`, test: { id: 900, questions: [{ id: 1, troubles: [] }], startTime: getSecondTimestamp(), durationTime: null }, logs: [] };
@@ -346,7 +348,7 @@ Deno.test("测验管理集成测试", async (t) => {
     sim.disconnect();
   });
 
-  await t.step("relay-rainbow 广播到在线客户端并收集延迟", async () => {
+  await t.step("系统自检(继电器流水灯)：广播消息并收集客户机响应延迟", async () => {
     const sim = await connectSim("127.0.0.1", port);
     const res = await fetch(`http://127.0.0.1:${port}/api/tests/relay-rainbow`, { method: "POST" });
     const body = await res.json() as any;
@@ -358,11 +360,11 @@ Deno.test("测验管理集成测试", async (t) => {
   await server.shutdown();
 });
 
-Deno.test("CV 机器视觉路由 corner case 集成测试", async (t) => {
+Deno.test("视觉路由：各种错误输入的处理", async (t) => {
   const server = Deno.serve({ port: 0 }, app.fetch);
   const port = (server.addr as Deno.NetAddr).port;
 
-  await t.step("upload_wiring 缺少 image", async () => {
+  await t.step("装接上传：缺少图片返回400", async () => {
     const sim = await connectSim("127.0.0.1", port);
     const fd = new FormData(); fd.append("x", "y");
     const res = await fetch(`http://127.0.0.1:${port}/api/cv/upload_wiring`, { method: "POST", headers: { "x-forwarded-for": CV_IP }, body: fd });
@@ -371,7 +373,7 @@ Deno.test("CV 机器视觉路由 corner case 集成测试", async (t) => {
     sim.disconnect();
   });
 
-  await t.step("upload_wiring 非 multipart", async () => {
+  await t.step("装接上传：不是multipart格式返回400", async () => {
     const sim = await connectSim("127.0.0.1", port);
     const res = await fetch(`http://127.0.0.1:${port}/api/cv/upload_wiring`, { method: "POST", headers: { "Content-Type": "application/json", "x-forwarded-for": CV_IP }, body: JSON.stringify({}) });
     assertEquals(res.status, 400);
@@ -379,7 +381,7 @@ Deno.test("CV 机器视觉路由 corner case 集成测试", async (t) => {
     sim.disconnect();
   });
 
-  await t.step("upload_face 缺少 image", async () => {
+  await t.step("人脸签到：缺少图片返回400", async () => {
     const sim = await connectSim("127.0.0.1", port);
     const fd = new FormData(); fd.append("who", "张三");
     const res = await fetch(`http://127.0.0.1:${port}/api/cv/upload_face`, { method: "POST", headers: { "x-forwarded-for": CV_IP }, body: fd });
@@ -388,7 +390,7 @@ Deno.test("CV 机器视觉路由 corner case 集成测试", async (t) => {
     sim.disconnect();
   });
 
-  await t.step("upload_deskclean 缺少 result", async () => {
+  await t.step("工位清洁：缺少result参数返回400", async () => {
     const sim = await connectSim("127.0.0.1", port);
     const fd = new FormData(); fd.append("image", new Blob([JPEG]));
     const res = await fetch(`http://127.0.0.1:${port}/api/cv/upload_deskclean`, { method: "POST", headers: { "x-forwarded-for": CV_IP }, body: fd });
@@ -397,7 +399,7 @@ Deno.test("CV 机器视觉路由 corner case 集成测试", async (t) => {
     sim.disconnect();
   });
 
-  await t.step("upload_deskclean 非法 JSON", async () => {
+  await t.step("工位清洁：result不是合法JSON返回400", async () => {
     const sim = await connectSim("127.0.0.1", port);
     const fd = new FormData(); fd.append("image", new Blob([JPEG])); fd.append("result", "不是 JSON");
     const res = await fetch(`http://127.0.0.1:${port}/api/cv/upload_deskclean`, { method: "POST", headers: { "x-forwarded-for": CV_IP }, body: fd });
@@ -409,7 +411,7 @@ Deno.test("CV 机器视觉路由 corner case 集成测试", async (t) => {
   await server.shutdown();
 });
 
-Deno.test("集成测试：clear_session 无客户机时返回400", async () => {
+Deno.test("清除视觉会话：不存在的视觉客户机返回400", async () => {
   const server = Deno.serve({ port: 0 }, app.fetch);
   try {
     const res = await fetch(`http://127.0.0.1:${(server.addr as Deno.NetAddr).port}/api/cv/clear_session/10.0.0.99`, { method: "POST" });

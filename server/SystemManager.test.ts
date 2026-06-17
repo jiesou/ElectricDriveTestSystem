@@ -2,11 +2,6 @@ import { assertEquals, assert } from "@std/assert";
 import { ClientManager } from "./ClientManager.ts";
 import { prisma } from "./prisma/client.ts";
 
-// ==================== 数据格式与序列化测试 ====================
-
-// 通过 ClientManager 直接测试序列化/反序列化数据格式，
-// 验证 persistClient / loadAllClients 的 JSON 序列化正确性。
-
 function makeClient(ip: string, extra: Record<string, unknown> = {}) {
   return {
     id: crypto.randomUUID(),
@@ -19,7 +14,7 @@ function makeClient(ip: string, extra: Record<string, unknown> = {}) {
   };
 }
 
-Deno.test("persistClient 序列化数据格式：socket 移除、testSession 转 JSON", async () => {
+Deno.test("数据持久化 - 保存客户端：socket 被移除，testSession 被转成 JSON", async () => {
   const mgr = new ClientManager();
   const capturedArgs: any[] = [];
   const origUpsert = prisma.storedClient.upsert.bind(prisma.storedClient);
@@ -43,9 +38,7 @@ Deno.test("persistClient 序列化数据格式：socket 移除、testSession 转
     const saved = capturedArgs[0];
     assertEquals(saved.create.id, client.id);
     assertEquals(saved.create.ip, "10.0.0.1");
-    // socket 不应在持久化数据中
     assert(!("socket" in saved.create));
-    // testSession 被 JSON 序列化
     assertEquals(typeof saved.create.testSessionJson, "string");
     const parsedSession = JSON.parse(saved.create.testSessionJson);
     assertEquals(parsedSession.id, "s1");
@@ -54,7 +47,7 @@ Deno.test("persistClient 序列化数据格式：socket 移除、testSession 转
   }
 });
 
-Deno.test("persistClient 序列化不保存 xiaoxin_status", async () => {
+Deno.test("数据持久化 - 保存客户端：xiaoxin_status 不会被保存", async () => {
   const mgr = new ClientManager();
   const capturedArgs: any[] = [];
   const origUpsert = prisma.storedClient.upsert.bind(prisma.storedClient);
@@ -75,7 +68,6 @@ Deno.test("persistClient 序列化不保存 xiaoxin_status", async () => {
 
     await mgr.persistClient(client);
 
-    // verify client data doesn't send cvClient data
     const savedClient = capturedArgs[0];
     assertEquals(savedClient.create.cvClientIp, "10.0.0.100");
   } finally {
@@ -84,7 +76,7 @@ Deno.test("persistClient 序列化不保存 xiaoxin_status", async () => {
   }
 });
 
-Deno.test("loadAllClients 反序列化：相同 cvClientIp 恢复后共享引用", async () => {
+Deno.test("数据持久化 - 恢复客户端：相同 cvClientIp 的客户机共享同一个引用", async () => {
   const mgr = new ClientManager();
   const origFindMany = prisma.storedClient.findMany.bind(prisma.storedClient);
   const origCvFindMany = prisma.storedCvClient.findMany.bind(prisma.storedCvClient);
@@ -111,7 +103,7 @@ Deno.test("loadAllClients 反序列化：相同 cvClientIp 恢复后共享引用
   }
 });
 
-Deno.test("loadAllClients 恢复后所有客户机 online=false", async () => {
+Deno.test("数据持久化 - 恢复后所有客户机默认离线状态", async () => {
   const mgr = new ClientManager();
   const origFindMany = prisma.storedClient.findMany.bind(prisma.storedClient);
   const origCvFindMany = prisma.storedCvClient.findMany.bind(prisma.storedCvClient);
@@ -136,7 +128,7 @@ Deno.test("loadAllClients 恢复后所有客户机 online=false", async () => {
   }
 });
 
-Deno.test("loadAllClients 恢复 evaluateBoard 和 testSession", async () => {
+Deno.test("数据持久化 - 恢复客户端的测验会话和功能评估板", async () => {
   const mgr = new ClientManager();
   const origFindMany = prisma.storedClient.findMany.bind(prisma.storedClient);
   const origCvFindMany = prisma.storedCvClient.findMany.bind(prisma.storedCvClient);
