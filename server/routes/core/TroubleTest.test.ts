@@ -188,24 +188,21 @@ Deno.test("排故测验 - 推送试题：发送trouble_test_push消息", () => {
   assertEquals(msg.all_questions.length, 1);
 });
 
-Deno.test("排故测验 - 创建测验不传时长：默认null", () => {
-  const test = {
-    id: Date.now(),
-    questions: [],
-    startTime: getSecondTimestamp(),
-    durationTime: null,
-  };
+Deno.test("排故测验 - 创建测验：不传时长默认为null", async () => {
+  const startTime = getSecondTimestamp();
+  const test = await troubleTest.createTest([], startTime);
   assertEquals(test.durationTime, null);
+  assertEquals(test.startTime, startTime);
+  assertEquals(test.questions.length, 0);
+  await prisma.storedTest.delete({ where: { id: BigInt(test.id) } }).catch(() => {});
 });
 
-Deno.test("排故测验 - 创建测验指定时长：正确保存", () => {
-  const test = {
-    id: Date.now(),
-    questions: [],
-    startTime: getSecondTimestamp(),
-    durationTime: 300,
-  };
+Deno.test("排故测验 - 创建测验：传入时长正确保存", async () => {
+  const startTime = getSecondTimestamp();
+  const test = await troubleTest.createTest([], startTime, 300);
   assertEquals(test.durationTime, 300);
+  assertEquals(test.startTime, startTime);
+  await prisma.storedTest.delete({ where: { id: BigInt(test.id) } }).catch(() => {});
 });
 
 Deno.test("排故测验 - 题目列表：每次返回不同副本", () => {

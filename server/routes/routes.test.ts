@@ -357,7 +357,7 @@ Deno.test("HTTP接口测试", async (t) => {
   );
 
   await t.step(
-    "创建测验会话 POST：不存在的客户机编号被跳过",
+    "创建测验会话 POST：不存在的客户机编号被跳过，data 包含该 ID 但无 client 被实际创建会话",
     async () => {
       const q = await troubleTest.addQuestion({
         troubles: [{ id: 1, description: "non-existent test", from_wire: 1, to_wire: 2 }],
@@ -371,6 +371,9 @@ Deno.test("HTTP接口测试", async (t) => {
       assertEquals(res.status, 200);
       const body = await res.json();
       assert(body.success);
+      assertEquals(body.data.length, 1, "应有一条结果");
+      assertEquals(body.data[0].clientId, "nonexistent-id");
+      assertEquals(Object.values(clientManager.clients).filter(c => c.testSession).length, 0, "应无实际 client 获得会话");
 
       await troubleTest.deleteQuestion(q.id);
     },
