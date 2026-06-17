@@ -166,6 +166,3 @@ export class UdpCameraServer {
     }
   }
 }
-
-// 全局单例
-export const udpCameraServer = new UdpCameraServer();

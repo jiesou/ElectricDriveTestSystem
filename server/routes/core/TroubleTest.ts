@@ -127,14 +127,15 @@ clientManager.addWSMessageHandler((client, _socket, message) => {
   }
 });
 
+let questionBank: Question[] = [];
+
 // TroubleTest 负责排故测验的逻辑管理
-export class TroubleTest {
-  public tests: Test[] = [];
-  private questionBank: Question[] = [];
+export const troubleTest = {
+  tests: [] as Test[],
 
   async init(): Promise<void> {
     const storedQuestions = await prisma.storedQuestion.findMany() as Array<{ id: number; troubles: string }>;
-    this.questionBank = storedQuestions.map(sq => ({
+    questionBank = storedQuestions.map(sq => ({
       id: sq.id,
       troubles: JSON.parse(sq.troubles),
     }));
@@ -147,8 +148,8 @@ export class TroubleTest {
       durationTime: st.durationTime,
     }));
 
-    console.log(`[TroubleTest] Loaded ${this.questionBank.length} questions, ${this.tests.length} tests from database`);
-  }
+    console.log(`[TroubleTest] Loaded ${questionBank.length} questions, ${this.tests.length} tests from database`);
+  },
 
   pushTestToClient(client: Client, test: Test) {
     const troubleTestPushMessage: TroubleTestPushMessage = {
@@ -162,7 +163,7 @@ export class TroubleTest {
       client.socket,
       troubleTestPushMessage,
     );
-  }
+  },
 
   // 创建测验会话
   createTestSession(client: Client, test: Test) {
@@ -189,47 +190,47 @@ export class TroubleTest {
 
     this.pushTestToClient(client, test);
     return true;
-  }
+  },
 
   get questions(): Question[] {
-    return [...this.questionBank];
-  }
+    return [...questionBank];
+  },
 
   async addQuestion(question: Omit<Question, "id">): Promise<Question> {
     const newQuestion: Question = {
-      id: Math.max(...this.questionBank.map((q) => q.id), 0) + 1,
+      id: Math.max(...questionBank.map((q) => q.id), 0) + 1,
       ...question,
     };
-    this.questionBank.push(newQuestion);
+    questionBank.push(newQuestion);
     await prisma.storedQuestion.upsert({
       where: { id: newQuestion.id },
       update: { troubles: JSON.stringify(newQuestion.troubles) },
       create: { id: newQuestion.id, troubles: JSON.stringify(newQuestion.troubles) },
     });
     return newQuestion;
-  }
+  },
 
   async updateQuestion(id: number, updates: Partial<Question>): Promise<boolean> {
-    const index = this.questionBank.findIndex((q) => q.id === id);
+    const index = questionBank.findIndex((q) => q.id === id);
     if (index === -1) return false;
 
-    this.questionBank[index] = { ...this.questionBank[index], ...updates };
+    questionBank[index] = { ...questionBank[index], ...updates };
     await prisma.storedQuestion.upsert({
       where: { id },
-      update: { troubles: JSON.stringify(this.questionBank[index].troubles) },
-      create: { id, troubles: JSON.stringify(this.questionBank[index].troubles) },
+      update: { troubles: JSON.stringify(questionBank[index].troubles) },
+      create: { id, troubles: JSON.stringify(questionBank[index].troubles) },
     });
     return true;
-  }
+  },
 
   async deleteQuestion(id: number): Promise<boolean> {
-    const index = this.questionBank.findIndex((q) => q.id === id);
+    const index = questionBank.findIndex((q) => q.id === id);
     if (index === -1) return false;
 
-    this.questionBank.splice(index, 1);
+    questionBank.splice(index, 1);
     await prisma.storedQuestion.delete({ where: { id } }).catch(() => {});
     return true;
-  }
+  },
 
   finishTest(client: Client, timestamp?: number) {
     if (!client?.testSession) return;
@@ -248,11 +249,11 @@ export class TroubleTest {
     if (client.cvClient) {
       client.cvClient.xiaoxin_status = undefined;
     }
-  }
+  },
 
   getTroubles(): Trouble[] {
     return [...TROUBLES];
-  }
+  },
 
   async createTest(
     questions: Question[],
@@ -275,8 +276,5 @@ export class TroubleTest {
       },
     });
     return test;
-  }
-}
-
-// 全局单例
-export const troubleTest = new TroubleTest();
+  },
+};

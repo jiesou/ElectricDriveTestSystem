@@ -1,10 +1,10 @@
 import { app } from "./server.ts";
 import { clientManager } from "./routes/core/ClientManager.ts";
-import { udpCameraServer } from "./UdpCameraServer.ts";
+import { UdpCameraServer } from "./UdpCameraServer.ts";
 
 await clientManager.loadAllClients();
 clientManager.startHeartbeat();
-udpCameraServer.start(8000);
+new UdpCameraServer().start(8000);
 
 console.log("Server starting on port 8000");
 console.log("WebSocket endpoint: ws://localhost:8000/ws");
