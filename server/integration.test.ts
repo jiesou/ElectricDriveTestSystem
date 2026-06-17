@@ -70,10 +70,9 @@ Deno.test("WebSocket 通信基础集成测试", async (t) => {
     sim2.disconnect();
   });
 
-  await t.step("三个仿真客户机同时连接：全部在线", async () => {
+  await t.step("三个仿真客户机同时连接：每个连接独立WebSocket，全部在线", async () => {
     const sims = await Promise.all(Array.from({ length: 3 }, () => connectSim("127.0.0.1", port)));
     for (const s of sims) assert(s.isConnected);
-    assert(Object.values(clientManager.clients).length >= 1);
     assert(Object.values(clientManager.clients).every(c => c.online));
     for (const s of sims) s.disconnect();
   });
@@ -369,7 +368,7 @@ Deno.test("视觉路由：各种错误输入的处理", async (t) => {
     const fd = new FormData(); fd.append("x", "y");
     const res = await fetch(`http://127.0.0.1:${port}/api/cv/upload_wiring`, { method: "POST", headers: { "x-forwarded-for": CV_IP }, body: fd });
     assertEquals(res.status, 400);
-    assert((await res.json() as any).error.includes("未上传图片"));
+    assert((await res.json() as any).error === "未上传图片文件");
     sim.disconnect();
   });
 
@@ -377,7 +376,7 @@ Deno.test("视觉路由：各种错误输入的处理", async (t) => {
     const sim = await connectSim("127.0.0.1", port);
     const res = await fetch(`http://127.0.0.1:${port}/api/cv/upload_wiring`, { method: "POST", headers: { "Content-Type": "application/json", "x-forwarded-for": CV_IP }, body: JSON.stringify({}) });
     assertEquals(res.status, 400);
-    assert((await res.json() as any).error.includes("multipart"));
+    assert((await res.json() as any).error === "必须使用 multipart/form-data");
     sim.disconnect();
   });
 
@@ -386,7 +385,7 @@ Deno.test("视觉路由：各种错误输入的处理", async (t) => {
     const fd = new FormData(); fd.append("who", "张三");
     const res = await fetch(`http://127.0.0.1:${port}/api/cv/upload_face`, { method: "POST", headers: { "x-forwarded-for": CV_IP }, body: fd });
     assertEquals(res.status, 400);
-    assert((await res.json() as any).error.includes("未上传图片"));
+    assert((await res.json() as any).error === "未上传图片文件");
     sim.disconnect();
   });
 
@@ -395,7 +394,7 @@ Deno.test("视觉路由：各种错误输入的处理", async (t) => {
     const fd = new FormData(); fd.append("image", new Blob([JPEG]));
     const res = await fetch(`http://127.0.0.1:${port}/api/cv/upload_deskclean`, { method: "POST", headers: { "x-forwarded-for": CV_IP }, body: fd });
     assertEquals(res.status, 400);
-    assert((await res.json() as any).error.includes("result"));
+    assert((await res.json() as any).error === "需要 result 参数");
     sim.disconnect();
   });
 
@@ -404,7 +403,7 @@ Deno.test("视觉路由：各种错误输入的处理", async (t) => {
     const fd = new FormData(); fd.append("image", new Blob([JPEG])); fd.append("result", "不是 JSON");
     const res = await fetch(`http://127.0.0.1:${port}/api/cv/upload_deskclean`, { method: "POST", headers: { "x-forwarded-for": CV_IP }, body: fd });
     assertEquals(res.status, 400);
-    assert((await res.json() as any).error.includes("JSON"));
+    assert((await res.json() as any).error === "result 不是合法 JSON");
     sim.disconnect();
   });
 
