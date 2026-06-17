@@ -116,7 +116,7 @@ Deno.test("分析报告 - 构建提示词：有排故测验时包含测验章节
     },
   };
   const result = buildPrompt(client);
-  assert(result.includes("### 排故测验"));
+  assert(result.includes("### 调试单元"));
   assert(result.includes("最终得分: 90"));
   assert(result.includes("题目 1 (ID: 1)"));
 });
@@ -133,7 +133,7 @@ Deno.test("分析报告 - 构建提示词：有功能测试时包含测试章节
     },
   };
   const result = buildPrompt(client);
-  assert(result.includes("### 装接评估-功能测试"));
+  assert(result.includes("### 接线单元 - 功能测试详情"));
   assert(result.includes("三相异步电动机正反转控制电路"));
   assert(result.includes("通过率: 50.0%"));
   assert(result.includes("主电路接线"));
@@ -163,7 +163,7 @@ Deno.test("分析报告 - 构建提示词：有视觉检测时包含检测章节
     },
   };
   const result = buildPrompt(client);
-  assert(result.includes("### 装接评估-视觉检测"));
+  assert(result.includes("### 接线单元 - 工艺检测"));
   assert(result.includes("装接工艺检测"));
   assert(result.includes("已标号码管数量: 55"));
   assert(result.includes("交叉接线数量: 2"));
