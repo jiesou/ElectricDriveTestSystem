@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import { troubleTest } from "../TroubleTest.ts";
-import { clientManager } from "../ClientManager.ts";
-import { getSecondTimestamp } from "../types.ts";
+import { troubleTest } from "./core/TroubleTest.ts";
+import { clientManager } from "./core/ClientManager.ts";
+import { getSecondTimestamp } from "../utils/helpers.ts";
 
 export const testsRouter = new Hono();
 

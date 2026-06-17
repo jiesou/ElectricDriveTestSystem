@@ -3,18 +3,17 @@ import { cors } from "hono/cors";
 import { serveStatic } from "hono/deno";
 import { upgradeWebSocket } from "hono/deno";
 import { logger } from "hono/logger";
-import { getSecondTimestamp, getClientIP, WSMessage } from "./types.ts";
-import { clientManager } from "./ClientManager.ts";
-import { initSystem } from "./SystemManager.ts";
-import "./TroubleTest.ts";
-import "./EvaluateFunction.ts";
+import { WSMessage } from "./types.ts";
+import { getSecondTimestamp, getClientIP } from "./utils/helpers.ts";
+import { clientManager } from "./routes/core/ClientManager.ts";
+import "./routes/core/TroubleTest.ts";
+import "./routes/core/EvaluateFunction.ts";
 import { generatorRouter } from "./routes/generator.ts";
 import { troublesRouter } from "./routes/troubles.ts";
 import { questionsRouter } from "./routes/questions.ts";
 import { clientsRouter } from "./routes/clients.ts";
 import { testsRouter } from "./routes/tests.ts";
 import { cvRouter } from "./routes/cv.ts";
-import { udpCameraServer } from "./UdpCameraServer.ts";
 
 export const app = new Hono();
 app.use("*", cors());
@@ -46,7 +45,7 @@ app.get("/ws", upgradeWebSocket((c) => {
         clientManager.disconnectClient(client);
       }
     },
-    onError(_event, ws) {
+    onError(_event, _ws) {
       const client = Object.values(clientManager.clients).find(c => c.ip === ip);
       if (client) {
         console.error(`WebSocket error for ${client.name}`);
@@ -66,7 +65,6 @@ api.route("/cv", cvRouter);
 api.get("/health", (c) => c.json({ status: "ok", timestamp: getSecondTimestamp() }));
 
 app.route("/api", api);
-app.get("/health", (c) => c.json({ status: "ok", ts: getSecondTimestamp() }));
 
 app.use("/uploads/*", serveStatic({ root: "./data" }));
 app.use("/*", serveStatic({ root: "./public" }));
@@ -76,15 +74,3 @@ app.onError((err, c) => {
   console.error("Server error:", err);
   return c.json({ error: "Internal server error" }, 500);
 });
-
-if (import.meta.main) {
-  await initSystem();
-  clientManager.startHeartbeat();
-  udpCameraServer.start(8000);
-
-  console.log("Server starting on port 8000");
-  console.log("WebSocket endpoint: ws://localhost:8000/ws");
-  console.log("API endpoint: http://localhost:8000/api");
-
-  Deno.serve({ port: 8000 }, app.fetch);
-}

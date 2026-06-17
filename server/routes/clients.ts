@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { clientManager } from "../ClientManager.ts";
+import { clientManager } from "./core/ClientManager.ts";
 
 export const clientsRouter = new Hono();
 

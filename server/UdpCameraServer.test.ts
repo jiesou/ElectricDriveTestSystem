@@ -100,7 +100,7 @@ Deno.test("Udp摄像头服务器 - 绑定端口0会失败但不会崩溃", () =>
 
 Deno.test("Udp摄像头服务器 - 收到完整帧后更新所有关联客户机的最新帧", async () => {
   const server = new UdpCameraServer();
-  const { clientManager } = await import("./ClientManager.ts");
+  const { clientManager } = await import("./routes/core/ClientManager.ts");
 
   const frame1 = new Uint8Array([0xFF, 0xD8, 0xFF]);
   const frame2 = new Uint8Array([0xFF, 0xD8, 0xFE]);

@@ -1,5 +1,5 @@
 import { createSocket } from "node:dgram";
-import { clientManager } from "./ClientManager.ts";
+import { clientManager } from "./routes/core/ClientManager.ts";
 
 /**
  * UDP 摄像头图传接收器

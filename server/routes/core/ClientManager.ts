@@ -2,14 +2,14 @@ import {
   Client,
   CvClient,
   CV_CLIENT_MAP,
-  getSecondTimestamp,
   WSMessage,
   WSMessageHandler,
   PongMessage,
   ClientNameUpdateRequestMessage,
   ClientNamePushMessage,
-} from "./types.ts";
-import { prisma } from "./prisma/client.ts";
+} from "../../types.ts";
+import { getSecondTimestamp } from "../../utils/helpers.ts";
+import { prisma } from "../../prisma/client.ts";
 
 /**
  * ClientManager 负责管理WebSocket连接和客户端状态
