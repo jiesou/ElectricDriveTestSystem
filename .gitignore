@@ -2,6 +2,9 @@
 .env
 server/public/
 server/data.json
+server/data/
 client/dist/
 client/node_modules/
 server/generated/
+server/coverage/
+server/cov/

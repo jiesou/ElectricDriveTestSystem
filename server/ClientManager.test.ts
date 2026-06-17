@@ -1,5 +1,6 @@
 import { assertEquals, assert, assertExists } from "@std/assert";
 import { ClientManager } from "./ClientManager.ts";
+import { getSecondTimestamp } from "./types.ts";
 import { prisma } from "./prisma/client.ts";
 
 function makeFakeSocket(): WebSocket {
@@ -79,16 +80,12 @@ Deno.test("ping message updates lastPing and sends pong", () => {
   const client = mgr.connectClient("10.0.0.4", socket);
   const oldPing = client.lastPing;
 
-  // Simulate a small delay
-  const delay = new Promise((r) => setTimeout(r, 10));
-  delay.then(() => {
-    mgr.processWebSocketMessageIn(client, socket, { type: "ping" });
+  mgr.processWebSocketMessageIn(client, socket, { type: "ping" });
 
-    assert(client.lastPing! >= (oldPing || 0));
-    assertEquals(client.online, true);
-    const pong = JSON.parse(sentData);
-    assertEquals(pong.type, "pong");
-  });
+  assert(client.lastPing! >= (oldPing || 0));
+  assertEquals(client.online, true);
+  const pong = JSON.parse(sentData);
+  assertEquals(pong.type, "pong");
 });
 
 Deno.test("client_name_update_request updates name and sends push", () => {
@@ -213,10 +210,8 @@ Deno.test("connectClient fallback to first cvClient when no exact match", () => 
 
   // Then connect with a non-mapped IP - should auto-bind to first cvClient
   const client = mgr.connectClient("10.0.0.99", makeFakeSocket());
-  // May or may not get bound depending on existing cvClients
-  if (client.cvClient) {
-    assertEquals(client.cvClient.ip, "192.168.11.121");
-  }
+  assertExists(client.cvClient, "非映射IP应通过fallback绑定第一个cvClient");
+  assertEquals(client.cvClient!.ip, "192.168.11.121");
 });
 
 Deno.test("sendWSMessage catch error gracefully", () => {
@@ -229,14 +224,31 @@ Deno.test("sendWSMessage catch error gracefully", () => {
   mgr.sendWSMessage(badSocket, { type: "test" });
 });
 
-Deno.test("processWebSocketMessageIn with no handlers does not dispatch", () => {
+Deno.test("processWebSocketMessageIn with no handlers handles unknown type without error", () => {
   const mgr = new ClientManager();
   const socket = makeFakeSocket();
   const client = mgr.connectClient("10.0.0.11", socket);
 
-  // Clear any registered handlers from global state
-  // and test with a custom message type
-  let dispatched = false;
+  // 未注册 handler 的 ClientManager 遇到未知消息类型应不抛错、不产生影响
   mgr.processWebSocketMessageIn(client, socket, { type: "unknown_type" });
-  // No handler registered for this mgr, so nothing should happen
+  assertEquals(client.socket, socket); // socket 引用被更新
+});
+
+Deno.test("heartbeat timeout disconnects stale client", async () => {
+  const mgr = new ClientManager();
+  const client = mgr.connectClient("10.0.0.99", makeFakeSocket());
+
+  // 手动设置 lastPing 为 20 秒前（HEARTBEAT_TIMEOUT = 10s）
+  client.lastPing = getSecondTimestamp() - 20;
+
+  // 启动心跳检查（间隔 2s）
+  mgr.startHeartbeat();
+
+  // 等待至少一个检查周期
+  await new Promise(r => setTimeout(r, 2100));
+
+  assertEquals(client.online, false);
+  assertEquals(client.socket, undefined);
+
+  mgr.stopHeartbeat();
 });

@@ -120,6 +120,10 @@ testsRouter.post("/test-sessions", async (c) => {
 
     for (const clientId of clientIds) {
       const client = clientManager.clients[clientId];
+      if (!client) {
+        results.push({ clientId });
+        continue;
+      }
       troubleTest.createTestSession(client, test);
       results.push({ clientId });
     }

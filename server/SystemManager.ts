@@ -9,6 +9,22 @@ export async function initSystem() {
 
 // 将客户端状态持久化到数据库（含独立 CvClient 表）
 export async function persistClient(client: import("./types.ts").Client) {
+  // 先持久化 CV 客户端，满足外键依赖
+  if (client.cvClient) {
+    await prisma.storedCvClient.upsert({
+      where: { ip: client.cvClient.ip },
+      update: {
+        clientType: client.cvClient.clientType,
+        sessionJson: client.cvClient.session ? JSON.stringify(client.cvClient.session) : null,
+      },
+      create: {
+        ip: client.cvClient.ip,
+        clientType: client.cvClient.clientType,
+        sessionJson: client.cvClient.session ? JSON.stringify(client.cvClient.session) : null,
+      },
+    });
+  }
+
   await prisma.storedClient.upsert({
     where: { id: client.id },
     update: {
@@ -27,19 +43,4 @@ export async function persistClient(client: import("./types.ts").Client) {
       evaluateBoardJson: client.evaluateBoard ? JSON.stringify(client.evaluateBoard) : null,
     },
   });
-
-  if (client.cvClient) {
-    await prisma.storedCvClient.upsert({
-      where: { ip: client.cvClient.ip },
-      update: {
-        clientType: client.cvClient.clientType,
-        sessionJson: client.cvClient.session ? JSON.stringify(client.cvClient.session) : null,
-      },
-      create: {
-        ip: client.cvClient.ip,
-        clientType: client.cvClient.clientType,
-        sessionJson: client.cvClient.session ? JSON.stringify(client.cvClient.session) : null,
-      },
-    });
-  }
 }

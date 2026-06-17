@@ -39,7 +39,7 @@ clientManager.addWSMessageHandler((client, _socket, message) => {
           if (!oldQ) return;
 
           newQ.troubles.forEach((newT) => {
-            if (!newT.submitted_from_wire && !newT.submitted_to_wire) {
+            if (newT.submitted_from_wire == null && newT.submitted_to_wire == null) {
               // 如果提交内容为空，则跳过（表示未提交）
               return;
             }
@@ -76,12 +76,12 @@ clientManager.addWSMessageHandler((client, _socket, message) => {
 
         // 直接覆盖服务器上的 client.testSession（客户端为胖客户端，服务端只保存状态）
         client.testSession.test.questions = msg.all_questions;
-        client.testSession.finishTime = msg.finish_time;
-        client.testSession.finishedScore = msg.finished_score;
+        if (msg.finish_time !== undefined) client.testSession.finishTime = msg.finish_time;
+        if (msg.finished_score !== undefined) client.testSession.finishedScore = msg.finished_score;
 
         // 如果有完成时间，且之前没记录过完成日志，说明这次交卷了
         if (
-          msg.finish_time &&
+          msg.finish_time !== undefined &&
           !client.testSession.logs.some((l) => l.action === "finish")
         ) {
           const log: FinishLog = {

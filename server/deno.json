@@ -4,6 +4,7 @@
     "dev": "deno run -A --env-file --watch main.ts",
     "start": "deno run -A main.ts",
     "build": "deno compile -A --target x86_64-pc-windows-msvc main.ts",
+    "test": "deno test -A",
     "db:generate": "deno run -A npm:prisma generate --schema=prisma/schema.prisma",
     "db:push": "deno run -A npm:prisma db push --schema=prisma/schema.prisma"
   },

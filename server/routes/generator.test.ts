@@ -205,3 +205,19 @@ Deno.test("buildPrompt - 完整场景包含分析要求", () => {
   assert(result.includes("安全(Safety)"));
   assert(result.includes("节约(Saving)"));
 });
+
+Deno.test("buildPrompt - finishedScore为0时不显示为未完成", () => {
+  const now = Math.floor(Date.now() / 1000);
+  const client: Client = {
+    id: "c1", name: "零分测试", ip: "10.0.0.7", online: true,
+    testSession: {
+      id: "s1",
+      test: { id: 1, questions: [], startTime: now - 600, durationTime: 600 },
+      finishTime: now,
+      finishedScore: 0,
+      logs: [],
+    },
+  };
+  const result = buildPrompt(client);
+  assert(result.includes("最终得分: 0/100"));
+});

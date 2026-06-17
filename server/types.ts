@@ -329,11 +329,11 @@ export const DEFAULT_TROUBLES: Trouble[] = [
   { id: 6, description: "（故障解析 等待中，展示默认故障）", from_wire: 202, to_wire: 203 },
 ];
 
-// 尝试在运行时从执行目录加载 troubles.json；若失败则回退为 DEFAULT_TROUBLES。
+// 尝试在运行时从模块目录加载 troubles.json；若失败则回退为 DEFAULT_TROUBLES。
 export const TROUBLES: Trouble[] = (() => {
   const tryLoad = (): Trouble[] | null => {
     try {
-      const filePath = `${Deno.cwd()}/troubles.json`;
+      const filePath = `${import.meta.dirname!}/troubles.json`;
 
       let text: string | undefined;
 
@@ -382,11 +382,11 @@ export interface CvClientMapConfig {
 // 默认CV客户机映射表（当cvClientMap.json不存在时使用）
 export const DEFAULT_CV_CLIENT_MAP: CvClientMapConfig[] = [];
 
-// 从cvClientMap.json加载CV客户机映射表
+// 从cvClientMap.json加载CV客户机映射表（基于模块所在目录）
 export const CV_CLIENT_MAP: CvClientMapConfig[] = (() => {
   const tryLoad = (): CvClientMapConfig[] | null => {
     try {
-      const filePath = `${Deno.cwd()}/cvClientMap.json`;
+      const filePath = `${import.meta.dirname!}/cvClientMap.json`;
 
       let text: string | undefined;
 

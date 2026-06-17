@@ -139,6 +139,10 @@ Deno.test("updateFrame sets latest_frame on all cvClients", async () => {
   // Update again
   (server as any).updateFrame(frame2);
   assertEquals(client1.cvClient!.latest_frame, frame2);
+
+  // 清理全局状态
+  delete clientManager.clients[client1.id];
+  delete clientManager.clients[client2.id];
 });
 
 function makeFakeSocket(): WebSocket {
