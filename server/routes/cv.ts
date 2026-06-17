@@ -8,6 +8,7 @@ import {
   FaceSigninResultPushMessage,
   FaceSigninSession,
   getSecondTimestamp,
+  getClientIP,
   DeskCleanLog,
   CvClientXiaoxinUpdateMessage,
   XiaoxinStatus,
@@ -125,14 +126,13 @@ cvRouter.post("/upload_wiring", async (c) => {
     return c.json({ success: false, error: "未上传图片文件" }, 400);
   }
 
-  const cvClientIp: string = c.req.header("x-forwarded-for") || c.req.header("host") || "unknown";
+  const cvClientIp = getClientIP(c);
   const clients = clientManager.findClientsByCvIp(cvClientIp);
   if (!clients.length) {
     return c.json({ success: false, error: "未绑定客户机" }, 400);
   }
   const cvClient = clients[0].cvClient!;
 
-  // 没有会话就建立
   if (!cvClient.session || cvClient.session.type !== "evaluate_wiring") {
     const session: EvaluateWiringSession = {
       type: "evaluate_wiring",
@@ -198,7 +198,7 @@ cvRouter.post("/upload_wiring", async (c) => {
  * POST /api/cv/confirm_wiring
  */
 cvRouter.post("/confirm_wiring", (c) => {
-  const cvClientIp: string = c.req.header("x-forwarded-for") || c.req.header("host") || "unknown";
+  const cvClientIp = getClientIP(c);
   const clients = clientManager.findClientsByCvIp(cvClientIp);
   if (!clients.length) {
     return c.json({ success: false, error: "未绑定客户机" }, 400);
@@ -270,14 +270,13 @@ cvRouter.post("/upload_face", async (c) => {
     return c.json({ success: false, error: "未上传图片文件" }, 400);
   }
 
-  const cvClientIp: string = c.req.header("x-forwarded-for") || c.req.header("host") || "unknown";
+  const cvClientIp = getClientIP(c);
   const clients = clientManager.findClientsByCvIp(cvClientIp);
   if (!clients.length) {
     return c.json({ success: false, error: "未绑定客户机" }, 400);
   }
   const cvClient = clients[0].cvClient!;
 
-  // 没有会话就建立
   if (!cvClient.session || cvClient.session.type !== "face_signin") {
     const session: FaceSigninSession = {
       type: "face_signin",
@@ -343,14 +342,13 @@ cvRouter.post("/upload_deskclean", async (c) => {
     return c.json({ success: false, error: "result 不是合法 JSON" }, 400);
   }
 
-  const cvClientIp: string = c.req.header("x-forwarded-for") || c.req.header("host") || "unknown";
+  const cvClientIp = getClientIP(c);
   const clients = clientManager.findClientsByCvIp(cvClientIp);
   if (!clients.length) {
     return c.json({ success: false, error: "未绑定客户机" }, 400);
   }
   const cvClient = clients[0].cvClient!;
 
-  // 没有会话就建立
   if (!cvClient.session || cvClient.session.type !== "desk_clean") {
     const session: DeskCleanSession = {
       type: "desk_clean",
@@ -424,7 +422,7 @@ export function getXiaoxinStatus(cvClient?: { xiaoxin_status?: XiaoxinStatus }):
  * GET /api/cv/pull_xiaoxin_update
  */
 cvRouter.get("/pull_xiaoxin_update", (c) => {
-  const cvClientIp: string = c.req.header("x-forwarded-for") || c.req.header("host") || "unknown";
+  const cvClientIp = getClientIP(c);
   const clients = clientManager.findClientsByCvIp(cvClientIp);
   if (!clients.length) {
     return c.json({ success: false, error: "未绑定客户机" }, 400);
