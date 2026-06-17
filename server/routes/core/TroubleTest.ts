@@ -13,10 +13,10 @@ import {
   TroubleTestPushMessage,
   TroubleTestUpdateRequestMessage,
   XiaoxinStatus,
-} from "./types.ts";
-import { getSecondTimestamp } from "./types.ts";
+} from "../../types.ts";
+import { getSecondTimestamp } from "../../utils/helpers.ts";
 import { clientManager } from "./ClientManager.ts";
-import { prisma } from "./prisma/client.ts";
+import { prisma } from "../../prisma/client.ts";
 
 clientManager.addWSMessageHandler((client, _socket, message) => {
   switch (message.type) {

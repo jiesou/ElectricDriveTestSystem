@@ -3,9 +3,9 @@ import {
   EvaluateBoard,
   EvaluateFunctionBoardUpdateRequestMessage,
   EvaluateWiringSession,
-  getSecondTimestamp,
   XiaoxinStatus,
-} from "./types.ts";
+} from "../../types.ts";
+import { getSecondTimestamp } from "../../utils/helpers.ts";
 
 clientManager.addWSMessageHandler((client, socket, message) => {
   switch (message.type) {

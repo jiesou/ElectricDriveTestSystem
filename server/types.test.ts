@@ -1,5 +1,6 @@
 import { assertEquals, assert } from "@std/assert";
-import { getSecondTimestamp, TROUBLES, CV_CLIENT_MAP, DEFAULT_TROUBLES, DEFAULT_CV_CLIENT_MAP } from "./types.ts";
+import { getSecondTimestamp } from "./utils/helpers.ts";
+import { TROUBLES, DEFAULT_TROUBLES, DEFAULT_CV_CLIENT_MAP, CV_CLIENT_MAP } from "./types.ts";
 
 Deno.test("工具函数 - 获取当前秒级时间戳：与实际时间误差不超过1秒", () => {
   const ts = getSecondTimestamp();

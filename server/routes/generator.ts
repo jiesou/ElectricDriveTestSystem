@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { clientManager } from "../ClientManager.ts";
+import { clientManager } from "./core/ClientManager.ts";
 import { TestLog, Client, Trouble, Question } from "../types.ts";
 
 let analyzeStream: (prompt: string) => ReadableStream<Uint8Array>;

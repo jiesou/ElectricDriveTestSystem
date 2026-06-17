@@ -1,8 +1,9 @@
 import { assertEquals, assert, assertExists } from "@std/assert";
 import { TroubleTest } from "./TroubleTest.ts";
-import { getSecondTimestamp, TROUBLES } from "./types.ts";
+import { getSecondTimestamp } from "../../utils/helpers.ts";
+import { TROUBLES } from "../../types.ts";
 import { ClientManager, clientManager } from "./ClientManager.ts";
-import { prisma } from "./prisma/client.ts";
+import { prisma } from "../../prisma/client.ts";
 
 function makeFakeSocket(): WebSocket {
   return {

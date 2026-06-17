@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { clientManager } from "../ClientManager.ts";
+import { clientManager } from "./core/ClientManager.ts";
 import {
   DeskCleanResult,
   DeskCleanSession,
@@ -7,12 +7,11 @@ import {
   EvaluateWiringYoloPushMessage,
   FaceSigninResultPushMessage,
   FaceSigninSession,
-  getSecondTimestamp,
-  getClientIP,
   DeskCleanLog,
   CvClientXiaoxinUpdateMessage,
   XiaoxinStatus,
 } from "../types.ts";
+import { getSecondTimestamp, getClientIP } from "../utils/helpers.ts";
 import { detectObjects } from "../model.ts";
 import { saveUploadedImage } from "../utils/upload.ts";
 

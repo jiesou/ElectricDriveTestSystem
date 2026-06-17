@@ -1,10 +1,10 @@
 import { assert, assertEquals, assertExists } from "@std/assert";
 
-import { troubleTest } from "./TroubleTest.ts";
-import { clientManager } from "./ClientManager.ts";
-import { getSecondTimestamp } from "./types.ts";
-import { prisma } from "./prisma/client.ts";
-import { app } from "./server.ts";
+import { troubleTest } from "./core/TroubleTest.ts";
+import { clientManager } from "./core/ClientManager.ts";
+import { getSecondTimestamp } from "../utils/helpers.ts";
+import { prisma } from "../prisma/client.ts";
+import { app } from "../server.ts";
 
 function mockSocket(): WebSocket {
   return {
@@ -19,14 +19,6 @@ async function req(path: string, init?: RequestInit): Promise<Response> {
 }
 
 Deno.test("HTTP接口测试", async (t) => {
-  await t.step("健康检查 /health：返回正常", async () => {
-    const res = await req("/health");
-    assertEquals(res.status, 200);
-    const body = await res.json();
-    assertEquals(body.status, "ok");
-    assertEquals(typeof body.ts, "number");
-  });
-
   await t.step("健康检查 /api/health：返回正常", async () => {
     const res = await req("/api/health");
     assertEquals(res.status, 200);

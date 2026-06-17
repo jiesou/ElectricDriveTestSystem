@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { troubleTest } from "../TroubleTest.ts";
+import { troubleTest } from "./core/TroubleTest.ts";
 
 export const questionsRouter = new Hono();
 

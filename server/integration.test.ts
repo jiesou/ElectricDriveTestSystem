@@ -1,11 +1,11 @@
 import { assertEquals, assert, assertExists } from "@std/assert";
-import { OpiJetsonSimulator } from "./opi-jetson-simulator.ts";
-import { getSecondTimestamp } from "./types.ts";
+import { CvClientSimulator } from "./simulator/cvclient-simulator.ts";
+import { getSecondTimestamp } from "./utils/helpers.ts";
 import { calcWiringScore } from "./routes/cv.ts";
-import "./TroubleTest.ts";
-import "./EvaluateFunction.ts";
-import { troubleTest } from "./TroubleTest.ts";
-import { clientManager } from "./ClientManager.ts";
+import "./routes/core/TroubleTest.ts";
+import "./routes/core/EvaluateFunction.ts";
+import { troubleTest } from "./routes/core/TroubleTest.ts";
+import { clientManager } from "./routes/core/ClientManager.ts";
 import { prisma } from "./prisma/client.ts";
 import { app } from "./server.ts";
 
@@ -19,8 +19,8 @@ function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-async function connectSim(ip: string, port: number, opts = {}): Promise<OpiJetsonSimulator> {
-  const sim = new OpiJetsonSimulator({ wsUrl: `ws://${ip}:${port}/ws`, reconnectDelayMs: 999_999, ...opts });
+async function connectSim(ip: string, port: number, opts = {}): Promise<CvClientSimulator> {
+  const sim = new CvClientSimulator({ wsUrl: `ws://${ip}:${port}/ws`, reconnectDelayMs: 999_999, ...opts });
   await sim.connect();
   await delay(200);
   return sim;

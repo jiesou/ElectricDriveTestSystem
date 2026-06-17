@@ -318,7 +318,8 @@ export interface FaceSigninResultPushMessage extends WSMessage {
   who: string;
 }
 
-// 写死的类型
+// ==================== 默认数据和配置文件加载 ====================
+
 // 默认 troubles，当执行目录下没有 troubles.json 时使用
 export const DEFAULT_TROUBLES: Trouble[] = [
   { id: 1, description: "101 和 102 断路", from_wire: 101, to_wire: 102 },
@@ -331,42 +332,17 @@ export const DEFAULT_TROUBLES: Trouble[] = [
 
 // 尝试在运行时从模块目录加载 troubles.json；若失败则回退为 DEFAULT_TROUBLES。
 export const TROUBLES: Trouble[] = (() => {
-  const tryLoad = (): Trouble[] | null => {
-    try {
-      const filePath = `${import.meta.dirname!}/troubles.json`;
-
-      let text: string | undefined;
-
-      try {
-        text = Deno.readTextFileSync!(filePath);
-      } catch (_e) {
-        // 文件不存在或读取失败，返回 null 以使用默认值
-        return null;
-      }
-    if (!text) return null;
-
-      const parsed = JSON.parse(text);
-      if (!Array.isArray(parsed)) return null;
-
-      return parsed as Trouble[];
-    } catch (_err) {
-      // 任何异常都回退到默认
-      return null;
-    }
-  };
-
-  const loaded = tryLoad();
-  if (loaded) {
-    // 运行时输出少量信息，方便排查（在服务器环境下通常可见）
-    try {
-      // 在一些环境中 console 可能不可用，但通常不会
+  try {
+    const filePath = `${import.meta.dirname!}/config/troubles.json`;
+    const text = Deno.readTextFileSync(filePath);
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed)) {
       console.log('[types] Loaded TROUBLES from troubles.json');
-    } catch (_e) {
-      // 忽略日志打印错误
+      return parsed as Trouble[];
     }
-    return loaded;
+  } catch {
+    // 文件不存在或解析失败，回退到默认
   }
-
   return DEFAULT_TROUBLES;
 })();
 
@@ -374,9 +350,9 @@ export const TROUBLES: Trouble[] = (() => {
 
 // CV客户机映射表配置项
 export interface CvClientMapConfig {
-  clientIp: string; // 普通客户机IP
-  cvClientIp: string; // CV客户机IP
-  cvClientType: "esp32cam" | "jetson_nano"; // CV客户机类型
+  clientIp: string;
+  cvClientIp: string;
+  cvClientType: "esp32cam" | "jetson_nano";
 }
 
 // 默认CV客户机映射表（当cvClientMap.json不存在时使用）
@@ -384,53 +360,16 @@ export const DEFAULT_CV_CLIENT_MAP: CvClientMapConfig[] = [];
 
 // 从cvClientMap.json加载CV客户机映射表（基于模块所在目录）
 export const CV_CLIENT_MAP: CvClientMapConfig[] = (() => {
-  const tryLoad = (): CvClientMapConfig[] | null => {
-    try {
-      const filePath = `${import.meta.dirname!}/cvClientMap.json`;
-
-      let text: string | undefined;
-
-      try {
-        text = Deno.readTextFileSync!(filePath);
-      } catch (_e) {
-        // 文件不存在或读取失败，返回 null 以使用默认值
-        return null;
-      }
-      if (!text) return null;
-
-      const parsed = JSON.parse(text);
-      if (!Array.isArray(parsed)) return null;
-
-      return parsed as CvClientMapConfig[];
-    } catch (_err) {
-      // 任何异常都回退到默认
-      return null;
-    }
-  };
-
-  const loaded = tryLoad();
-  if (loaded) {
-    try {
+  try {
+    const filePath = `${import.meta.dirname!}/config/cvClientMap.json`;
+    const text = Deno.readTextFileSync(filePath);
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed)) {
       console.log('[types] Loaded CV_CLIENT_MAP from cvClientMap.json');
-    } catch (_e) {
-      // 忽略日志打印错误
+      return parsed as CvClientMapConfig[];
     }
-    return loaded;
+  } catch {
+    // 文件不存在或解析失败，回退到默认
   }
-
   return DEFAULT_CV_CLIENT_MAP;
 })();
-
-// Utility function
-export function getSecondTimestamp(): number {
-  return Math.floor(Date.now() / 1000);
-}
-
-// 获取客户端真实 IP（匹配原始 Oak ctx.request.ip 行为）
-export function getClientIP(c: { req: { header: (s: string) => string | undefined }; env?: unknown }): string {
-  const forwarded = c.req.header("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0].trim();
-  const env = c.env as { remoteAddr?: { hostname?: string } } | undefined;
-  if (env?.remoteAddr?.hostname) return env.remoteAddr.hostname;
-  return "unknown";
-}

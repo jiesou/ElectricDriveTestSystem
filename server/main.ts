@@ -1,9 +1,8 @@
 import { app } from "./server.ts";
-import { initSystem } from "./SystemManager.ts";
-import { clientManager } from "./ClientManager.ts";
+import { clientManager } from "./routes/core/ClientManager.ts";
 import { udpCameraServer } from "./UdpCameraServer.ts";
 
-await initSystem();
+await clientManager.loadAllClients();
 clientManager.startHeartbeat();
 udpCameraServer.start(8000);
 
