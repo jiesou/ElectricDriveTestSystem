@@ -1,17 +1,17 @@
 import { Hono } from "hono";
 import { clientManager } from "./core/ClientManager.ts";
 import {
+  CvClientXiaoxinUpdateMessage,
+  DeskCleanLog,
   DeskCleanResult,
   DeskCleanSession,
   EvaluateWiringSession,
   EvaluateWiringYoloPushMessage,
   FaceSigninResultPushMessage,
   FaceSigninSession,
-  DeskCleanLog,
-  CvClientXiaoxinUpdateMessage,
   XiaoxinStatus,
 } from "../types.ts";
-import { getSecondTimestamp, getClientIP } from "../utils/helpers.ts";
+import { getClientIP, getSecondTimestamp } from "../utils/helpers.ts";
 import { detectObjects } from "../model.ts";
 import { saveUploadedImage } from "../utils/upload.ts";
 
@@ -19,7 +19,11 @@ import { saveUploadedImage } from "../utils/upload.ts";
  * 装接评估评分算法
  * 未标号码管扣2分，交叉扣3分，露铜忽略，露端子扣1分
  */
-export function calcWiringScore(sleeves_num: number, cross_num: number, exterminal_num: number): number {
+export function calcWiringScore(
+  sleeves_num: number,
+  cross_num: number,
+  exterminal_num: number,
+): number {
   const SLEEVES_NEEDED = 60;
   const noSleevesDeduction = Math.max(0, SLEEVES_NEEDED - sleeves_num);
   const deduction = noSleevesDeduction * 2 + cross_num * 3 + exterminal_num * 1;
@@ -107,14 +111,17 @@ cvRouter.get("/stream/:cvClientIp", (c) => {
  *     "excopper_num": 1,
  *     "exterminal_num": 0
  *   }'
- * 
+ *
  * result 为空则使用服务端推理
  */
 cvRouter.post("/upload_wiring", async (c) => {
   // 校验请求格式
   const contentType = c.req.header("Content-Type") || "";
   if (!contentType.includes("multipart/form-data")) {
-    return c.json({ success: false, error: "必须使用 multipart/form-data" }, 400);
+    return c.json(
+      { success: false, error: "必须使用 multipart/form-data" },
+      400,
+    );
   }
   const formData = await c.req.raw.formData();
 
@@ -146,7 +153,13 @@ cvRouter.post("/upload_wiring", async (c) => {
   // 解析客户端提交的推理结果
 
   const inputResultObj: Record<string, number> = inputResultStr
-    ? (() => { try { return JSON.parse(inputResultStr); } catch { return {}; } })()
+    ? (() => {
+      try {
+        return JSON.parse(inputResultStr);
+      } catch {
+        return {};
+      }
+    })()
     : {};
 
   // 将 File 转为 Uint8Array 供后续处理
@@ -162,7 +175,8 @@ cvRouter.post("/upload_wiring", async (c) => {
     exterminal_num?: number;
   } = {};
 
-  const usingServerInference = !inputResultObj || Object.keys(inputResultObj).length === 0;
+  const usingServerInference = !inputResultObj ||
+    Object.keys(inputResultObj).length === 0;
   if (usingServerInference) {
     console.log("[CV Upload] 没有推理结果，使用服务端 YOLO 推理");
     // 调用 YOLO 推理（返回结果和带标注的图像）
@@ -175,10 +189,14 @@ cvRouter.post("/upload_wiring", async (c) => {
   const bytes = annotatedImageBuffer || inputImageBuffer;
   const imageUrl: string = await saveUploadedImage(bytes, inputImageFile.name);
 
-  const sleeves_num = inputResultObj.sleeves_num ?? serverDetectionResult.sleeves_num ?? 0;
-  const cross_num = inputResultObj.cross_num ?? serverDetectionResult.cross_num ?? 0;
-  const exterminal_num = inputResultObj.exterminal_num ?? serverDetectionResult.exterminal_num ?? 0;
-  const excopper_num = inputResultObj.excopper_num ?? serverDetectionResult.excopper_num ?? 0;
+  const sleeves_num = inputResultObj.sleeves_num ??
+    serverDetectionResult.sleeves_num ?? 0;
+  const cross_num = inputResultObj.cross_num ??
+    serverDetectionResult.cross_num ?? 0;
+  const exterminal_num = inputResultObj.exterminal_num ??
+    serverDetectionResult.exterminal_num ?? 0;
+  const excopper_num = inputResultObj.excopper_num ??
+    serverDetectionResult.excopper_num ?? 0;
 
   // 存储拍摄记录（每次仅保留最新一张，新的覆盖旧的）
   session.shots = [{
@@ -231,7 +249,9 @@ cvRouter.post("/confirm_wiring", (c) => {
     scores,
   };
 
-  console.log(`[CV Upload] 工艺评估已确认 cvClient ${cvClient.ip}, score: ${scores}`);
+  console.log(
+    `[CV Upload] 工艺评估已确认 cvClient ${cvClient.ip}, score: ${scores}`,
+  );
 
   // 发送工艺评估确认结果给相关客户端
   for (const client of clients) {
@@ -258,7 +278,10 @@ cvRouter.post("/upload_face", async (c) => {
   // 校验请求格式
   const contentType = c.req.header("Content-Type") || "";
   if (!contentType.includes("multipart/form-data")) {
-    return c.json({ success: false, error: "必须使用 multipart/form-data" }, 400);
+    return c.json(
+      { success: false, error: "必须使用 multipart/form-data" },
+      400,
+    );
   }
   const formData = await c.req.raw.formData();
 
@@ -319,7 +342,10 @@ cvRouter.post("/upload_face", async (c) => {
 cvRouter.post("/upload_deskclean", async (c) => {
   const contentType = c.req.header("Content-Type") || "";
   if (!contentType.includes("multipart/form-data")) {
-    return c.json({ success: false, error: "必须使用 multipart/form-data" }, 400);
+    return c.json(
+      { success: false, error: "必须使用 multipart/form-data" },
+      400,
+    );
   }
   const formData = await c.req.raw.formData();
 
@@ -402,7 +428,11 @@ cvRouter.post("/clear_session/:cvClientIp", (c) => {
   // 删除会话（清空当前 session）
   delete cvClient.session;
 
-  console.log(`[CV] Cleared session for CV client ${cvClient.ip} (client ${clients[0].ip})`);
+  console.log(
+    `[CV] Cleared session for CV client ${cvClient.ip} (client ${
+      clients[0].ip
+    })`,
+  );
 
   return c.json({ success: true });
 });
@@ -410,8 +440,13 @@ cvRouter.post("/clear_session/:cvClientIp", (c) => {
 /**
  * 获取小新智能体状态（可独立测试）
  */
-export function getXiaoxinStatus(cvClient?: { xiaoxin_status?: XiaoxinStatus }): XiaoxinStatus {
-  const defaultStatus: XiaoxinStatus = { type: "status_text_update", status_text: "" };
+export function getXiaoxinStatus(
+  cvClient?: { xiaoxin_status?: XiaoxinStatus },
+): XiaoxinStatus {
+  const defaultStatus: XiaoxinStatus = {
+    type: "status_text_update",
+    status_text: "",
+  };
   if (!cvClient) return { ...defaultStatus };
   return { ...(cvClient.xiaoxin_status || defaultStatus) };
 }

@@ -39,7 +39,9 @@ clientManager.addWSMessageHandler((client, _socket, message) => {
           if (!oldQ) return;
 
           newQ.troubles.forEach((newT) => {
-            if (newT.submitted_from_wire == null && newT.submitted_to_wire == null) {
+            if (
+              newT.submitted_from_wire == null && newT.submitted_to_wire == null
+            ) {
               // 如果提交内容为空，则跳过（表示未提交）
               return;
             }
@@ -49,7 +51,11 @@ clientManager.addWSMessageHandler((client, _socket, message) => {
             if (!oldT) return;
 
             // 如果旧数据和新数据的提交内容不一致，则记录日志
-            if (newT.submitted_from_wire !== oldT.submitted_from_wire || newT.submitted_to_wire !== oldT.submitted_to_wire || newT.submitted_correct !== oldT.submitted_correct) {
+            if (
+              newT.submitted_from_wire !== oldT.submitted_from_wire ||
+              newT.submitted_to_wire !== oldT.submitted_to_wire ||
+              newT.submitted_correct !== oldT.submitted_correct
+            ) {
               const log: AnswerLog = {
                 timestamp: msg.timestamp || getSecondTimestamp(),
                 action: "answer",
@@ -76,8 +82,12 @@ clientManager.addWSMessageHandler((client, _socket, message) => {
 
         // 直接覆盖服务器上的 client.testSession（客户端为胖客户端，服务端只保存状态）
         client.testSession.test.questions = msg.all_questions;
-        if (msg.finish_time !== undefined) client.testSession.finishTime = msg.finish_time;
-        if (msg.finished_score !== undefined) client.testSession.finishedScore = msg.finished_score;
+        if (msg.finish_time !== undefined) {
+          client.testSession.finishTime = msg.finish_time;
+        }
+        if (msg.finished_score !== undefined) {
+          client.testSession.finishedScore = msg.finished_score;
+        }
 
         // 如果有完成时间，且之前没记录过完成日志，说明这次交卷了
         if (
@@ -134,21 +144,32 @@ export const troubleTest = {
   tests: [] as Test[],
 
   async init(): Promise<void> {
-    const storedQuestions = await prisma.storedQuestion.findMany() as Array<{ id: number; troubles: string }>;
-    questionBank = storedQuestions.map(sq => ({
+    const storedQuestions = await prisma.storedQuestion.findMany() as Array<
+      { id: number; troubles: string }
+    >;
+    questionBank = storedQuestions.map((sq) => ({
       id: sq.id,
       troubles: JSON.parse(sq.troubles),
     }));
 
-    const storedTests = await prisma.storedTest.findMany() as Array<{ id: bigint; questions: string; startTime: number; durationTime: number | null }>;
-    this.tests = storedTests.map(st => ({
+    const storedTests = await prisma.storedTest.findMany() as Array<
+      {
+        id: bigint;
+        questions: string;
+        startTime: number;
+        durationTime: number | null;
+      }
+    >;
+    this.tests = storedTests.map((st) => ({
       id: Number(st.id),
       questions: JSON.parse(st.questions),
       startTime: st.startTime,
       durationTime: st.durationTime,
     }));
 
-    console.log(`[TroubleTest] Loaded ${questionBank.length} questions, ${this.tests.length} tests from database`);
+    console.log(
+      `[TroubleTest] Loaded ${questionBank.length} questions, ${this.tests.length} tests from database`,
+    );
   },
 
   pushTestToClient(client: Client, test: Test) {
@@ -205,12 +226,18 @@ export const troubleTest = {
     await prisma.storedQuestion.upsert({
       where: { id: newQuestion.id },
       update: { troubles: JSON.stringify(newQuestion.troubles) },
-      create: { id: newQuestion.id, troubles: JSON.stringify(newQuestion.troubles) },
+      create: {
+        id: newQuestion.id,
+        troubles: JSON.stringify(newQuestion.troubles),
+      },
     });
     return newQuestion;
   },
 
-  async updateQuestion(id: number, updates: Partial<Question>): Promise<boolean> {
+  async updateQuestion(
+    id: number,
+    updates: Partial<Question>,
+  ): Promise<boolean> {
     const index = questionBank.findIndex((q) => q.id === id);
     if (index === -1) return false;
 

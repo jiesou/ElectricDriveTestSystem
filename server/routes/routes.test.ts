@@ -46,28 +46,31 @@ Deno.test("HTTP接口测试", async (t) => {
   });
 
   let createdQuestionId: number;
-  await t.step("创建题目 POST /api/questions：成功创建并返回新题目", async () => {
-    const payload = {
-      troubles: [{
-        id: 100,
-        description: "test fault",
-        from_wire: 101,
-        to_wire: 102,
-      }],
-    };
-    const res = await req("/api/questions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    assertEquals(res.status, 200);
-    const body = await res.json();
-    assert(body.success);
-    assertExists(body.data.id);
-    assertEquals(body.data.troubles.length, 1);
-    assertEquals(body.data.troubles[0].description, "test fault");
-    createdQuestionId = body.data.id;
-  });
+  await t.step(
+    "创建题目 POST /api/questions：成功创建并返回新题目",
+    async () => {
+      const payload = {
+        troubles: [{
+          id: 100,
+          description: "test fault",
+          from_wire: 101,
+          to_wire: 102,
+        }],
+      };
+      const res = await req("/api/questions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      assertEquals(res.status, 200);
+      const body = await res.json();
+      assert(body.success);
+      assertExists(body.data.id);
+      assertEquals(body.data.troubles.length, 1);
+      assertEquals(body.data.troubles[0].description, "test fault");
+      createdQuestionId = body.data.id;
+    },
+  );
 
   await t.step("更新题目 PUT /api/questions/:id：成功修改", async () => {
     const payload = {
@@ -316,7 +319,12 @@ Deno.test("HTTP接口测试", async (t) => {
           id: 550,
           questions: [{
             id: 1,
-            troubles: [{ id: 1, description: "specific", from_wire: 1, to_wire: 2 }],
+            troubles: [{
+              id: 1,
+              description: "specific",
+              from_wire: 1,
+              to_wire: 2,
+            }],
           }],
           startTime: getSecondTimestamp(),
           durationTime: null,
@@ -337,7 +345,10 @@ Deno.test("HTTP接口测试", async (t) => {
       assertEquals(body.data.results[0].pushed, true);
 
       delete clientManager.clients[client1.id];
-      delete clientManager.clients[Object.keys(clientManager.clients).find(k => k !== client1.id)!];
+      delete clientManager
+        .clients[
+          Object.keys(clientManager.clients).find((k) => k !== client1.id)!
+        ];
     },
   );
 
@@ -360,20 +371,33 @@ Deno.test("HTTP接口测试", async (t) => {
     "创建测验会话 POST：不存在的客户机编号被跳过，data 包含该 ID 但无 client 被实际创建会话",
     async () => {
       const q = await troubleTest.addQuestion({
-        troubles: [{ id: 1, description: "non-existent test", from_wire: 1, to_wire: 2 }],
+        troubles: [{
+          id: 1,
+          description: "non-existent test",
+          from_wire: 1,
+          to_wire: 2,
+        }],
       });
 
       const res = await req("/api/tests/test-sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientIds: ["nonexistent-id"], questionIds: [q.id] }),
+        body: JSON.stringify({
+          clientIds: ["nonexistent-id"],
+          questionIds: [q.id],
+        }),
       });
       assertEquals(res.status, 200);
       const body = await res.json();
       assert(body.success);
       assertEquals(body.data.length, 1, "应有一条结果");
       assertEquals(body.data[0].clientId, "nonexistent-id");
-      assertEquals(Object.values(clientManager.clients).filter(c => c.testSession).length, 0, "应无实际 client 获得会话");
+      assertEquals(
+        Object.values(clientManager.clients).filter((c) => c.testSession)
+          .length,
+        0,
+        "应无实际 client 获得会话",
+      );
 
       await troubleTest.deleteQuestion(q.id);
     },

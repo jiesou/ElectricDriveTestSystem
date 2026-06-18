@@ -5,7 +5,7 @@ export interface Trouble {
   from_wire: number;
   to_wire: number;
   submitted_from_wire?: number | null; // 提交的故障（用于排故测验）
-  submitted_to_wire?: number | null;   // 提交的故障（用于排故测验）
+  submitted_to_wire?: number | null; // 提交的故障（用于排故测验）
   submitted_correct?: boolean | null; // 提交是否正确（用于排故测验）
 }
 
@@ -98,7 +98,7 @@ export interface EvaluateFunctionStep {
 
   passed: boolean;
   finished: boolean;
-};
+}
 
 // CV会话基类接口
 export interface CvSession {
@@ -170,7 +170,6 @@ export interface CvClientXiaoxinUpdateMessage extends XiaoxinStatus {
   timestamp: number; // 时间戳(秒)
 }
 
-
 // ==================== 客户机实例 ====================
 
 // 客户机实例
@@ -214,7 +213,11 @@ export interface WSMessage {
 }
 
 // WebSocket 消息处理器类型
-export type WSMessageHandler = (client: Client, socket: WebSocket, message: WSMessage) => void;
+export type WSMessageHandler = (
+  client: Client,
+  socket: WebSocket,
+  message: WSMessage,
+) => void;
 
 /* XX RequestMessage       客户机->服务器 的消息 */
 /* XX UpdateRequestMessage 客户机->服务器 更新数据 */
@@ -327,7 +330,12 @@ export const DEFAULT_TROUBLES: Trouble[] = [
   { id: 3, description: "103 和 104 断路", from_wire: 103, to_wire: 104 },
   { id: 4, description: "104 和 105 断路", from_wire: 104, to_wire: 105 },
   { id: 5, description: "201 和 202 断路", from_wire: 201, to_wire: 202 },
-  { id: 6, description: "（故障解析 等待中，展示默认故障）", from_wire: 202, to_wire: 203 },
+  {
+    id: 6,
+    description: "（故障解析 等待中，展示默认故障）",
+    from_wire: 202,
+    to_wire: 203,
+  },
 ];
 
 // 尝试在运行时从模块目录加载 troubles.json；若失败则回退为 DEFAULT_TROUBLES。
@@ -337,7 +345,7 @@ export const TROUBLES: Trouble[] = (() => {
     const text = Deno.readTextFileSync(filePath);
     const parsed = JSON.parse(text);
     if (Array.isArray(parsed)) {
-      console.log('[types] Loaded TROUBLES from troubles.json');
+      console.log("[types] Loaded TROUBLES from troubles.json");
       return parsed as Trouble[];
     }
   } catch {
@@ -365,7 +373,7 @@ export const CV_CLIENT_MAP: CvClientMapConfig[] = (() => {
     const text = Deno.readTextFileSync(filePath);
     const parsed = JSON.parse(text);
     if (Array.isArray(parsed)) {
-      console.log('[types] Loaded CV_CLIENT_MAP from cvClientMap.json');
+      console.log("[types] Loaded CV_CLIENT_MAP from cvClientMap.json");
       return parsed as CvClientMapConfig[];
     }
   } catch {

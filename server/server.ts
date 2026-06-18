@@ -4,7 +4,7 @@ import { serveStatic } from "hono/deno";
 import { upgradeWebSocket } from "hono/deno";
 import { logger } from "hono/logger";
 import { WSMessage } from "./types.ts";
-import { getSecondTimestamp, getClientIP } from "./utils/helpers.ts";
+import { getClientIP, getSecondTimestamp } from "./utils/helpers.ts";
 import { clientManager } from "./routes/core/ClientManager.ts";
 import "./routes/core/TroubleTest.ts";
 import "./routes/core/EvaluateFunction.ts";
@@ -19,41 +19,59 @@ export const app = new Hono();
 app.use("*", cors());
 app.use("*", logger());
 
-app.get("/ws", upgradeWebSocket((c) => {
-  const ip = getClientIP(c);
-  return {
-    onOpen(_event, ws) {
-      const client = clientManager.connectClient(ip, ws as unknown as WebSocket);
-      ws.send(JSON.stringify({ type: "connected", clientId: client.id }));
-      console.log(`WebSocket connection established for client ${client.name}`);
-    },
-    onMessage(event, ws) {
-      try {
-        const message: WSMessage = JSON.parse(event.data as string);
-        console.log("Received message:", message);
-        const client = Object.values(clientManager.clients).find(c => c.ip === ip);
-        if (client) {
-          clientManager.processWebSocketMessageIn(client, ws as unknown as WebSocket, message);
+app.get(
+  "/ws",
+  upgradeWebSocket((c) => {
+    const ip = getClientIP(c);
+    return {
+      onOpen(_event, ws) {
+        const client = clientManager.connectClient(
+          ip,
+          ws as unknown as WebSocket,
+        );
+        ws.send(JSON.stringify({ type: "connected", clientId: client.id }));
+        console.log(
+          `WebSocket connection established for client ${client.name}`,
+        );
+      },
+      onMessage(event, ws) {
+        try {
+          const message: WSMessage = JSON.parse(event.data as string);
+          console.log("Received message:", message);
+          const client = Object.values(clientManager.clients).find((c) =>
+            c.ip === ip
+          );
+          if (client) {
+            clientManager.processWebSocketMessageIn(
+              client,
+              ws as unknown as WebSocket,
+              message,
+            );
+          }
+        } catch (e) {
+          console.error("WS message error:", e);
         }
-      } catch (e) {
-        console.error("WS message error:", e);
-      }
-    },
-    onClose(_event, ws) {
-      const client = Object.values(clientManager.clients).find(c => c.ip === ip && c.socket === (ws as unknown as WebSocket));
-      if (client) {
-        clientManager.disconnectClient(client);
-      }
-    },
-    onError(_event, _ws) {
-      const client = Object.values(clientManager.clients).find(c => c.ip === ip);
-      if (client) {
-        console.error(`WebSocket error for ${client.name}`);
-        clientManager.disconnectClient(client);
-      }
-    },
-  };
-}));
+      },
+      onClose(_event, ws) {
+        const client = Object.values(clientManager.clients).find((c) =>
+          c.ip === ip && c.socket === (ws as unknown as WebSocket)
+        );
+        if (client) {
+          clientManager.disconnectClient(client);
+        }
+      },
+      onError(_event, _ws) {
+        const client = Object.values(clientManager.clients).find((c) =>
+          c.ip === ip
+        );
+        if (client) {
+          console.error(`WebSocket error for ${client.name}`);
+          clientManager.disconnectClient(client);
+        }
+      },
+    };
+  }),
+);
 
 const api = new Hono();
 api.route("/troubles", troublesRouter);
@@ -62,7 +80,10 @@ api.route("/clients", clientsRouter);
 api.route("/tests", testsRouter);
 api.route("/generator", generatorRouter);
 api.route("/cv", cvRouter);
-api.get("/health", (c) => c.json({ status: "ok", timestamp: getSecondTimestamp() }));
+api.get(
+  "/health",
+  (c) => c.json({ status: "ok", timestamp: getSecondTimestamp() }),
+);
 
 app.route("/api", api);
 

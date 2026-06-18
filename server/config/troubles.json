@@ -1,13 +1,68 @@
 [
-  { "id": 1, "description": "109 和 110 断路", "from_wire": 109, "to_wire": 110 },
-  { "id": 2, "description": "101 和 102 断路 控制电路全没有", "from_wire": 101, "to_wire": 102 },
-  { "id": 3, "description": "151 和 152 断路", "from_wire": 151, "to_wire": 152 },
-  { "id": 4, "description": "159 和 160 断路", "from_wire": 159, "to_wire": 160 },
-  { "id": 5, "description": "163 和 164 断路", "from_wire": 163, "to_wire": 164 },
-  { "id": 6, "description": "107 和 108 断路", "from_wire": 107, "to_wire": 108 },
-  { "id": 7, "description": "117 和 118 断路", "from_wire": 117, "to_wire": 118 },
-  { "id": 8, "description": "147 和 148 断路", "from_wire": 147, "to_wire": 148 },
-  { "id": 9, "description": "153 和 154 断路 电机无法反转", "from_wire": 153, "to_wire": 154 },
-  { "id": 10, "description": "165 和 166 断路 快速移动无法反转", "from_wire": 165, "to_wire": 166 },
-  { "id": 11, "description": "171 和 172 断路", "from_wire": 171, "to_wire": 172 }
+  {
+    "id": 1,
+    "description": "109 和 110 断路",
+    "from_wire": 109,
+    "to_wire": 110
+  },
+  {
+    "id": 2,
+    "description": "101 和 102 断路 控制电路全没有",
+    "from_wire": 101,
+    "to_wire": 102
+  },
+  {
+    "id": 3,
+    "description": "151 和 152 断路",
+    "from_wire": 151,
+    "to_wire": 152
+  },
+  {
+    "id": 4,
+    "description": "159 和 160 断路",
+    "from_wire": 159,
+    "to_wire": 160
+  },
+  {
+    "id": 5,
+    "description": "163 和 164 断路",
+    "from_wire": 163,
+    "to_wire": 164
+  },
+  {
+    "id": 6,
+    "description": "107 和 108 断路",
+    "from_wire": 107,
+    "to_wire": 108
+  },
+  {
+    "id": 7,
+    "description": "117 和 118 断路",
+    "from_wire": 117,
+    "to_wire": 118
+  },
+  {
+    "id": 8,
+    "description": "147 和 148 断路",
+    "from_wire": 147,
+    "to_wire": 148
+  },
+  {
+    "id": 9,
+    "description": "153 和 154 断路 电机无法反转",
+    "from_wire": 153,
+    "to_wire": 154
+  },
+  {
+    "id": 10,
+    "description": "165 和 166 断路 快速移动无法反转",
+    "from_wire": 165,
+    "to_wire": 166
+  },
+  {
+    "id": 11,
+    "description": "171 和 172 断路",
+    "from_wire": 171,
+    "to_wire": 172
+  }
 ]

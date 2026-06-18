@@ -43,7 +43,10 @@ Deno.test("小新AI状态 - 视觉客户端无状态：返回默认空闲", () =
 
 Deno.test("小新AI状态 - 需要排故状态M1：正确返回", () => {
   const s = getXiaoxinStatus({
-    xiaoxin_status: { type: "evaluate_need_troubleshoot", evaluate_need_troubleshoot_type: "M1_NOT_START" },
+    xiaoxin_status: {
+      type: "evaluate_need_troubleshoot",
+      evaluate_need_troubleshoot_type: "M1_NOT_START",
+    },
   } as any);
   assertEquals(s.type, "evaluate_need_troubleshoot");
   assertEquals(s.evaluate_need_troubleshoot_type, "M1_NOT_START");
@@ -51,7 +54,10 @@ Deno.test("小新AI状态 - 需要排故状态M1：正确返回", () => {
 
 Deno.test("小新AI状态 - 需要排故状态M2：正确返回", () => {
   const s = getXiaoxinStatus({
-    xiaoxin_status: { type: "evaluate_need_troubleshoot", evaluate_need_troubleshoot_type: "M2_NOT_START" },
+    xiaoxin_status: {
+      type: "evaluate_need_troubleshoot",
+      evaluate_need_troubleshoot_type: "M2_NOT_START",
+    },
   } as any);
   assertEquals(s.type, "evaluate_need_troubleshoot");
   assertEquals(s.evaluate_need_troubleshoot_type, "M2_NOT_START");

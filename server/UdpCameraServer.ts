@@ -29,7 +29,9 @@ export class UdpCameraServer {
 
       this.socket.on("listening", () => {
         const address = this.socket!.address();
-        console.log(`[UdpCamera] UDP 图传接收器工作在 ${address.address}:${address.port}`);
+        console.log(
+          `[UdpCamera] UDP 图传接收器工作在 ${address.address}:${address.port}`,
+        );
       });
 
       this.socket.bind(port);
@@ -50,11 +52,12 @@ export class UdpCameraServer {
     }
 
     // 解析包头（小端序）
-    const frameIndex = data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24);
+    const frameIndex = data[0] | (data[1] << 8) | (data[2] << 16) |
+      (data[3] << 24);
     const chunkIndex = data[4] | (data[5] << 8);
     const chunkTotal = data[6] | (data[7] << 8);
     const chunkPayload = data.slice(8);
-    
+
     // console.log(`[UdpCamera] 帧 ${frameIndex}, 分片 ${chunkIndex}/${chunkTotal}, 大小: ${chunkPayload.length}`);
 
     // 存入缓存
@@ -86,7 +89,10 @@ export class UdpCameraServer {
         }
 
         // 计算总长度
-        const totalLength = orderedChunks.reduce((sum, chunk) => sum + chunk.length, 0);
+        const totalLength = orderedChunks.reduce(
+          (sum, chunk) => sum + chunk.length,
+          0,
+        );
         const latestFrame = new Uint8Array(totalLength);
 
         // 复制所有分片到一个连续的数组
@@ -124,7 +130,7 @@ export class UdpCameraServer {
         updatedCount++;
       }
     }
-    
+
     if (updatedCount === 0) {
       console.warn(`[UdpCamera] 警告：没有找到存在的 CV 客户端！`);
     }

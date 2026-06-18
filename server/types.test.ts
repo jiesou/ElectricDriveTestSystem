@@ -1,6 +1,11 @@
-import { assertEquals, assert } from "@std/assert";
+import { assert, assertEquals } from "@std/assert";
 import { getSecondTimestamp } from "./utils/helpers.ts";
-import { TROUBLES, DEFAULT_TROUBLES, DEFAULT_CV_CLIENT_MAP, CV_CLIENT_MAP } from "./types.ts";
+import {
+  CV_CLIENT_MAP,
+  DEFAULT_CV_CLIENT_MAP,
+  DEFAULT_TROUBLES,
+  TROUBLES,
+} from "./types.ts";
 
 Deno.test("工具函数 - 获取当前秒级时间戳：与实际时间误差不超过1秒", () => {
   const ts = getSecondTimestamp();
@@ -29,7 +34,9 @@ Deno.test("客户机映射表 - 每个映射都有源IP、目标IP和类型", ()
   for (const entry of CV_CLIENT_MAP) {
     assertEquals(typeof entry.clientIp, "string");
     assertEquals(typeof entry.cvClientIp, "string");
-    assert(entry.cvClientType === "esp32cam" || entry.cvClientType === "jetson_nano");
+    assert(
+      entry.cvClientType === "esp32cam" || entry.cvClientType === "jetson_nano",
+    );
   }
 });
 

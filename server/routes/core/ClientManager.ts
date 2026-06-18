@@ -1,12 +1,12 @@
 import {
   Client,
-  CvClient,
+  ClientNamePushMessage,
+  ClientNameUpdateRequestMessage,
   CV_CLIENT_MAP,
+  CvClient,
+  PongMessage,
   WSMessage,
   WSMessageHandler,
-  PongMessage,
-  ClientNameUpdateRequestMessage,
-  ClientNamePushMessage,
 } from "../../types.ts";
 import { getSecondTimestamp } from "../../utils/helpers.ts";
 import { prisma } from "../../prisma/client.ts";
@@ -144,7 +144,11 @@ export const clientManager = {
   /**
    * 仅在server.ts由socket.onmessage调用，处理并分发消息给注册的处理器
    */
-  processWebSocketMessageIn(client: Client, socket: WebSocket, message: WSMessage): void {
+  processWebSocketMessageIn(
+    client: Client,
+    socket: WebSocket,
+    message: WSMessage,
+  ): void {
     client.socket = socket; // 确保 socket 引用是最新的
     // 处理应用层 ping 消息
     if (
@@ -166,7 +170,9 @@ export const clientManager = {
       const updateMsg = message as unknown as ClientNameUpdateRequestMessage;
       if (typeof updateMsg.name === "string" && updateMsg.name.trim() !== "") {
         client.name = updateMsg.name.trim();
-        console.log(`[ClientManager] Client ${client.id} name updated to ${client.name}`);
+        console.log(
+          `[ClientManager] Client ${client.id} name updated to ${client.name}`,
+        );
         this.persistClient(client);
 
         // 回复确认消息
@@ -194,10 +200,15 @@ export const clientManager = {
       try {
         socket.send(JSON.stringify(message));
       } catch (error) {
-        console.error("[ClientManager] Failed to send WebSocket message:", error);
+        console.error(
+          "[ClientManager] Failed to send WebSocket message:",
+          error,
+        );
       }
     } else {
-      console.warn(`[ClientManager] Cannot send message to client, there is no socket.`);
+      console.warn(
+        `[ClientManager] Cannot send message to client, there is no socket.`,
+      );
     }
   },
 
@@ -241,12 +252,16 @@ export const clientManager = {
         where: { ip: client.cvClient.ip },
         update: {
           clientType: client.cvClient.clientType,
-          sessionJson: client.cvClient.session ? JSON.stringify(client.cvClient.session) : null,
+          sessionJson: client.cvClient.session
+            ? JSON.stringify(client.cvClient.session)
+            : null,
         },
         create: {
           ip: client.cvClient.ip,
           clientType: client.cvClient.clientType,
-          sessionJson: client.cvClient.session ? JSON.stringify(client.cvClient.session) : null,
+          sessionJson: client.cvClient.session
+            ? JSON.stringify(client.cvClient.session)
+            : null,
         },
       });
     }
@@ -257,16 +272,24 @@ export const clientManager = {
         name: client.name,
         ip: client.ip,
         cvClientIp: client.cvClient?.ip || null,
-        testSessionJson: client.testSession ? JSON.stringify(client.testSession) : null,
-        evaluateBoardJson: client.evaluateBoard ? JSON.stringify(client.evaluateBoard) : null,
+        testSessionJson: client.testSession
+          ? JSON.stringify(client.testSession)
+          : null,
+        evaluateBoardJson: client.evaluateBoard
+          ? JSON.stringify(client.evaluateBoard)
+          : null,
       },
       create: {
         id: client.id,
         name: client.name,
         ip: client.ip,
         cvClientIp: client.cvClient?.ip || null,
-        testSessionJson: client.testSession ? JSON.stringify(client.testSession) : null,
-        evaluateBoardJson: client.evaluateBoard ? JSON.stringify(client.evaluateBoard) : null,
+        testSessionJson: client.testSession
+          ? JSON.stringify(client.testSession)
+          : null,
+        evaluateBoardJson: client.evaluateBoard
+          ? JSON.stringify(client.evaluateBoard)
+          : null,
       },
     });
   },
@@ -289,8 +312,12 @@ export const clientManager = {
         name: sc.name,
         ip: sc.ip,
         online: false,
-        testSession: sc.testSessionJson ? JSON.parse(sc.testSessionJson) : undefined,
-        evaluateBoard: sc.evaluateBoardJson ? JSON.parse(sc.evaluateBoardJson) : undefined,
+        testSession: sc.testSessionJson
+          ? JSON.parse(sc.testSessionJson)
+          : undefined,
+        evaluateBoard: sc.evaluateBoardJson
+          ? JSON.parse(sc.evaluateBoardJson)
+          : undefined,
       };
 
       // 绑定已恢复的 cvClient（共享引用）

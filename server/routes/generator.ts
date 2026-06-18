@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { clientManager } from "./core/ClientManager.ts";
-import { TestLog, Client, Trouble, Question } from "../types.ts";
+import { Client, Question, TestLog, Trouble } from "../types.ts";
 
 let analyzeStream: (prompt: string) => ReadableStream<Uint8Array>;
 
@@ -37,13 +37,18 @@ export function formatLogEntry(log: TestLog, index: number): string {
       detail = `开始测验 - 题目: ${log.details.question?.id}`;
       break;
     case "answer":
-      detail = `选择故障${log.details.trouble?.id} (${log.details.trouble?.description}) - ${log.details.isCorrect ? "正确✓" : "错误✗"}`;
+      detail =
+        `选择故障${log.details.trouble?.id} (${log.details.trouble?.description}) - ${
+          log.details.isCorrect ? "正确✓" : "错误✗"
+        }`;
       break;
     case "finish":
       detail = `完成测验 - 得分: ${log.details.score}`;
       break;
     case "desk_clean":
-      detail = `工位清洁 - 桌面干净程度: ${(log.details.deskCleanResult.clean_progress * 100).toFixed(0)}%`;
+      detail = `工位清洁 - 桌面干净程度: ${
+        (log.details.deskCleanResult.clean_progress * 100).toFixed(0)
+      }%`;
       break;
     case "connect":
       detail = "连接服务器";
@@ -72,7 +77,9 @@ export function buildPrompt(client: Client): string {
     markdown.push("### 调试单元\n");
     // 基本信息
     markdown.push("#### 基本信息");
-    const startTime = new Date(session.test.startTime * 1000).toLocaleString("zh-CN");
+    const startTime = new Date(session.test.startTime * 1000).toLocaleString(
+      "zh-CN",
+    );
     const finishTime = session.finishTime
       ? new Date(session.finishTime * 1000).toLocaleString("zh-CN")
       : "未完成";
@@ -93,7 +100,11 @@ export function buildPrompt(client: Client): string {
       markdown.push(`**题目 ${idx + 1} (ID: ${question.id})**`);
       markdown.push("含故障:");
       question.troubles.forEach((trouble: Trouble, index: number) => {
-        markdown.push(`${index + 1}. 所设: ${trouble.description}，用户所选 ${trouble.submitted_from_wire} - ${trouble.submitted_to_wire}`);
+        markdown.push(
+          `${
+            index + 1
+          }. 所设: ${trouble.description}，用户所选 ${trouble.submitted_from_wire} - ${trouble.submitted_to_wire}`,
+        );
       });
     });
 
@@ -113,13 +124,17 @@ export function buildPrompt(client: Client): string {
     markdown.push(`**电路名称**: ${board.description}\n`);
 
     const totalSteps = board.function_steps.length;
-    const finishedSteps = board.function_steps.filter(s => s.finished).length;
-    const passedSteps = board.function_steps.filter(s => s.passed).length;
+    const finishedSteps = board.function_steps.filter((s) => s.finished).length;
+    const passedSteps = board.function_steps.filter((s) => s.passed).length;
 
     markdown.push(`- 总步骤数: ${totalSteps}`);
     markdown.push(`- 完成步骤数: ${finishedSteps}`);
     markdown.push(`- 通过步骤数: ${passedSteps}`);
-    markdown.push(`- 通过率: ${totalSteps > 0 ? ((passedSteps / totalSteps) * 100).toFixed(1) : 0}%\n`);
+    markdown.push(
+      `- 通过率: ${
+        totalSteps > 0 ? ((passedSteps / totalSteps) * 100).toFixed(1) : 0
+      }%\n`,
+    );
 
     markdown.push("#### 各步骤详情:");
     board.function_steps.forEach((step, idx) => {
@@ -152,7 +167,9 @@ export function buildPrompt(client: Client): string {
 
         markdown.push("#### 各次拍摄结果:");
         wiringSession.shots.forEach((shot, idx) => {
-          const shotTime = new Date(shot.timestamp * 1000).toLocaleString("zh-CN");
+          const shotTime = new Date(shot.timestamp * 1000).toLocaleString(
+            "zh-CN",
+          );
           markdown.push(`**第 ${idx + 1} 次拍摄** (${shotTime})`);
           markdown.push(`- 已标号码管数量: ${shot.result.sleeves_num}`);
           markdown.push(`- 交叉接线数量: ${shot.result.cross_num}`);
@@ -164,11 +181,17 @@ export function buildPrompt(client: Client): string {
 
       if (wiringSession.finalResult) {
         markdown.push("#### 最终评估结果:");
-        markdown.push(`- 未标号码管总数: ${wiringSession.finalResult.no_sleeves_num}`);
+        markdown.push(
+          `- 未标号码管总数: ${wiringSession.finalResult.no_sleeves_num}`,
+        );
         markdown.push(`- 交叉接线总数: ${wiringSession.finalResult.cross_num}`);
         markdown.push(`- 露铜总数: ${wiringSession.finalResult.excopper_num}`);
-        markdown.push(`- 露端子总数: ${wiringSession.finalResult.exterminal_num}`);
-        markdown.push(`- **最终评分**: ${wiringSession.finalResult.scores}/100`);
+        markdown.push(
+          `- 露端子总数: ${wiringSession.finalResult.exterminal_num}`,
+        );
+        markdown.push(
+          `- **最终评分**: ${wiringSession.finalResult.scores}/100`,
+        );
         markdown.push("");
       }
     }
@@ -179,15 +202,29 @@ export function buildPrompt(client: Client): string {
   markdown.push("\n## 分析要求");
   markdown.push("请针对以上数据进行综合分析，包括但不限于：");
   markdown.push("1. 每位学员的整体表现评价（综合排故测验和装接评估）");
-  markdown.push("2. 排故测验表现：操作效率分析（答题速度、错误率等）、知识点掌握情况");
+  markdown.push(
+    "2. 排故测验表现：操作效率分析（答题速度、错误率等）、知识点掌握情况",
+  );
   markdown.push("3. 装接评估表现：功能测试完成情况、操作规范性、工艺质量");
   markdown.push("4. 素养7S评价：结合以下7个维度对学员的操作过程进行评价");
-  markdown.push("   - 整理(Seiri)：是否区分必要与非必要的工具/物料，工作区域是否有不需要的物品");
-  markdown.push("   - 整顿(Seiton)：工具、仪表、导线等是否定量定位摆放整齐，取用是否便捷");
-  markdown.push("   - 清扫(Seiso)：作业完成后是否清扫工作台面，保持设备/工位整洁");
-  markdown.push("   - 清洁(Seiketsu)：是否将整理、整顿、清扫的要求固化为习惯，保持长期整洁");
-  markdown.push("   - 素养(Shitsuke)：是否严格遵守操作规程和安全制度，养成规范作业的习惯（7S核心）");
-  markdown.push("   - 安全(Safety)：操作过程中是否存在安全隐患，是否注意人身与设备安全防护");
+  markdown.push(
+    "   - 整理(Seiri)：是否区分必要与非必要的工具/物料，工作区域是否有不需要的物品",
+  );
+  markdown.push(
+    "   - 整顿(Seiton)：工具、仪表、导线等是否定量定位摆放整齐，取用是否便捷",
+  );
+  markdown.push(
+    "   - 清扫(Seiso)：作业完成后是否清扫工作台面，保持设备/工位整洁",
+  );
+  markdown.push(
+    "   - 清洁(Seiketsu)：是否将整理、整顿、清扫的要求固化为习惯，保持长期整洁",
+  );
+  markdown.push(
+    "   - 素养(Shitsuke)：是否严格遵守操作规程和安全制度，养成规范作业的习惯（7S核心）",
+  );
+  markdown.push(
+    "   - 安全(Safety)：操作过程中是否存在安全隐患，是否注意人身与设备安全防护",
+  );
   markdown.push("   - 节约(Saving)：是否合理使用导线、元器件等物料，减少浪费");
   markdown.push("5. 改进建议和学习重点（结合知识点掌握情况和7S素养表现）");
 

@@ -27,10 +27,10 @@ class SimpleESP32Simulator {
         this.pingIntervalId = setInterval(() => {
           this.ping();
         }, 3000);
-      const message = { type: "evaluate_wiring_yolo_request" };
-      const response = JSON.stringify(message);
-      console.log("📤 发送工艺评估请求:", response);
-      this.socket?.send(response);
+        const message = { type: "evaluate_wiring_yolo_request" };
+        const response = JSON.stringify(message);
+        console.log("📤 发送工艺评估请求:", response);
+        this.socket?.send(response);
         resolve();
       };
 
@@ -69,7 +69,6 @@ class SimpleESP32Simulator {
   }
 
   private handleMessage(message: any) {
-
     switch (message.type) {
       case "connected":
         this.clientId = message.clientId;
@@ -88,7 +87,9 @@ class SimpleESP32Simulator {
 
         // 更新当前题目索引
         this.currentQuestion = message.current_question_index + 1;
-        console.log(`📍 当前题目索引: ${this.currentQuestion}/${this.totalQuestions}`);
+        console.log(
+          `📍 当前题目索引: ${this.currentQuestion}/${this.totalQuestions}`,
+        );
 
         // 如果有剩余的故障，立即回答第一个
         if (message.exist_troubles && message.exist_troubles.length > 0) {
@@ -98,7 +99,7 @@ class SimpleESP32Simulator {
         } else {
           // 当前题目没有剩余故障
           console.log(`✅ 第${this.currentQuestion}题完成`);
-          
+
           // 检查是否所有题目都完成（注意：currentQuestion是从1开始的）
           if (this.currentQuestion >= this.totalQuestions) {
             // 所有题目完成，自动交卷
@@ -127,7 +128,7 @@ class SimpleESP32Simulator {
       case "error":
         console.error(`❌ 服务器返回: ${JSON.stringify(message)}`);
         break;
-      
+
       case "pong":
         break;
 

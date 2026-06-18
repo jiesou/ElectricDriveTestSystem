@@ -129,7 +129,10 @@ export class CvClientSimulator {
     this.send("ack_relay_rainbow");
   }
 
-  waitForMessage(predicate: (msg: unknown) => boolean, timeoutMs = 5000): Promise<unknown> {
+  waitForMessage(
+    predicate: (msg: unknown) => boolean,
+    timeoutMs = 5000,
+  ): Promise<unknown> {
     const existing = this.messageQueue.find(predicate);
     if (existing) {
       this.messageQueue = this.messageQueue.filter((m) => m !== existing);
@@ -171,9 +174,16 @@ export class CvClientSimulator {
         this.currentQuestion = (msg.current_question_index as number) + 1;
         this.totalQuestions = msg.total_questions as number;
 
-        if (msg.exist_troubles && Array.isArray(msg.exist_troubles) && msg.exist_troubles.length > 0) {
-          const troubleId = (msg.exist_troubles[0] as Record<string, unknown>).id as number;
-          setTimeout(() => this.sendAnswer(troubleId), this.config.answerDelayMs);
+        if (
+          msg.exist_troubles && Array.isArray(msg.exist_troubles) &&
+          msg.exist_troubles.length > 0
+        ) {
+          const troubleId = (msg.exist_troubles[0] as Record<string, unknown>)
+            .id as number;
+          setTimeout(
+            () => this.sendAnswer(troubleId),
+            this.config.answerDelayMs,
+          );
         } else if (this.currentQuestion >= this.totalQuestions) {
           setTimeout(() => this.finishTest(), this.config.answerDelayMs);
         } else {
@@ -215,7 +225,10 @@ export class CvClientSimulator {
 export class SimulatorPool {
   private simulators: Map<string, CvClientSimulator> = new Map();
 
-  async spawn(count: number, config?: SimulatorConfig): Promise<CvClientSimulator[]> {
+  async spawn(
+    count: number,
+    config?: SimulatorConfig,
+  ): Promise<CvClientSimulator[]> {
     const created: CvClientSimulator[] = [];
     for (let i = 0; i < count; i++) {
       const sim = new CvClientSimulator(config);
@@ -247,8 +260,14 @@ export class SimulatorPool {
     return {
       total: all.length,
       connected: all.filter((s) => s.isConnected).length,
-      totalMessagesSent: all.reduce((sum, s) => sum + s.metrics.messagesSent, 0),
-      totalMessagesReceived: all.reduce((sum, s) => sum + s.metrics.messagesReceived, 0),
+      totalMessagesSent: all.reduce(
+        (sum, s) => sum + s.metrics.messagesSent,
+        0,
+      ),
+      totalMessagesReceived: all.reduce(
+        (sum, s) => sum + s.metrics.messagesReceived,
+        0,
+      ),
       totalErrors: all.reduce((sum, s) => sum + s.metrics.errors, 0),
       totalReconnects: all.reduce((sum, s) => sum + s.metrics.reconnects, 0),
     };

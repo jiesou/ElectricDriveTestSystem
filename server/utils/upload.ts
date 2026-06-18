@@ -40,7 +40,9 @@ function generateFileName(originalName?: string): string {
     // 去除扩展名
     const nameWithoutExt = originalName.replace(/\.[^.]+$/, "");
     // 只保留字母、数字、中文、下划线和连字符，去除其他特殊字符
-    baseName = nameWithoutExt.replace(/[^\w\u4e00-\u9fa5-]/g, "").substring(0, 32) || "upload";
+    baseName =
+      nameWithoutExt.replace(/[^\w\u4e00-\u9fa5-]/g, "").substring(0, 32) ||
+      "upload";
   }
 
   // 添加随机字符串避免冲突
@@ -55,7 +57,10 @@ function generateFileName(originalName?: string): string {
  * @param originalName 原始文件名（可选）
  * @returns 图片的相对 URL 路径（如 /uploads/20260313143052-myfile-abc123.jpg）
  */
-export async function saveUploadedImage(imageBuffer: Uint8Array, originalName?: string): Promise<string> {
+export async function saveUploadedImage(
+  imageBuffer: Uint8Array,
+  originalName?: string,
+): Promise<string> {
   await ensureUploadDir();
 
   const fileName = generateFileName(originalName);

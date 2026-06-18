@@ -13,11 +13,16 @@ function makeFakeSocket(): WebSocket {
   } as unknown as WebSocket;
 }
 
-function makeFakeSocketWithCapture(): { socket: WebSocket; messages: string[] } {
+function makeFakeSocketWithCapture(): {
+  socket: WebSocket;
+  messages: string[];
+} {
   const messages: string[] = [];
   const socket = {
     readyState: WebSocket.OPEN,
-    send: (data: string | ArrayBufferLike | Blob) => { messages.push(data.toString()); },
+    send: (data: string | ArrayBufferLike | Blob) => {
+      messages.push(data.toString());
+    },
     close: () => {},
     addEventListener: () => {},
     removeEventListener: () => {},
@@ -34,8 +39,20 @@ Deno.test("功能评估 - WebSocket收到功能板更新：正确存储到客户
     type: "evaluate_function_board_update_request",
     description: "测试电路",
     function_steps: [
-      { description: "步骤1", can_wait_for_ms: 5000, waited_for_ms: 1000, passed: true, finished: true },
-      { description: "步骤2", can_wait_for_ms: 5000, waited_for_ms: 3000, passed: false, finished: true },
+      {
+        description: "步骤1",
+        can_wait_for_ms: 5000,
+        waited_for_ms: 1000,
+        passed: true,
+        finished: true,
+      },
+      {
+        description: "步骤2",
+        can_wait_for_ms: 5000,
+        waited_for_ms: 3000,
+        passed: false,
+        finished: true,
+      },
     ],
   });
 
@@ -55,13 +72,28 @@ Deno.test("功能评估 - 有步骤失败时：设置小新状态为需要排故
     type: "evaluate_function_board_update_request",
     description: "测试电路",
     function_steps: [
-      { description: "步骤1", can_wait_for_ms: 5000, waited_for_ms: 1000, passed: true, finished: true },
-      { description: "步骤2", can_wait_for_ms: 5000, waited_for_ms: 5000, passed: false, finished: true },
+      {
+        description: "步骤1",
+        can_wait_for_ms: 5000,
+        waited_for_ms: 1000,
+        passed: true,
+        finished: true,
+      },
+      {
+        description: "步骤2",
+        can_wait_for_ms: 5000,
+        waited_for_ms: 5000,
+        passed: false,
+        finished: true,
+      },
     ],
   });
 
   assertExists(client.cvClient!.xiaoxin_status);
-  assertEquals(client.cvClient!.xiaoxin_status!.type, "evaluate_need_troubleshoot");
+  assertEquals(
+    client.cvClient!.xiaoxin_status!.type,
+    "evaluate_need_troubleshoot",
+  );
   const status = client.cvClient!.xiaoxin_status! as any;
   assertEquals(status.evaluate_need_troubleshoot_type, "M1_NOT_START");
 
@@ -77,14 +109,29 @@ Deno.test("功能评估 - 全部步骤通过时：小新状态为正在检查", 
     type: "evaluate_function_board_update_request",
     description: "测试电路",
     function_steps: [
-      { description: "步骤1", can_wait_for_ms: 5000, waited_for_ms: 1000, passed: true, finished: true },
-      { description: "步骤2", can_wait_for_ms: 5000, waited_for_ms: 2000, passed: true, finished: true },
+      {
+        description: "步骤1",
+        can_wait_for_ms: 5000,
+        waited_for_ms: 1000,
+        passed: true,
+        finished: true,
+      },
+      {
+        description: "步骤2",
+        can_wait_for_ms: 5000,
+        waited_for_ms: 2000,
+        passed: true,
+        finished: true,
+      },
     ],
   });
 
   assertExists(client.cvClient!.xiaoxin_status);
   assertEquals(client.cvClient!.xiaoxin_status!.type, "status_text_update");
-  assertEquals((client.cvClient!.xiaoxin_status! as any).status_text, "我在检查你的功能！");
+  assertEquals(
+    (client.cvClient!.xiaoxin_status! as any).status_text,
+    "我在检查你的功能！",
+  );
 
   delete clientManager.clients[client.id];
 });

@@ -41,8 +41,8 @@ testsRouter.post("/push-latest", async (c) => {
     const allClients = Object.values(clientManager.clients);
     const targetClients = (targetClientIds && targetClientIds.length > 0)
       ? targetClientIds
-          .map((id) => clientManager.clients[id])
-          .filter((client) => Boolean(client))
+        .map((id) => clientManager.clients[id])
+        .filter((client) => Boolean(client))
       : allClients;
 
     const results: {
@@ -130,7 +130,10 @@ testsRouter.post("/test-sessions", async (c) => {
 
     return c.json({ success: true, data: results });
   } catch (_error) {
-    return c.json({ success: false, error: "Invalid test-sessions create request body" }, 400);
+    return c.json({
+      success: false,
+      error: "Invalid test-sessions create request body",
+    }, 400);
   }
 });
 
@@ -161,14 +164,17 @@ testsRouter.post("/relay-rainbow", async (c) => {
       timeout: boolean;
     }>((resolve) => {
       // 设置回调函数
-      clientManager.relayRainbowCallbacks.set(client.id, (latencyMs: number) => {
-        resolve({
-          clientId: client.id,
-          clientName: client.name,
-          latencyMs,
-          timeout: false,
-        });
-      });
+      clientManager.relayRainbowCallbacks.set(
+        client.id,
+        (latencyMs: number) => {
+          resolve({
+            clientId: client.id,
+            clientName: client.name,
+            latencyMs,
+            timeout: false,
+          });
+        },
+      );
 
       // 设置3秒超时
       setTimeout(() => {
@@ -199,11 +205,17 @@ testsRouter.post("/relay-rainbow", async (c) => {
 
     try {
       client.socket.send(
-        JSON.stringify({ type: "relay_rainbow", timestamp: Math.floor(sentMs / 1000) }),
+        JSON.stringify({
+          type: "relay_rainbow",
+          timestamp: Math.floor(sentMs / 1000),
+        }),
       );
       sent++;
     } catch (error) {
-      console.error(`Failed to send relay_rainbow to client ${client.id}:`, error);
+      console.error(
+        `Failed to send relay_rainbow to client ${client.id}:`,
+        error,
+      );
       // 如果发送失败，清除回调和时间戳
       clientManager.relayRainbowCallbacks.delete(client.id);
       delete client.relayRainbowSentMs;
