@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, defineAsyncComponent, onMounted, onUnmounted, watch } from 'vue'
 import zhCN from 'ant-design-vue/es/locale/zh_CN'
 import { Layout, ConfigProvider } from 'ant-design-vue'
-import TroubleManagement from './components/TroubleManagement.vue'
-import TestManagement from './components/TestManagement.vue'
-import ClientMonitoring from './components/ClientMonitoring.vue'
-import AIAnalysisPage from './components/AIAnalysisPage.vue'
-import Statistics from './components/Statistics.vue'
+
+const TroubleManagement = defineAsyncComponent(() => import('./components/TroubleManagement.vue'))
+const TestManagement = defineAsyncComponent(() => import('./components/TestManagement.vue'))
+const ClientMonitoring = defineAsyncComponent(() => import('./components/ClientMonitoring.vue'))
+const AIAnalysisPage = defineAsyncComponent(() => import('./components/AIAnalysisPage.vue'))
+const Statistics = defineAsyncComponent(() => import('./components/Statistics.vue'))
 import { useMockDataService, generateMockData } from './useMockData'
 import type { Client } from './types'
 import { apiJson } from './api-client'
