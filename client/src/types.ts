@@ -5,7 +5,7 @@ export interface Trouble {
   from_wire: number;
   to_wire: number;
   submitted_from_wire?: number | null; // 提交的故障（用于排故测验）
-  submitted_to_wire?: number | null;   // 提交的故障（用于排故测验）
+  submitted_to_wire?: number | null; // 提交的故障（用于排故测验）
   submitted_correct?: boolean | null; // 提交是否正确（用于排故测验）
 }
 
@@ -98,7 +98,7 @@ export interface EvaluateFunctionStep {
 
   passed: boolean;
   finished: boolean;
-};
+}
 
 // CV会话基类接口
 export interface CvSession {

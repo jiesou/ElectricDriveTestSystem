@@ -105,20 +105,20 @@ function iou(box1: number[], box2: number[]): number {
 }
 
 interface DetectionBox {
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
   /* 0: cross, 1: excopper, 2: exterminal, 3: sleeve */
-  class_id: 0 | 1 | 2 | 3,
-  conf: number
-};
+  class_id: 0 | 1 | 2 | 3;
+  conf: number;
+}
 
 /**
  * 处理模型输出，提取检测框
  * YOLO11 输出格式为 [1, 84, 8400] (需要转置)
  * 每个检测框：[x, y, w, h, class_confidence[80]]
- * 
+ *
  * @param output 原始输出数据
  * @param imgWidth 原始图像宽度
  * @param imgHeight 原始图像高度
@@ -172,11 +172,13 @@ function processOutput(
     const x2 = ((xc + w / 2) / INPUT_SIZE) * imgWidth;
     const y2 = ((yc + h / 2) / INPUT_SIZE) * imgHeight;
 
-    const finalClassId: 0 | 1 | 2 | 3 =
-      maxClassId === 3 ? 3 :
-      maxClassId === 2 ? 2 :
-      maxClassId === 1 ? 1 :
-      0;
+    const finalClassId: 0 | 1 | 2 | 3 = maxClassId === 3
+      ? 3
+      : maxClassId === 2
+      ? 2
+      : maxClassId === 1
+      ? 1
+      : 0;
 
     boxes.push({
       x1,
@@ -214,7 +216,12 @@ function processOutput(
 
       // 过滤掉与 current IoU 超过阈值的框
       detections = detections.filter((d) => {
-        const i = iou([current.x1, current.y1, current.x2, current.y2], [d.x1, d.y1, d.x2, d.y2]);
+        const i = iou([current.x1, current.y1, current.x2, current.y2], [
+          d.x1,
+          d.y1,
+          d.x2,
+          d.y2,
+        ]);
         return i <= iouThreshold;
       });
     }
@@ -284,23 +291,35 @@ async function drawBoxes(
   const svgElements: string[] = [];
 
   for (const box of boxes) {
-    const color = box.class_id === 3 ? { r: 0, g: 255, b: 0 } : // 号码管 - 绿色
-                  box.class_id === 2 ? { r: 0, g: 0, b: 255 } : // 露端子 - 蓝
-                  box.class_id === 1 ? { r: 255, g: 255, b: 0 } : // 露铜 - 黄色
-                  { r: 255, g: 0, b: 0 }; // 交叉 - 红色
-    const className = box.class_id === 3 ? "sleeve" :
-                      box.class_id === 2 ? "exterminal" :
-                      box.class_id === 1 ? "excopper" :
-                      "cross";
-    const label = `${className} ${(box.conf).toFixed(2)}`;
+    const color = box.class_id === 3
+      ? { r: 0, g: 255, b: 0 } // 号码管 - 绿色
+      : box.class_id === 2
+      ? { r: 0, g: 0, b: 255 } // 露端子 - 蓝
+      : box.class_id === 1
+      ? { r: 255, g: 255, b: 0 } // 露铜 - 黄色
+      : { r: 255, g: 0, b: 0 }; // 交叉 - 红色
+    const className = box.class_id === 3
+      ? "sleeve"
+      : box.class_id === 2
+      ? "exterminal"
+      : box.class_id === 1
+      ? "excopper"
+      : "cross";
+    const label = `${className} ${box.conf.toFixed(2)}`;
 
     // 绘制矩形框
     svgElements.push(
-      `<rect x="${box.x1}" y="${box.y1}" width="${box.x2 - box.x1}" height="${box.y2 - box.y1}" ` +`stroke="rgb(${color.r},${color.g},${color.b})" stroke-width="3"/>`
+      `<rect x="${box.x1}" y="${box.y1}" width="${box.x2 - box.x1}" height="${
+        box.y2 - box.y1
+      }" ` +
+        `stroke="rgb(${color.r},${color.g},${color.b})" stroke-width="3"/>`,
     );
 
     // 绘制标签背景
-    const labelBg = `<rect x="${box.x1}" y="${box.y1 - 20}" width="${label.length * 10}" height="20" ` +
+    const labelBg =
+      `<rect x="${box.x1}" y="${box.y1 - 20}" width="${
+        label.length * 10
+      }" height="20" ` +
       `fill="rgb(${color.r},${color.g},${color.b})"/>`;
     svgElements.push(labelBg);
 
@@ -310,7 +329,9 @@ async function drawBoxes(
     svgElements.push(labelText);
   }
 
-  const svg = `<svg width="${width}" height="${height}">${svgElements.join('')}</svg>`;
+  const svg = `<svg width="${width}" height="${height}">${
+    svgElements.join("")
+  }</svg>`;
 
   // 合成图像
   const annotatedBuffer = await image
@@ -333,7 +354,7 @@ async function drawBoxes(
  * @returns 检测结果统计和带标注的图像
  */
 export async function detectObjects(
-  imageBuffer: Uint8Array
+  imageBuffer: Uint8Array,
 ): Promise<{
   sleeves_num: number;
   cross_num: number;
@@ -352,7 +373,7 @@ export async function detectObjects(
     const boxes = processOutput(
       output,
       imgWidth,
-      imgHeight
+      imgHeight,
     );
 
     // 统计结果

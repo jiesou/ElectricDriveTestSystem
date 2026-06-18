@@ -104,7 +104,9 @@ Deno.test("仿真客户机 - 已连接时发送消息：计数增加，格式正
   const sim = new CvClientSimulator();
   let sentData = "";
   (sim as any).socket = {
-    send: (data: string) => { sentData = data; },
+    send: (data: string) => {
+      sentData = data;
+    },
   };
   sim.isConnected = true;
 
@@ -139,7 +141,9 @@ Deno.test("仿真客户机 - 结束测验：发送 finish 类型消息", () => {
   const sim = new CvClientSimulator();
   let sentData = "";
   (sim as any).socket = {
-    send: (data: string) => { sentData = data; },
+    send: (data: string) => {
+      sentData = data;
+    },
   };
   sim.isConnected = true;
 
@@ -152,7 +156,9 @@ Deno.test("仿真客户机 - 回复系统自检：发送 ack_relay_rainbow", () 
   const sim = new CvClientSimulator();
   let sentData = "";
   (sim as any).socket = {
-    send: (data: string) => { sentData = data; },
+    send: (data: string) => {
+      sentData = data;
+    },
   };
   sim.isConnected = true;
 

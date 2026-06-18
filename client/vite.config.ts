@@ -8,26 +8,26 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          'vendor-antd': ['ant-design-vue', '@ant-design/icons-vue'],
-        }
-      }
-    }
+          "vendor-antd": ["ant-design-vue", "@ant-design/icons-vue"],
+        },
+      },
+    },
   },
   server: {
     proxy: {
-      '/api': {
-        target: 'http://localhost:8000',
+      "/api": {
+        target: "http://localhost:8000",
         changeOrigin: true,
       },
-      '/ws': {
-        target: 'ws://localhost:8000',
+      "/ws": {
+        target: "ws://localhost:8000",
         ws: true,
         changeOrigin: true,
       },
-      '/uploads': {
-        target: 'http://localhost:8000',
+      "/uploads": {
+        target: "http://localhost:8000",
         changeOrigin: true,
-      }
-    }
-  }
-})
+      },
+    },
+  },
+});

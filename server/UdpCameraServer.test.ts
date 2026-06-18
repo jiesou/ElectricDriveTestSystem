@@ -1,4 +1,4 @@
-import { assertEquals, assert, assertExists } from "@std/assert";
+import { assert, assertEquals, assertExists } from "@std/assert";
 
 import { UdpCameraServer } from "./UdpCameraServer.ts";
 
@@ -10,8 +10,26 @@ Deno.test("Udp摄像头服务器 - 可以创建实例", () => {
 Deno.test("Udp摄像头服务器 - 单包帧解析：正确读取包头并组装完整帧", () => {
   const server = new UdpCameraServer();
 
-  const header = new Uint8Array([0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00]);
-  const jpegData = new Uint8Array([0xFF, 0xD8, 0x00, 0x01, 0x00, 0x02, 0xFF, 0xD9]);
+  const header = new Uint8Array([
+    0x01,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x01,
+    0x00,
+  ]);
+  const jpegData = new Uint8Array([
+    0xFF,
+    0xD8,
+    0x00,
+    0x01,
+    0x00,
+    0x02,
+    0xFF,
+    0xD9,
+  ]);
   const packet = new Uint8Array(header.length + jpegData.length);
   packet.set(header);
   packet.set(jpegData, header.length);
@@ -33,7 +51,12 @@ Deno.test("Udp摄像头服务器 - 短包（不足8字节）直接忽略", () =>
 Deno.test("Udp摄像头服务器 - 多包分片帧：按顺序组装完整", () => {
   const server = new UdpCameraServer();
 
-  const buildChunk = (frameIdx: number, chunkIdx: number, total: number, payload: Uint8Array) => {
+  const buildChunk = (
+    frameIdx: number,
+    chunkIdx: number,
+    total: number,
+    payload: Uint8Array,
+  ) => {
     const header = new Uint8Array(8);
     const dv = new DataView(header.buffer);
     dv.setUint32(0, frameIdx, true);

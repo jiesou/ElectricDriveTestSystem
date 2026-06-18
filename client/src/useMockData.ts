@@ -1,187 +1,229 @@
 // 模拟数据功能：用于演示时按 Home 键显示固定的测试数据
-import { ref } from 'vue'
-import type { Client, Test, TestSession, TestLog, Trouble, Question } from './types'
-import { getSecondTimestamp } from './types'
+import { ref } from "vue";
+import type {
+  Client,
+  Question,
+  Test,
+  TestLog,
+  TestSession,
+  Trouble,
+} from "./types";
+import { getSecondTimestamp } from "./types";
 
 // 是否启用模拟数据模式
-export const useMockDataService = ref(false)
+export const useMockDataService = ref(false);
 
 // 生成模拟数据
 export function generateMockData(): Client[] {
-  const now = getSecondTimestamp()
-  
+  const now = getSecondTimestamp();
+
   // 前三个故障（从 troubles.json）
   const troubles: Trouble[] = [
-    { "id": 1, "description": "201 和 202 断路", "from_wire": 201, "to_wire": 202 },
-    { "id": 2, "description": "209 和 219 断路", "from_wire": 209, "to_wire": 219 },
-    { "id": 3, "description": "215 和 216 断路", "from_wire": 215, "to_wire": 216 },
-    { "id": 4, "description": "227 和 233 断路", "from_wire": 227, "to_wire": 233 }
-  ]
-  
+    {
+      "id": 1,
+      "description": "201 和 202 断路",
+      "from_wire": 201,
+      "to_wire": 202,
+    },
+    {
+      "id": 2,
+      "description": "209 和 219 断路",
+      "from_wire": 209,
+      "to_wire": 219,
+    },
+    {
+      "id": 3,
+      "description": "215 和 216 断路",
+      "from_wire": 215,
+      "to_wire": 216,
+    },
+    {
+      "id": 4,
+      "description": "227 和 233 断路",
+      "from_wire": 227,
+      "to_wire": 233,
+    },
+  ];
+
   // 三道题，每题一个故障
   const questions: Question[] = [
     { id: 1, troubles: [troubles[0]!] },
     { id: 2, troubles: [troubles[1]!] },
-    { id: 3, troubles: [troubles[2]!] }
-  ]
-  
+    { id: 3, troubles: [troubles[2]!] },
+  ];
+
   // 测验开始时间（假设5分钟前开始）
-  const testStartTime = now - 5 * 60
-  
+  const testStartTime = now - 5 * 60;
+
   // 创建测试
   const test: Test = {
     id: 1,
     questions: questions,
     startTime: testStartTime,
-    durationTime: null // 无时间限制
-  }
-  
+    durationTime: null, // 无时间限制
+  };
+
   // 创建测试日志
   const logs: TestLog[] = [
     // 开始测验
     {
       timestamp: testStartTime,
-      action: 'start',
+      action: "start",
       details: {
-        question: questions[0]
-      }
+        question: questions[0],
+      },
     },
     // 第一题回答正确
     {
       timestamp: testStartTime + 120, // 2分钟后
-      action: 'answer',
+      action: "answer",
       details: {
         question: questions[0],
         trouble: troubles[0],
-        isCorrect: true
-      }
+        isCorrect: true,
+      },
     },
     // 第二题回答正确
     {
       timestamp: testStartTime + 240, // 再过约2分钟
-      action: 'answer',
+      action: "answer",
       details: {
         question: questions[1],
         trouble: troubles[1],
-        isCorrect: true
-      }
+        isCorrect: true,
+      },
     },
     // 第三题回答错误 (126和136断路，这是故障4)
     {
       timestamp: testStartTime + 360, // 再过约2分钟
-      action: 'answer',
+      action: "answer",
       details: {
         question: questions[2],
         trouble: troubles[3], // 错误选择了故障4
-        isCorrect: false
-      }
+        isCorrect: false,
+      },
     },
     // 工位清洁
     {
       timestamp: now + 5,
-      action: 'desk_clean',
+      action: "desk_clean",
       details: {
         deskCleanResult: {
-          image: '',
+          image: "",
           sleeves_num: 0,
           screwdriver_ready: true,
           wire_stripper_ready: true,
           multimeter_ready: false,
           crimping_ready: true,
-          clean_progress: 0.85
-        }
-      }
+          clean_progress: 0.85,
+        },
+      },
     },
     // 交卷，得分67分
     {
       timestamp: now,
-      action: 'finish',
+      action: "finish",
       details: {
-        score: 67
-      }
-    }
-  ]
-  
+        score: 67,
+      },
+    },
+  ];
+
   // 创建测验会话
   const testSession: TestSession = {
-    id: 'test-session-45',
+    id: "test-session-45",
     test: test,
     finishTime: now, // 当前时间结束
     finishedScore: 67, // 得分67分
-    logs: logs
-  }
-  
+    logs: logs,
+  };
+
   // 创建45号机客户端
   const fakeClient: Client = {
-    id: '45',
-    name: '45号机',
-    ip: '192.168.100.45',
+    id: "45",
+    name: "45号机",
+    ip: "192.168.100.45",
     online: true,
-    testSession: testSession
-  }
+    testSession: testSession,
+  };
 
   // 为 Mock 模式下添加关联的 CV 客户端数据（不包含真实图片，只包含分析结果数据）
   fakeClient.cvClient = {
-    clientType: 'jetson_nano',
-    ip: '192.168.100.45',
+    clientType: "jetson_nano",
+    ip: "192.168.100.45",
     session: {
-      type: 'evaluate_wiring',
+      type: "evaluate_wiring",
       startTime: testStartTime + 30,
       // shots 中不包含真实图片（image 为空字符串），仅包含分析结果数字
       shots: [
         {
           timestamp: testStartTime + 40,
-          image: '',
-          result: { sleeves_num: 20, cross_num: 3, excopper_num: 0, exterminal_num: 0 }
+          image: "",
+          result: {
+            sleeves_num: 20,
+            cross_num: 3,
+            excopper_num: 0,
+            exterminal_num: 0,
+          },
         },
         {
           timestamp: testStartTime + 120,
-          image: '',
-          result: { sleeves_num: 18, cross_num: 0, excopper_num: 0, exterminal_num: 0 }
+          image: "",
+          result: {
+            sleeves_num: 18,
+            cross_num: 0,
+            excopper_num: 0,
+            exterminal_num: 0,
+          },
         },
         {
           timestamp: testStartTime + 120,
-          image: '',
-          result: { sleeves_num: 20, cross_num: 0, excopper_num: 1, exterminal_num: 3 }
-        }
+          image: "",
+          result: {
+            sleeves_num: 20,
+            cross_num: 0,
+            excopper_num: 1,
+            exterminal_num: 3,
+          },
+        },
       ],
       finalResult: {
         no_sleeves_num: 2,
         cross_num: 3,
         excopper_num: 1,
         exterminal_num: 3,
-        scores: 82
-      }
-    }
-  }
+        scores: 82,
+      },
+    },
+  };
 
   // 为 Mock 模式下添加 装接评估 板的功能步骤进度
   fakeClient.evaluateBoard = {
-    description: 'YY-三角 双速正转电路',
+    description: "YY-三角 双速正转电路",
     function_steps: [
       {
-        description: '按下 SB1，电机低速',
+        description: "按下 SB1，电机低速",
         can_wait_for_ms: 8000,
         waited_for_ms: 350,
         passed: true,
-        finished: true
+        finished: true,
       },
       {
-        description: '按下 SB3，电机停',
+        description: "按下 SB3，电机停",
         can_wait_for_ms: 8000,
         waited_for_ms: 3300,
         passed: true,
-        finished: true
+        finished: true,
       },
       {
-        description: '按下 SB2，电机高速',
+        description: "按下 SB2，电机高速",
         can_wait_for_ms: 6000,
         waited_for_ms: 150,
         passed: true,
-        finished: true
-      }
-    ]
-  }
-  
-  return [fakeClient]
+        finished: true,
+      },
+    ],
+  };
+
+  return [fakeClient];
 }

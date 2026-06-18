@@ -23,7 +23,9 @@ clientManager.addWSMessageHandler((client, socket, message) => {
       // 更新小新智能体状态
       if (client.cvClient) {
         // 检查是否有未通过的步骤
-        const hasFailedStep = msg.function_steps?.some(step => step.finished && !step.passed) ?? false;
+        const hasFailedStep = msg.function_steps?.some((step) =>
+          step.finished && !step.passed
+        ) ?? false;
 
         if (hasFailedStep) {
           // 有步骤未通过，需要排故

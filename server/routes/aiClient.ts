@@ -18,16 +18,20 @@ export function analyzeStream(prompt: string) {
             {
               role: "user",
               content: prompt,
-            }
-          ]
-        })
+            },
+          ],
+        }),
       });
 
       if (!response.ok) {
-        console.error("DeepSeek 服务端连接识别:", response.status, await response.text());
+        console.error(
+          "DeepSeek 服务端连接识别:",
+          response.status,
+          await response.text(),
+        );
         controller.close();
       }
-      
+
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       const encoder = new TextEncoder();
@@ -55,10 +59,9 @@ export function analyzeStream(prompt: string) {
         if (reasoning_content) {
           controller.enqueue(encoder.encode(reasoning_content));
         }
-
       }
       controller.close();
     },
-  })
+  });
   return stream;
 }

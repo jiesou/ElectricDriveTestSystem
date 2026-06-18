@@ -43,7 +43,10 @@ clientsRouter.put("/:id", async (c) => {
       if (cvClientIp) {
         const cvIp = cvClientIp.trim();
         if (!clientManager.cvClients[cvIp]) {
-          clientManager.cvClients[cvIp] = { clientType: "jetson_nano", ip: cvIp };
+          clientManager.cvClients[cvIp] = {
+            clientType: "jetson_nano",
+            ip: cvIp,
+          };
         }
         client.cvClient = clientManager.cvClients[cvIp];
       } else {
