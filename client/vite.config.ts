@@ -4,6 +4,15 @@ import vue from "@vitejs/plugin-vue";
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [vue()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-antd': ['ant-design-vue', '@ant-design/icons-vue'],
+        }
+      }
+    }
+  },
   server: {
     proxy: {
       '/api': {
