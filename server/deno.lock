@@ -10,6 +10,7 @@
     "npm:@prisma/client@7.8.0": "7.8.0_prisma@7.8.0__@types+react@19.2.17__react@19.2.7__react-dom@19.2.7___react@19.2.7_@types+react@19.2.17_react@19.2.7_react-dom@19.2.7__react@19.2.7",
     "npm:@types/node@*": "24.2.0",
     "npm:onnxruntime-node@^1.23.2": "1.26.0",
+    "npm:prisma@*": "7.8.0_@types+react@19.2.17_react@19.2.7_react-dom@19.2.7__react@19.2.7",
     "npm:prisma@7.8.0": "7.8.0_@types+react@19.2.17_react@19.2.7_react-dom@19.2.7__react@19.2.7",
     "npm:sharp@0.33.5": "0.33.5",
     "npm:sharp@~0.34.5": "0.34.5"
