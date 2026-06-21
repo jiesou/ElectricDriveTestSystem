@@ -95,7 +95,7 @@ clientManager.addWSMessageHandler((client, _socket, message) => {
           !client.testSession.logs.some((l) => l.action === "finish")
         ) {
           const log: FinishLog = {
-            timestamp: msg.finish_time,
+            timestamp: msg.finish_time || getSecondTimestamp(),
             action: "finish",
             details: { score: msg.finished_score },
           };
