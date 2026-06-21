@@ -40,14 +40,15 @@ app.get(
           console.log("Received message:", message);
           const client = Object.values(clientManager.clients).find((c) =>
             c.ip === ip
+          ) ?? clientManager.connectClient(
+            ip,
+            ws as unknown as WebSocket,
+          ); // 找不到 client 就创建一个新的
+          clientManager.processWebSocketMessageIn(
+            client,
+            ws as unknown as WebSocket,
+            message,
           );
-          if (client) {
-            clientManager.processWebSocketMessageIn(
-              client,
-              ws as unknown as WebSocket,
-              message,
-            );
-          }
         } catch (e) {
           console.error("WS message error:", e);
         }
