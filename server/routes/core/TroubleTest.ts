@@ -82,7 +82,7 @@ clientManager.addWSMessageHandler((client, _socket, message) => {
 
         // 直接覆盖服务器上的 client.testSession（客户端为胖客户端，服务端只保存状态）
         client.testSession.test.questions = msg.all_questions;
-        if (msg.finish_time !== undefined) {
+        if (msg.finish_time != null && msg.finish_time > 0) {
           client.testSession.finishTime = msg.finish_time;
         }
         if (msg.finished_score !== undefined) {
@@ -91,7 +91,7 @@ clientManager.addWSMessageHandler((client, _socket, message) => {
 
         // 如果有完成时间，且之前没记录过完成日志，说明这次交卷了
         if (
-          msg.finish_time !== undefined &&
+          msg.finish_time != null && msg.finish_time > 0 &&
           !client.testSession.logs.some((l) => l.action === "finish")
         ) {
           const log: FinishLog = {
