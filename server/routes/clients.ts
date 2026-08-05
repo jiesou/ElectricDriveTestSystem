@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { clientManager } from "./core/ClientManager.ts";
+import { prisma } from "../prisma/client.ts";
 
 export const clientsRouter = new Hono();
 
@@ -62,8 +63,10 @@ clientsRouter.put("/:id", async (c) => {
 });
 
 // 忘记所有客户端
-clientsRouter.post("/forget", (c) => {
+clientsRouter.post("/forget", async (c) => {
   clientManager.clients = {};
   clientManager.cvClients = {};
+  await prisma.storedCvClient.deleteMany({});
+  await prisma.storedClient.deleteMany({});
   return c.json({ success: true, data: { cleared: 0 } });
 });

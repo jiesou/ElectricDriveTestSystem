@@ -1,8 +1,10 @@
 import { app } from "./server.ts";
 import { clientManager } from "./routes/core/ClientManager.ts";
+import { troubleTest } from "./routes/core/TroubleTest.ts";
 import { UdpCameraServer } from "./UdpCameraServer.ts";
 
 await clientManager.loadAllClients();
+await troubleTest.init();
 clientManager.startHeartbeat();
 new UdpCameraServer().start(8000);
 

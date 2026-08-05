@@ -97,6 +97,7 @@ export const clientManager = {
       };
 
       this.clients[clientId] = client;
+      this.persistClient(client);
       console.log(`[ClientManager] New client ${clientId} (${ip}) connected`);
     }
 

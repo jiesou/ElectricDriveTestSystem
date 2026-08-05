@@ -1,7 +1,9 @@
 import { Hono } from "hono";
 import { clientManager } from "./core/ClientManager.ts";
 import {
+  CvClient,
   CvClientXiaoxinUpdateMessage,
+  Client,
   DeskCleanLog,
   DeskCleanResult,
   DeskCleanSession,
@@ -35,6 +37,14 @@ export function calcWiringScore(
  * 处理来自ESP32-CAM或Jetson Nano的图片上传和推理结果
  */
 export const cvRouter = new Hono();
+
+/**
+ * 持久化 CV 客户端（含 session）到数据库，失败静默
+ */
+function persistCvClient(clients: Client[]): void {
+  if (!clients[0]) return;
+  clientManager.persistClient(clients[0]).catch(() => {});
+}
 
 /**
  * MJPEG 流端点：实时显示 CV 客户端的图像流
@@ -151,7 +161,6 @@ cvRouter.post("/upload_wiring", async (c) => {
   const session = cvClient.session as EvaluateWiringSession;
 
   // 解析客户端提交的推理结果
-
   const inputResultObj: Record<string, number> = inputResultStr
     ? (() => {
       try {
@@ -204,6 +213,7 @@ cvRouter.post("/upload_wiring", async (c) => {
     image: imageUrl,
     result: { sleeves_num, cross_num, excopper_num, exterminal_num },
   }];
+  persistCvClient(clients);
 
   console.log(`[CV Upload] 已存储装接评估拍摄记录，cvClient ${cvClient.ip}`);
 
@@ -248,6 +258,7 @@ cvRouter.post("/confirm_wiring", (c) => {
     exterminal_num,
     scores,
   };
+  persistCvClient(clients);
 
   console.log(
     `[CV Upload] 工艺评估已确认 cvClient ${cvClient.ip}, score: ${scores}`,
@@ -317,6 +328,7 @@ cvRouter.post("/upload_face", async (c) => {
     who: inputWho,
     image: imageUrl,
   };
+  persistCvClient(clients);
 
   // 发送人脸签到结果给相关客户端
   for (const client of clients) {
@@ -410,6 +422,9 @@ cvRouter.post("/upload_deskclean", async (c) => {
     };
     client.testSession.logs.push(log);
   }
+  for (const client of clients) {
+    clientManager.persistClient(client).catch(() => {});
+  }
 
   return c.json({ success: true, data: session.finalResult });
 });
@@ -427,6 +442,7 @@ cvRouter.post("/clear_session/:cvClientIp", (c) => {
   const cvClient = clients[0].cvClient!;
   // 删除会话（清空当前 session）
   delete cvClient.session;
+  persistCvClient(clients);
 
   console.log(
     `[CV] Cleared session for CV client ${cvClient.ip} (client ${

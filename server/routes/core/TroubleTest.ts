@@ -88,6 +88,7 @@ clientManager.addWSMessageHandler((client, _socket, message) => {
         if (msg.finished_score !== undefined) {
           client.testSession.finishedScore = msg.finished_score;
         }
+        clientManager.persistClient(client);
 
         // 如果有完成时间，且之前没记录过完成日志，说明这次交卷了
         if (
@@ -199,6 +200,7 @@ export const troubleTest = {
       logs: [startLog],
     };
     client.testSession = session;
+    clientManager.persistClient(client);
 
     // 更新小新智能体状态：排故进行时
     if (client.cvClient) {
@@ -264,6 +266,7 @@ export const troubleTest = {
 
     const now = timestamp || getSecondTimestamp();
     client.testSession.finishTime = now;
+    clientManager.persistClient(client);
 
     const finishMessage: TroubleTestFinishMessage = {
       type: "trouble_test_finish",

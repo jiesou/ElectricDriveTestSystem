@@ -16,6 +16,7 @@ clientManager.addWSMessageHandler((client, socket, message) => {
         function_steps: msg.function_steps,
       };
       client.evaluateBoard = board;
+      clientManager.persistClient(client);
       console.log(
         `[evaluate] Updated evaluate board for client ${client.id}: ${board.description}`,
       );
@@ -60,6 +61,7 @@ clientManager.addWSMessageHandler((client, socket, message) => {
         shots: [],
       };
       client.cvClient.session = session;
+      clientManager.persistClient(client);
       console.log(
         `[evaluate] Started evaluate_wiring session for client ${client.id}`,
       );

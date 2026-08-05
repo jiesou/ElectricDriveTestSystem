@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { troubleTest } from "./core/TroubleTest.ts";
 import { clientManager } from "./core/ClientManager.ts";
+import { prisma } from "../prisma/client.ts";
 import { getSecondTimestamp } from "../utils/helpers.ts";
 
 export const testsRouter = new Hono();
@@ -21,11 +22,13 @@ testsRouter.post("/finish-all", (c) => {
 });
 
 // 清除所有测验
-testsRouter.post("/clear-all", (c) => {
+testsRouter.post("/clear-all", async (c) => {
   for (const client of Object.values(clientManager.clients)) {
     client.testSession = undefined;
+    await clientManager.persistClient(client);
   }
   troubleTest.tests = [];
+  await prisma.storedTest.deleteMany({});
 
   return c.json({ success: true });
 });
