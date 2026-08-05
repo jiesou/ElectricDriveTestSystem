@@ -4,7 +4,10 @@ import { troubleTest } from "./core/TroubleTest.ts";
 import { clientManager } from "./core/ClientManager.ts";
 import { getSecondTimestamp } from "../utils/helpers.ts";
 import { prisma } from "../prisma/client.ts";
+import { snapshotDatabaseState } from "../test-helpers.ts";
 import { app } from "../server.ts";
+
+snapshotDatabaseState();
 
 function mockSocket(): WebSocket {
   return {

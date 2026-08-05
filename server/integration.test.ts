@@ -7,7 +7,10 @@ import "./routes/core/EvaluateFunction.ts";
 import { troubleTest } from "./routes/core/TroubleTest.ts";
 import { clientManager } from "./routes/core/ClientManager.ts";
 import { prisma } from "./prisma/client.ts";
+import { snapshotDatabaseState } from "./test-helpers.ts";
 import { app } from "./server.ts";
+
+snapshotDatabaseState();
 
 Deno.test.beforeEach(() => {
   clientManager.clients = {};

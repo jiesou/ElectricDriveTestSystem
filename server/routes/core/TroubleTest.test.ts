@@ -4,6 +4,9 @@ import { getSecondTimestamp } from "../../utils/helpers.ts";
 import { TROUBLES } from "../../types.ts";
 import { clientManager } from "./ClientManager.ts";
 import { prisma } from "../../prisma/client.ts";
+import { snapshotDatabaseState } from "../../test-helpers.ts";
+
+snapshotDatabaseState();
 
 function makeFakeSocket(): WebSocket {
   return {
