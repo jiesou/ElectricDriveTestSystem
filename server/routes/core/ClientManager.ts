@@ -97,7 +97,6 @@ export const clientManager = {
       };
 
       this.clients[clientId] = client;
-      this.persistClient(client);
       console.log(`[ClientManager] New client ${clientId} (${ip}) connected`);
     }
 
@@ -121,6 +120,9 @@ export const clientManager = {
         client.cvClient = cvClientValues[0];
       }
     }
+
+    // 首次创建的新客户端在绑定完 CV 后再落库（否则 cvClientIp 会写 null）
+    this.persistClient(client);
 
     return client;
   },

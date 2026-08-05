@@ -7,7 +7,7 @@ import "./routes/core/EvaluateFunction.ts";
 import { troubleTest } from "./routes/core/TroubleTest.ts";
 import { clientManager } from "./routes/core/ClientManager.ts";
 import { prisma } from "./prisma/client.ts";
-import { snapshotDatabaseState } from "./test-helpers.ts";
+import { snapshotDatabaseState, restartServer } from "./test-helpers.ts";
 import { app } from "./server.ts";
 
 snapshotDatabaseState();
@@ -417,7 +417,6 @@ Deno.test("视觉机器视觉功能：拍照上传、评分推送、签到、清
 Deno.test("数据持久化：保存后恢复，客户端状态完整", async (t) => {
   const server = Deno.serve({ port: 0 }, app.fetch);
   const port = (server.addr as Deno.NetAddr).port;
-
   await t.step(
     "保存并恢复：名称、测验、评估板、视觉绑定都正确还原",
     async () => {
@@ -653,4 +652,176 @@ Deno.test("清除视觉会话：不存在的视觉客户机返回400", async () 
   } finally {
     await server.shutdown();
   }
+});
+
+/**
+ * 持久化路线测试：只走真实 HTTP/WS 业务路径产生状态，不做任何手动 persist，
+ * 然后模拟服务器重启（清内存 + loadAllClients），断言状态从数据库恢复。
+ *
+ * 这条测试是"持久化不变式"的守护神：
+ * 任何"改了内存但没落库"的回归（connectClient、答题、交卷、评估板、视觉 session...）
+ * 都会让这里的断言失败 —— 旧代码（手动调 persistClient 的 era）必然全挂。
+ */
+Deno.test("持久化路线：真实业务路径产生的状态，重启后完整恢复", async (t) => {
+  const server = Deno.serve({ port: 0 }, app.fetch);
+  const port = (server.addr as Deno.NetAddr).port;
+
+  let savedTestId: bigint | null = null;
+  let savedQuestionId: number | null = null;
+  let savedClientId: string = "";
+  let savedCvIp: string = "";
+
+  await t.step("① 连接 → 名称 → 测验 → 答题 → 交卷 → 评估板，全部走真实路径", async () => {
+    const sim = await connectSim("127.0.0.1", port);
+    savedClientId = sim.clientId;
+    savedCvIp = clientManager.clients[sim.clientId]!.cvClient!.ip;
+
+    // 真实路径：改名称（HTTP PUT）
+    await fetch(`http://127.0.0.1:${port}/api/clients/${sim.clientId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "持久化路线-工位" }),
+    });
+
+    // 真实路径：建题（HTTP POST /api/questions）
+    const qRes = await fetch(`http://127.0.0.1:${port}/api/questions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        troubles: [{
+          id: 77,
+          description: "持久化路线故障",
+          from_wire: 101,
+          to_wire: 102,
+        }],
+      }),
+    });
+    const qBody = await qRes.json() as any;
+    savedQuestionId = qBody.data.id;
+
+    // 真实路径：创建测验会话（HTTP POST /api/tests/test-sessions）
+    const tsRes = await fetch(
+      `http://127.0.0.1:${port}/api/tests/test-sessions`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientIds: [sim.clientId],
+          questionIds: [qBody.data.id],
+        }),
+      },
+    );
+    assertEquals(tsRes.status, 200);
+    await sim.waitForMessage((m: any) => m?.type === "trouble_test_push", 3000);
+
+    // 真实路径：答题（WS trouble_test_update_request）
+    const now = getSecondTimestamp();
+    sim.send("trouble_test_update_request", {
+      all_questions: [{
+        id: qBody.data.id,
+        troubles: [{
+          id: 77,
+          description: "持久化路线故障",
+          from_wire: 101,
+          to_wire: 102,
+          submitted_from_wire: 103,
+          submitted_to_wire: 104,
+          submitted_correct: true,
+        }],
+      }],
+      start_time: now,
+      duration_time: null,
+    });
+    await delay(200);
+
+    // 真实路径：交卷（WS trouble_test_update_request + finish_time）
+    const finishTs = now + 120;
+    sim.send("trouble_test_update_request", {
+      all_questions: [{ id: qBody.data.id, troubles: [] }],
+      start_time: now,
+      duration_time: null,
+      finish_time: finishTs,
+      finished_score: 88,
+    });
+    await delay(200);
+
+    // 真实路径：评估板（WS evaluate_function_board_update_request）
+    sim.send("evaluate_function_board_update_request", {
+      description: "持久化路线评估板",
+      function_steps: [{
+        description: "步骤X",
+        can_wait_for_ms: 1000,
+        waited_for_ms: 600,
+        passed: true,
+        finished: true,
+      }],
+    });
+    await delay(200);
+
+    // 记录关键 id 供重启后断言
+    const session = clientManager.clients[sim.clientId]!.testSession!;
+    savedTestId = BigInt(session.test.id);
+
+    // 内存态确认
+    assertEquals(session.finishedScore, 88);
+    assertEquals(
+      clientManager.clients[sim.clientId]!.evaluateBoard!.description,
+      "持久化路线评估板",
+    );
+
+    sim.disconnect();
+  });
+
+  await t.step("② 模拟重启：清空内存，从数据库加载", async () => {
+    await restartServer();
+  });
+
+  await t.step("③ 重启后断言：所有状态从 DB 完整恢复", async () => {
+    const restored = clientManager.clients[savedClientId];
+    assert(restored, "重启后应恢复此客户机");
+    assertEquals(restored.name, "持久化路线-工位");
+    assert(restored.testSession, "测验会话应恢复");
+    assertEquals(restored.testSession!.finishedScore, 88);
+    assert(
+      restored.testSession!.logs.some((l: any) => l.action === "answer"),
+      "答题日志应恢复",
+    );
+    assert(restored.evaluateBoard, "评估板应恢复");
+    assertEquals(restored.evaluateBoard!.description, "持久化路线评估板");
+  });
+
+  // 清理：本测试创建的数据由 snapshotDatabaseState 统一回收
+  if (savedTestId !== null) {
+    await prisma.storedTest.delete({ where: { id: savedTestId } }).catch(() => {});
+  }
+  if (savedQuestionId !== null) {
+    await prisma.storedQuestion.delete({ where: { id: savedQuestionId } }).catch(() => {});
+  }
+
+  await server.shutdown();
+});
+
+/**
+ * 极简持久化守护测试：只连接、不改名、不答题。
+ * 若 connectClient 忘记落库，重启后该客户机将凭空消失 —— 本测试立即失败。
+ * （PUT /api/clients 会绕过此问题，故必须独立测连接本身）
+ */
+Deno.test("持久化守护：仅连接即持久化，重启后客户机不消失", async () => {
+  const server = Deno.serve({ port: 0 }, app.fetch);
+  const port = (server.addr as Deno.NetAddr).port;
+
+  const sim = await connectSim("127.0.0.1", port);
+  const clientId = sim.clientId;
+  const cvIp = clientManager.clients[clientId]!.cvClient!.ip;
+
+  // 不做任何其他操作，直接"重启"
+  await restartServer();
+
+  const restored = clientManager.clients[clientId];
+  assert(restored, "仅连接后重启，客户机应仍存在（connectClient 必须落库）");
+  assertEquals(restored.online, false);
+  assertEquals(restored.cvClient?.ip, cvIp);
+
+  sim.disconnect();
+  await server.shutdown();
 });

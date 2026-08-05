@@ -63,3 +63,16 @@ export function snapshotDatabaseState(): void {
     await restoreSnapshot(snapshot);
   });
 }
+
+/**
+ * 模拟"服务器重启"：清空内存态，从数据库重新加载。
+ * 用于持久化测试：断言"通过真实业务路径产生的状态，重启后依然存在"。
+ */
+export async function restartServer(): Promise<void> {
+  const { clientManager } = await import("./routes/core/ClientManager.ts");
+  const { troubleTest } = await import("./routes/core/TroubleTest.ts");
+  clientManager.clients = {};
+  clientManager.cvClients = {};
+  await clientManager.loadAllClients();
+  await troubleTest.init();
+}
