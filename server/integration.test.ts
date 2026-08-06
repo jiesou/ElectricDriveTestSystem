@@ -6,11 +6,8 @@ import "./routes/core/TroubleTest.ts";
 import "./routes/core/EvaluateFunction.ts";
 import { troubleTest } from "./routes/core/TroubleTest.ts";
 import { clientManager } from "./routes/core/ClientManager.ts";
-import { prisma } from "./prisma/client.ts";
-import { snapshotDatabaseState, restartServer } from "./test-helpers.ts";
+import { restartServer } from "./test-helpers.ts";
 import { app } from "./server.ts";
-
-snapshotDatabaseState();
 
 Deno.test.beforeEach(() => {
   clientManager.clients = {};
@@ -209,11 +206,7 @@ Deno.test("排故测验：HTTP创建→WebSocket推送→答题→交卷全流�
       85,
     );
 
-    const testId = clientManager.clients[clientId].testSession!.test.id;
     await troubleTest.deleteQuestion(q.id);
-    await prisma.storedTest.delete({ where: { id: BigInt(testId) } }).catch(
-      () => {},
-    );
     sim.disconnect();
   });
 
@@ -457,12 +450,6 @@ Deno.test("数据持久化：保存后恢复，客户端状态完整", async (t)
       assertEquals(r?.evaluateBoard?.function_steps[0].description, "步骤1");
       assertEquals(r?.cvClient?.ip, savedCvIp);
 
-      await prisma.storedClient.delete({ where: { id: savedId } }).catch(
-        () => {},
-      );
-      await prisma.storedCvClient.delete({ where: { ip: savedCvIp } }).catch(
-        () => {},
-      );
       sim.disconnect();
     },
   );
@@ -490,10 +477,6 @@ Deno.test("数据持久化：保存后恢复，客户端状态完整", async (t)
       clientManager.clients[idB]?.cvClient,
     );
 
-    await prisma.storedClient.deleteMany({ where: { id: { in: [idA, idB] } } })
-      .catch(() => {});
-    await prisma.storedCvClient.delete({ where: { ip: "192.168.11.121" } })
-      .catch(() => {});
     sim.disconnect();
   });
 
@@ -666,8 +649,6 @@ Deno.test("持久化路线：真实业务路径产生的状态，重启后完整
   const server = Deno.serve({ port: 0 }, app.fetch);
   const port = (server.addr as Deno.NetAddr).port;
 
-  let savedTestId: bigint | null = null;
-  let savedQuestionId: number | null = null;
   let savedClientId: string = "";
   let savedCvIp: string = "";
 
@@ -697,7 +678,6 @@ Deno.test("持久化路线：真实业务路径产生的状态，重启后完整
       }),
     });
     const qBody = await qRes.json() as any;
-    savedQuestionId = qBody.data.id;
 
     // 真实路径：创建测验会话（HTTP POST /api/tests/test-sessions）
     const tsRes = await fetch(
@@ -758,11 +738,8 @@ Deno.test("持久化路线：真实业务路径产生的状态，重启后完整
     });
     await delay(200);
 
-    // 记录关键 id 供重启后断言
-    const session = clientManager.clients[sim.clientId]!.testSession!;
-    savedTestId = BigInt(session.test.id);
-
     // 内存态确认
+    const session = clientManager.clients[sim.clientId]!.testSession!;
     assertEquals(session.finishedScore, 88);
     assertEquals(
       clientManager.clients[sim.clientId]!.evaluateBoard!.description,
@@ -789,14 +766,6 @@ Deno.test("持久化路线：真实业务路径产生的状态，重启后完整
     assert(restored.evaluateBoard, "评估板应恢复");
     assertEquals(restored.evaluateBoard!.description, "持久化路线评估板");
   });
-
-  // 清理：本测试创建的数据由 snapshotDatabaseState 统一回收
-  if (savedTestId !== null) {
-    await prisma.storedTest.delete({ where: { id: savedTestId } }).catch(() => {});
-  }
-  if (savedQuestionId !== null) {
-    await prisma.storedQuestion.delete({ where: { id: savedQuestionId } }).catch(() => {});
-  }
 
   await server.shutdown();
 });

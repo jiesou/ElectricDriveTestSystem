@@ -2,9 +2,9 @@
   "nodeModulesDir": "auto",
   "tasks": {
     "dev": "deno run -A --env-file --watch main.ts",
-    "start": "deno run -A main.ts",
+    "start": "deno run -A --env-file main.ts",
     "build": "deno compile -A --target x86_64-pc-windows-msvc main.ts",
-    "test": "deno test -A",
+    "test": "deno test -A --env-file=.env.test",
     "db:generate": "deno run -A npm:prisma generate --schema=prisma/schema.prisma",
     "db:push": "deno run -A npm:prisma db push --schema=prisma/schema.prisma"
   },

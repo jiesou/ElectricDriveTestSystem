@@ -3,10 +3,6 @@ import { troubleTest } from "./TroubleTest.ts";
 import { getSecondTimestamp } from "../../utils/helpers.ts";
 import { TROUBLES } from "../../types.ts";
 import { clientManager } from "./ClientManager.ts";
-import { prisma } from "../../prisma/client.ts";
-import { snapshotDatabaseState } from "../../test-helpers.ts";
-
-snapshotDatabaseState();
 
 function makeFakeSocket(): WebSocket {
   return {
@@ -43,8 +39,6 @@ Deno.test("排故测验 - 新增题目：自动分配递增编号，成功返回
   assertEquals(q.id, maxExistingId + 1);
   assertEquals(q.troubles.length, 1);
   assertEquals(troubleTest.questions.length, existingCount + 1);
-
-  await prisma.storedQuestion.delete({ where: { id: q.id } }).catch(() => {});
 });
 
 Deno.test("排故测验 - 连续新增：编号递增", async () => {
@@ -56,9 +50,6 @@ Deno.test("排故测验 - 连续新增：编号递增", async () => {
   });
 
   assertEquals(q2.id, q1.id + 1);
-
-  await prisma.storedQuestion.delete({ where: { id: q1.id } }).catch(() => {});
-  await prisma.storedQuestion.delete({ where: { id: q2.id } }).catch(() => {});
 });
 
 Deno.test("排故测验 - 更新题目：内容成功修改", async () => {
@@ -73,8 +64,6 @@ Deno.test("排故测验 - 更新题目：内容成功修改", async () => {
   assert(result);
   const updated = troubleTest.questions.find((x) => x.id === q.id)!;
   assertEquals(updated.troubles[0].description, "new");
-
-  await prisma.storedQuestion.delete({ where: { id: q.id } }).catch(() => {});
 });
 
 Deno.test("排故测验 - 更新题目：不存在的ID返回false", async () => {
@@ -114,10 +103,6 @@ Deno.test("排故测验 - 创建测验：成功存储，含题目和计时", asy
   assertEquals(test.startTime, startTime);
   assertEquals(test.durationTime, 600);
   assertEquals(troubleTest.tests.length, 1);
-
-  await prisma.storedTest.delete({ where: { id: BigInt(test.id) } }).catch(
-    () => {},
-  );
 });
 
 Deno.test("排故测验 - 创建测验会话：生成start日志，推送给客户机", () => {
@@ -227,9 +212,6 @@ Deno.test("排故测验 - 创建测验：不传时长默认为null", async () =>
   assertEquals(test.durationTime, null);
   assertEquals(test.startTime, startTime);
   assertEquals(test.questions.length, 0);
-  await prisma.storedTest.delete({ where: { id: BigInt(test.id) } }).catch(
-    () => {},
-  );
 });
 
 Deno.test("排故测验 - 创建测验：传入时长正确保存", async () => {
@@ -237,9 +219,6 @@ Deno.test("排故测验 - 创建测验：传入时长正确保存", async () => 
   const test = await troubleTest.createTest([], startTime, 300);
   assertEquals(test.durationTime, 300);
   assertEquals(test.startTime, startTime);
-  await prisma.storedTest.delete({ where: { id: BigInt(test.id) } }).catch(
-    () => {},
-  );
 });
 
 Deno.test("排故测验 - 题目列表：每次返回不同副本", () => {

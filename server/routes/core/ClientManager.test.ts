@@ -1,9 +1,6 @@
 import { assert, assertEquals, assertExists } from "@std/assert";
 import { clientManager } from "./ClientManager.ts";
 import { getSecondTimestamp } from "../../utils/helpers.ts";
-import { snapshotDatabaseState } from "../../test-helpers.ts";
-
-snapshotDatabaseState();
 
 function makeFakeSocket(): WebSocket {
   return {

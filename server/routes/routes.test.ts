@@ -3,11 +3,7 @@ import { assert, assertEquals, assertExists } from "@std/assert";
 import { troubleTest } from "./core/TroubleTest.ts";
 import { clientManager } from "./core/ClientManager.ts";
 import { getSecondTimestamp } from "../utils/helpers.ts";
-import { prisma } from "../prisma/client.ts";
-import { snapshotDatabaseState } from "../test-helpers.ts";
 import { app } from "../server.ts";
-
-snapshotDatabaseState();
 
 function mockSocket(): WebSocket {
   return {
@@ -17,8 +13,23 @@ function mockSocket(): WebSocket {
   } as unknown as WebSocket;
 }
 
+let server: Deno.HttpServer<Deno.NetAddr> | null = null;
+let serverPort: number = 0;
+
+// app.request 在 Deno 2.9.4 会触发退出段错误（运行时 UAF），
+// 改用真实 HTTP 服务器 + fetch 规避，见 https://github.com/denoland/deno/issues/33374
+Deno.test.beforeAll(() => {
+  server = Deno.serve({ port: 0 }, app.fetch);
+  serverPort = (server.addr as Deno.NetAddr).port;
+});
+
+Deno.test.afterAll(async () => {
+  await server?.shutdown();
+  server = null;
+});
+
 async function req(path: string, init?: RequestInit): Promise<Response> {
-  return await app.request(`http://localhost${path}`, init);
+  return await fetch(`http://127.0.0.1:${serverPort}${path}`, init);
 }
 
 Deno.test("HTTP接口测试", async (t) => {
@@ -168,9 +179,6 @@ Deno.test("HTTP接口测试", async (t) => {
     assertEquals(client.name, "测试工位");
 
     delete clientManager.clients[client.id];
-    await prisma.storedClient.delete({ where: { id: client.id } }).catch(
-      () => {},
-    );
   });
 
   await t.step("忘记客户机 POST /api/clients/forget：清空所有", async () => {
@@ -217,13 +225,9 @@ Deno.test("HTTP接口测试", async (t) => {
     assertEquals(body.data[0].clientId, client.id);
     assertExists(client.testSession);
 
-    const testId = client.testSession!.test.id;
     await troubleTest.deleteQuestion(q.id);
     clientManager.clients = {};
     troubleTest.tests = [];
-    await prisma.storedTest.delete({ where: { id: BigInt(testId) } }).catch(
-      () => {},
-    );
   });
 
   await t.step(

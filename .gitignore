@@ -9,3 +9,6 @@ client/node_modules/
 server/generated/
 server/coverage/
 server/cov/
+.opencode/
+.marscode/
+.trae/

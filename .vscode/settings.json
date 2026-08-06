@@ -1,4 +1,6 @@
 {
   "deno.enable": true,
-  "deno.config": "./server/deno.json"
+  "deno.config": "./server/deno.json",
+  "deno.envFile": "./server/.env.test",
+  "deno.testing.args": ["--allow-all", "--no-check"]
 }
