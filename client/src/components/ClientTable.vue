@@ -2,7 +2,7 @@
 import { ref, nextTick, computed } from 'vue'
 import { Table, Tag, Input, Select, message } from 'ant-design-vue'
 import { EditOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons-vue'
-import type { Client, Question, Trouble } from '../types'
+import type { Client } from '../types'
 import { apiJson } from '../api-client'
 
 const props = defineProps<{ clients: Client[] }>()
