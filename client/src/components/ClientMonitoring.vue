@@ -52,13 +52,13 @@ function handleAIAnalysis(clientId: string) {
     </Card>
 
     <!-- 实时视觉客户端 -->
-    <div style="margin-top: 20px;">
+    <div style="margin-top: 20px; display: none">
       <CvClientMonitor :clients="props.clients" />
     </div>
 
 
     <!-- 显示已结束的测验 -->
-    <div style="margin-top: 20px;" v-if="finishedTests.length > 0">
+    <div style="margin-top: 20px; display: none" v-if="finishedTests.length > 0">
       <Card title="已结束的测验">
         <div
           v-for="client in finishedTests"
@@ -92,7 +92,7 @@ function handleAIAnalysis(clientId: string) {
     <AIAnalysisModal v-model:open="aiAnalysisModal" :client-id="currentAnalysisClientId" />
 
     <!-- 已结束的装接评估 -->
-    <div style="margin-top: 20px;" v-if="finishedEvaluateBoards.length > 0">
+    <div style="margin-top: 20px; display: none" v-if="finishedEvaluateBoards.length > 0">
       <Card title="已结束的装接评估">
         <div
           v-for="client in finishedEvaluateBoards"
@@ -128,7 +128,7 @@ function handleAIAnalysis(clientId: string) {
       </Card>
     </div>
 
-    <div style="margin-top: 20px;" v-if="activeTestClients.length > 0">
+    <div style="margin-top: 20px; display: none" v-if="activeTestClients.length > 0">
       <div v-for="client in activeTestClients" :key="client.id" style="margin-bottom: 20px;">
         <Card :title="`活跃测验详情 - ${client.name} (${client.ip})`">
           <div v-if="client.testSession">
@@ -149,7 +149,7 @@ function handleAIAnalysis(clientId: string) {
     </div>
 
     <!-- 装接评估详情 -->
-    <div style="margin-top: 20px;" v-if="evaluateBoards.length > 0">
+    <div style="margin-top: 20px; display: none" v-if="evaluateBoards.length > 0">
       <div v-for="client in evaluateBoards" :key="`eval-${client.id}`"
         style="margin-bottom: 20px;">
 
