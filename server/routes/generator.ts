@@ -1,8 +1,9 @@
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { clientManager } from "./core/ClientManager.ts";
 import { Client, Question, TestLog, Trouble } from "../types.ts";
 
-let analyzeStream: (prompt: string) => ReadableStream<Uint8Array>;
+let analyzeStream: (c: Context, prompt: string) => Response;
 
 try {
   // 使用动态导入
@@ -14,13 +15,10 @@ try {
   analyzeStream = aiClientModule.analyzeStream;
 } catch (e) {
   // 提供默认实现
-  analyzeStream = () => {
-    return new ReadableStream({
-      start(controller) {
-        const encoder = new TextEncoder();
-        controller.enqueue(encoder.encode("DeepSeek 服务端连接失败"));
-        controller.close();
-      },
+  analyzeStream = (_c: Context, _prompt: string) => {
+    return new Response("DeepSeek 服务端连接失败", {
+      status: 200,
+      headers: { "content-type": "text/plain; charset=utf-8" },
     });
   };
   console.error("分析流功能未实现", e);
@@ -249,6 +247,5 @@ generatorRouter.get("/analyze", (c) => {
   }
 
   const prompt = buildPrompt(client);
-  const stream = analyzeStream(prompt);
-  return c.body(stream);
+  return analyzeStream(c, prompt);
 });

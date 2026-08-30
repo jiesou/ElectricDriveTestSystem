@@ -93,6 +93,6 @@ app.use("/*", serveStatic({ root: "./public" }));
 app.get("/*", serveStatic({ path: "./public/index.html" }));
 
 app.onError((err, c) => {
-  console.error("Server error:", err);
+  console.error(`[API ERROR] ${c.req.method} ${c.req.path}:`, err);
   return c.json({ error: "Internal server error" }, 500);
 });
