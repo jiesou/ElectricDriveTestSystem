@@ -19,7 +19,7 @@ const selectedModel = ref('deepseek-r1-llama-8b')
 const aiAnalysisRef = ref<InstanceType<typeof AIAnalysis>>()
 
 const modelOptions: { key: string; label: string }[] = [
-  { key: 'deepseek-r1-llama-8b', label: 'DeepSeek R1 蒸馏 Llama 8B' },
+  { key: 'deepseek-r1-llama-8b', label: 'DeepSeek V4 Flash' },
   { key: 'glm-5.0', label: 'GLM-5.0' },
   { key: 'kimi-k2.5', label: 'Kimi-K2.5' },
   { key: 'minimax-m2.5', label: 'Minimax M2.5' },
