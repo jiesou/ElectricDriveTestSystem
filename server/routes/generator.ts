@@ -95,7 +95,7 @@ export function buildPrompt(client: Client): string {
     markdown.push("\n#### 调试单元 - 预设故障项");
     session.test.questions.forEach((question: Question, idx: number) => {
       markdown.push(`**故障项 ${idx + 1} (ID: ${question.id})**`);
-      markdown.push("含故障:");
+      markdown.push("含故障项:");
       question.troubles.forEach((trouble: Trouble, index: number) => {
         markdown.push(
           `${
