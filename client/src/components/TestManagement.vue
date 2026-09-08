@@ -48,14 +48,14 @@ function openCreateTestModal() {
   createTestModalVisible.value = true
 }
 
-// 当已经存在已安排测验时，用户点击“安排新测验”会触发此函数：
-// 依次执行结束所有活跃测验 -> 清除测验记录 -> 刷新数据 -> 打开创建测验模态
+// 当已经存在已下发任务时，用户点击“下发新任务”会触发此函数：
+// 依次执行结束所有进行中任务 -> 清除任务记录 -> 刷新数据 -> 打开发布任务模态
 async function confirmThenCreate() {
   try {
     loading.value = true
-    // 先结束所有活跃测验
+    // 先结束所有进行中任务
     await handleFinishTest()
-    // 再清除所有测验记录
+    // 再清除所有任务记录
     await handleClearAllTests()
     // 刷新数据，确保 UI 状态同步
     await fetchData()
@@ -64,7 +64,7 @@ async function confirmThenCreate() {
     openCreateTestModal();
   } catch (error) {
     console.error('confirmThenCreate failed:', error)
-    message.error('准备新测验失败')
+    message.error('下发新任务失败')
   } finally {
     loading.value = false
   }
@@ -106,12 +106,12 @@ async function handleCreateTest() {
       })
     })
     const successCount = result.filter((r) => r.success ?? true).length
-    message.success(`测验创建成功，${successCount}/${result.length} 个客户机已分配测验`)
+    message.success(`任务下发成功，${successCount}/${result.length} 个客户机已收到任务`)
     createTestModalVisible.value = false
     await fetchData()
   } catch (error) {
     console.error('Failed to create test:', error)
-    message.error('测验创建失败')
+    message.error('任务下发失败')
   }
 }
 
@@ -149,26 +149,26 @@ async function handleRelayRainbowTest() {
 async function handleFinishTest() {
   try {
     await apiJson('/api/tests/finish-all', { method: 'POST' })
-    message.success('活跃测验已全部结束')
+    message.success('进行中任务已全部结束')
     await fetchData()
   } catch (error) {
     console.error('Failed to finish test:', error)
-    message.error('结束活跃测验失败')
+    message.error('结束进行中任务失败')
   }
 }
 
 async function handleClearAllTests() {
   try {
     await apiJson('/api/tests/clear-all', { method: 'POST' })
-    message.success('所有测验记录已清除')
+    message.success('所有任务记录已清除')
     await fetchData()
   } catch (error) {
     console.error('Failed to clear all tests:', error)
-    message.error('清除测验记录失败')
+    message.error('清除任务记录失败')
   }
 }
 
-// 推送当前测验到所有客户端
+// 推送当前任务到所有客户端
 async function handleForcePushTest() {
   try {
     loading.value = true
@@ -204,16 +204,16 @@ async function handleForcePushTest() {
 
 const testColumns = [
   {
-    title: '测验ID',
+    title: '任务ID',
     dataIndex: 'id',
     key: 'id'
   },
   {
-    title: '所含题目',
+    title: '所含故障项',
     key: 'questions',
     customRender: ({ record }: { record: Test }) => {
       return record.questions.map((question: Question) =>
-      h(Tag, () => `题目${question.id}: ${question.troubles.map(trouble => trouble.description).join(', ')}`)
+      h(Tag, () => `故障项${question.id}: ${question.troubles.map(trouble => trouble.description).join(', ')}`)
       )
     }
   },
@@ -242,34 +242,34 @@ onMounted(() => {
 
 <template>
   <div>
-    <h2>测验管理</h2>
+    <h2>排故任务管理</h2>
 
-    <Card title="测验动作" style="margin-bottom: 20px;">
-        <!-- 如果已经有已安排测验，则在点击时先弹出确认，确认后自动执行: 结束所有活跃测验 -> 清除测验记录 -> 打开创建测验模态 -->
+    <Card title="任务动作" style="margin-bottom: 20px;">
+        <!-- 如果已经有已下发任务，则在点击时先弹出确认，确认后自动执行: 结束所有进行中任务 -> 清除任务记录 -> 打开发布任务模态 -->
         <template v-if="tests && tests.length > 0">
           <Popconfirm
-            title="现在已有测验，确定清除当前测验然后创建新的？"
+            title="现在已有任务，确定清除当前任务然后下发新的？"
             ok-text="继续"
             cancel-text="坚持直接发题"
             @confirm="confirmThenCreate"
             @cancel="openCreateTestModal"
           >
-            <Button type="primary">▶ 安排新测验</Button>
+            <Button type="primary">▶ 下发新任务</Button>
           </Popconfirm>
         </template>
         <template v-else>
           <Button type="primary" @click="openCreateTestModal" style="font-variant-emoji: text;">
-            ▶ 安排新测验
+            ▶ 下发新任务
           </Button>
         </template>
-      <Popconfirm title="确定结束所有活跃测验？" @confirm="handleFinishTest">
+      <Popconfirm title="确定结束所有进行中任务？" @confirm="handleFinishTest">
         <Button danger style="margin-left: 10px;">
-          ■ 结束所有活跃测验
+          ■ 结束所有进行中任务
         </Button>
       </Popconfirm>
-      <Popconfirm title="确定清除测验记录？" @confirm="handleClearAllTests">
+      <Popconfirm title="确定清除任务记录？" @confirm="handleClearAllTests">
         <Button style="margin-left: 10px;">
-          X 清除测验记录
+          X 清除任务记录
         </Button>
       </Popconfirm>
       <Button style="margin-left: 10px;" @click="handleRelayRainbowTest">
@@ -284,11 +284,11 @@ onMounted(() => {
       <ClientTable :clients="props.clients" />
     </Card>
 
-    <Card title="已安排的测验">
+    <Card title="已下发的任务">
       <Table :dataSource="tests" :columns="testColumns" size="small" rowKey="id" :pagination="false" />
     </Card>
 
-    <Modal v-model:open="createTestModalVisible" title="创建测验" @ok="handleCreateTest" width="600px">
+    <Modal v-model:open="createTestModalVisible" title="下发任务" @ok="handleCreateTest" width="600px">
       <Form layout="vertical">
         <Form.Item label="选择客户机" required>
           <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
@@ -309,7 +309,7 @@ onMounted(() => {
 
         <Form.Item label="选择题目" required>
           <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-            <Select v-model:value="formState.questionIds" mode="multiple" placeholder="请选择测验题目" style="width: 100%">
+            <Select v-model:value="formState.questionIds" mode="multiple" placeholder="请选择任务故障项" style="width: 100%">
               <Select.Option v-for="question in questions" :key="question.id" :value="question.id">
                 {{ question.id }}: {{ question.troubles.map(trouble => trouble.description).join(', ') }}
               </Select.Option>
@@ -344,7 +344,7 @@ onMounted(() => {
           <!-- 不能设置过去的时间 -->
         </Form.Item>
 
-        <Form.Item label="测验持续时间（分钟）">
+        <Form.Item label="任务限时（分钟）">
           <InputNumber v-model:value="formState.durationTime" :min="1" :max="300" placeholder="留空表示无时间限制"
             style="width: 100%" />
         </Form.Item>

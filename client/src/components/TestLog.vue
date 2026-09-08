@@ -55,7 +55,7 @@ function formatTimestamp(timestamp: number): string {
 <template>
   <div v-if="session && filteredLogs.length > 0">
     <div style="display: flex; align-items: center; margin-bottom: 8px;">
-      <strong>测验日志</strong>
+      <strong>排故任务日志</strong>
       <Switch
         v-model:checked="showConnectionEvents"
         checked-children="显示连接变化"
@@ -74,9 +74,9 @@ function formatTimestamp(timestamp: number): string {
             {{ log.action.toUpperCase() }}
           </Tag>
           <div style="margin-top: 4px;">
-            <strong v-if="log.action == 'start'">开始测验</strong>
+            <strong v-if="log.action == 'start'">开始排故任务</strong>
             <strong v-else-if="log.action == 'finish'">
-              完成测验 得分: {{ log.details.score }}
+              排故任务完成 达成率: {{ log.details.score }}%
             </strong>
             <strong v-else-if="log.action == 'connect'">连接上服务器</strong>
             <strong v-else-if="log.action == 'disconnect'">断开了连接</strong>

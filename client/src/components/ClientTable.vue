@@ -28,7 +28,7 @@ const columns = [
     key: 'online'
   },
   {
-    title: '测验状态',
+    title: '任务状态',
     key: 'testStatus'
   }
 ]

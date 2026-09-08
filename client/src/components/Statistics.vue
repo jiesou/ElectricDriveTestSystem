@@ -38,7 +38,7 @@ const mockScoreHistory = ref<Record<string, number[]>>({})
 const mockDateLabels = ref<string[]>([])
 const mockTestRecords = ref<TestRecord[]>([])
 
-// 生成模拟的测验日志
+// 生成模拟的排故任务日志
 function generateMockLogs(startTime: number, score: number): TestLogType[] {
   const logs: TestLogType[] = []
 
@@ -63,7 +63,7 @@ function generateMockLogs(startTime: number, score: number): TestLogType[] {
     details: { question: questions[0] }
   })
 
-  // 答题日志
+  // 故障处置日志
   let currentTime = startTime + 60
   questions.forEach((q) => {
     q.troubles.forEach((t) => {
@@ -139,7 +139,7 @@ function generateMockTestSession(id: string, startTime: number, score: number): 
   }
 }
 
-// Mock 数据 - 历史测验记录
+// Mock 数据 - 历史任务记录
 interface TestRecord {
   id: string
   studentName: string
@@ -195,7 +195,7 @@ function generateMockTestRecords(): TestRecord[] {
 const systemTime = ref(dayjs().format('HH:mm:ss'))
 let timeTimer: number | undefined
 
-// 计算平均得分
+// 计算平均达成率
 const averageScore = computed(() => {
   const allScores = Object.values(mockScoreHistory.value).flat()
   if (allScores.length === 0) return '0.0'
@@ -215,7 +215,7 @@ const recentAverage = computed(() => {
 // 折线图配置
 const lineChartOption = computed(() => ({
   title: {
-    text: '历史答题分数趋势',
+    text: '历史达成率趋势',
     left: 'center',
     textStyle: {
       fontSize: 16,
@@ -265,7 +265,7 @@ const pieChartOption = computed(() => {
 
   return {
     title: {
-      text: '测验类型分布',
+      text: '任务类型分布',
       left: 'center',
       textStyle: {
         fontSize: 16,
@@ -280,7 +280,7 @@ const pieChartOption = computed(() => {
     },
     series: [
       {
-        name: '测验类型',
+        name: '任务类型',
         type: 'pie',
         radius: ['40%', '70%'],
         center: ['50%', '50%'],
@@ -358,26 +358,26 @@ onUnmounted(() => {
                 <ClockCircleOutlined style="color: #1890ff;" />
               </template>
             </Statistic>
-            <Statistic title="平均得分" :value="averageScore" suffix="分">
+            <Statistic title="平均达成率" :value="averageScore" suffix="%">
               <template #prefix>
                 <ArrowDownOutlined style="color: #cf1322;" />
               </template>
             </Statistic>
-            <Statistic title="最近测验平均分" :value="recentAverage" suffix="分">
+            <Statistic title="最近任务平均达成率" :value="recentAverage" suffix="%">
               <template #prefix>
                 <ArrowUpOutlined style="color: #3f8600;" />
               </template>
             </Statistic>
-            <Statistic title="总测验次数" :value="mockTestRecords.length" suffix="次" />
+            <Statistic title="总任务次数" :value="mockTestRecords.length" suffix="次" />
           </div>
         </Card>
       </Col>
     </Row>
 
-    <!-- 历史测验记录和饼状图 -->
+    <!-- 历史任务记录和饼状图 -->
     <Row :gutter="16">
       <Col :span="16">
-        <Card title="历史测验记录">
+        <Card title="历史任务记录">
           <div v-if="loadingRecords">
             <Skeleton active :paragraph="{ rows: 10 }" />
           </div>
@@ -396,12 +396,12 @@ onUnmounted(() => {
                 </div>
                 <div style="text-align: right;">
                   <Tag :color="record.score >= 85 ? 'green' : record.score >= 70 ? 'orange' : 'red'">
-                    得分: {{ record.score }}
+                    达成率: {{ record.score }}%
                   </Tag>
                 </div>
               </div>
               <div style="margin-top: 8px; font-size: 12px; color: #666;">
-                测验时间: {{ record.date }} | 用时: {{ record.duration }} 分钟
+                任务时间: {{ record.date }} | 用时: {{ record.duration }} 分钟
               </div>
               <div style="margin-top: 8px;">
                 <TestLog :session="record.testSession" />

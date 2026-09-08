@@ -32,7 +32,7 @@ export function formatLogEntry(log: TestLog, index: number): string {
 
   switch (log.action) {
     case "start":
-      detail = `开始测验 - 题目: ${log.details.question?.id}`;
+      detail = `开始排故任务 - 故障项: ${log.details.question?.id}`;
       break;
     case "answer":
       detail =
@@ -41,7 +41,7 @@ export function formatLogEntry(log: TestLog, index: number): string {
         }`;
       break;
     case "finish":
-      detail = `完成测验 - 得分: ${log.details.score}`;
+      detail = `排故任务完成 - 达成率: ${log.details.score}%`;
       break;
     case "desk_clean":
       detail = `工位清洁 - 桌面干净程度: ${
@@ -65,13 +65,13 @@ export function buildPrompt(client: Client): string {
   const markdown: string[] = [];
 
   markdown.push("# 低压电气装调测试系统 - 综合结果分析\n");
-  markdown.push("请分析以下学员的测验和装接评估表现，给出详细的评价和建议。\n");
+  markdown.push("请分析以下学员的排故任务和装接评估表现，给出详细的评价和建议。\n");
 
   markdown.push(`## 学员: ${client.name} (${client.ip})\n`);
 
   if (client.testSession) {
     const session = client.testSession;
-    // 排故测验信息
+    // 排故任务信息
     markdown.push("### 调试单元\n");
     // 基本信息
     markdown.push("#### 基本信息");
@@ -88,14 +88,13 @@ export function buildPrompt(client: Client): string {
     markdown.push(`- 开始时间: ${startTime}`);
     markdown.push(`- 完成时间: ${finishTime}`);
     markdown.push(`- 用时: ${duration} 分钟`);
-    markdown.push(`- 最终得分: ${session.finishedScore ?? "未完成"}/100`);
-    markdown.push(`- 题目数量: ${session.test.questions.length}`);
+    markdown.push(`- 最终达成率: ${session.finishedScore ?? "未完成"}%`);
+    markdown.push(`- 故障项数量: ${session.test.questions.length}`);
 
-    // 题目信息
-    // 题目信息
-    markdown.push("\n#### 调试单元 - 预设故障题目");
+    // 故障项信息
+    markdown.push("\n#### 调试单元 - 预设故障项");
     session.test.questions.forEach((question: Question, idx: number) => {
-      markdown.push(`**题目 ${idx + 1} (ID: ${question.id})**`);
+      markdown.push(`**故障项 ${idx + 1} (ID: ${question.id})**`);
       markdown.push("含故障:");
       question.troubles.forEach((trouble: Trouble, index: number) => {
         markdown.push(
@@ -199,9 +198,9 @@ export function buildPrompt(client: Client): string {
 
   markdown.push("\n## 分析要求");
   markdown.push("请针对以上数据进行综合分析，包括但不限于：");
-  markdown.push("1. 每位学员的整体表现评价（综合排故测验和装接评估）");
+  markdown.push("1. 每位学员的整体表现评价（综合排故任务和装接评估）");
   markdown.push(
-    "2. 排故测验表现：操作效率分析（答题速度、错误率等）、知识点掌握情况",
+    "2. 排故任务表现：操作效率分析（处置速度、失误率等）、故障类型掌握情况",
   );
   markdown.push("3. 装接评估表现：功能测试完成情况、操作规范性、工艺质量");
   markdown.push("4. 素养7S评价：结合以下7个维度对学员的操作过程进行评价");

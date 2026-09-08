@@ -44,7 +44,7 @@ function handleAIAnalysis(clientId: string) {
 
     <Card title="实时客户机状态">
       <template #extra>
-        <Popconfirm title="确定要忘记所有客户机吗？这也将清除客户机的活跃测验进度。" @confirm="handleForgetClients">
+        <Popconfirm title="确定要忘记所有客户机吗？这也将清除客户机的进行中任务进度。" @confirm="handleForgetClients">
           <Button type="primary" danger>忘记所有客户机</Button>
         </Popconfirm>
       </template>
@@ -57,9 +57,9 @@ function handleAIAnalysis(clientId: string) {
     </div>
 
 
-    <!-- 显示已结束的测验 -->
+    <!-- 显示已结束的任务 -->
     <div style="margin-top: 20px;" v-if="finishedTests.length > 0">
-      <Card title="已结束的测验">
+      <Card title="已结束的任务">
         <div
           v-for="client in finishedTests"
           :key="`finished-${client.id}`"
@@ -130,7 +130,7 @@ function handleAIAnalysis(clientId: string) {
 
     <div style="margin-top: 20px;" v-if="activeTestClients.length > 0">
       <div v-for="client in activeTestClients" :key="client.id" style="margin-bottom: 20px;">
-        <Card :title="`活跃测验详情 - ${client.name} (${client.ip})`">
+        <Card :title="`进行中任务详情 - ${client.name} (${client.ip})`">
           <div v-if="client.testSession">
             <div style="margin-bottom: 16px;">
               <p><strong>开始时间:</strong> {{ formatTime(client.testSession.test.startTime) }}</p>

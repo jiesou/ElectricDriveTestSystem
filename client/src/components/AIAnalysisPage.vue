@@ -53,7 +53,7 @@ function handleAIAnalysis() {
         <Select.Option v-for="client in props.clients" :key="client.id" :value="client.id">
           {{ client.name }} ({{ client.ip }})
           <span v-if="client.testSession?.finishedScore !== undefined"> - 分数: {{ client.testSession.finishedScore }}</span>
-          <span v-else-if="client.testSession"> - 测验中</span>
+          <span v-else-if="client.testSession"> - 排故中</span>
         </Select.Option>
       </Select>
 

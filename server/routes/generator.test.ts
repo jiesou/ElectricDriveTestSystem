@@ -10,7 +10,7 @@ import type {
   StartLog,
 } from "../types.ts";
 
-Deno.test("分析报告 - 格式化日志：开始测验", () => {
+Deno.test("分析报告 - 格式化日志：开始排故任务", () => {
   const log: StartLog = {
     timestamp: 1000000000,
     action: "start",
@@ -18,7 +18,7 @@ Deno.test("分析报告 - 格式化日志：开始测验", () => {
   };
   const result = formatLogEntry(log, 0);
   assert(result.startsWith("1. ["));
-  assert(result.includes("] START: 开始测验 - 题目: 42"));
+  assert(result.includes("] START: 开始排故任务 - 故障项: 42"));
 });
 
 Deno.test("分析报告 - 格式化日志：答题正确", () => {
@@ -58,14 +58,14 @@ Deno.test("分析报告 - 格式化日志：答题错误", () => {
   assert(result.includes("ANSWER: 选择故障1 (101 和 102 断路) - 错误"));
 });
 
-Deno.test("分析报告 - 格式化日志：完成测验", () => {
+Deno.test("分析报告 - 格式化日志：排故任务完成", () => {
   const log: FinishLog = {
     timestamp: 1000000000,
     action: "finish",
     details: { score: 85 },
   };
   const result = formatLogEntry(log, 3);
-  assert(result.includes("FINISH: 完成测验 - 得分: 85"));
+  assert(result.includes("FINISH: 排故任务完成 - 达成率: 85%"));
 });
 
 Deno.test("分析报告 - 格式化日志：工位清洁（85%进度）", () => {
@@ -150,7 +150,7 @@ Deno.test("分析报告 - 构建提示词：包含标题和学员信息", () => 
   assert(result.includes("学员: 张三 (10.0.0.1)"));
 });
 
-Deno.test("分析报告 - 构建提示词：有排故测验时包含测验章节", () => {
+Deno.test("分析报告 - 构建提示词：有排故任务时包含任务章节", () => {
   const now = Math.floor(Date.now() / 1000);
   const client: Client = {
     id: "c1",
@@ -180,8 +180,8 @@ Deno.test("分析报告 - 构建提示词：有排故测验时包含测验章节
   };
   const result = buildPrompt(client);
   assert(result.includes("### 调试单元"));
-  assert(result.includes("最终得分: 90"));
-  assert(result.includes("题目 1 (ID: 1)"));
+  assert(result.includes("最终达成率: 90%"));
+  assert(result.includes("故障项 1 (ID: 1)"));
 });
 
 Deno.test("分析报告 - 构建提示词：有功能测试时包含测试章节", () => {
@@ -320,5 +320,5 @@ Deno.test("分析报告 - 构建提示词：零分也能正确显示", () => {
     },
   };
   const result = buildPrompt(client);
-  assert(result.includes("最终得分: 0/100"));
+  assert(result.includes("最终达成率: 0%"));
 });

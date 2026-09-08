@@ -19,7 +19,7 @@ const activeTab = ref<TabKey>('troubles')
 
 const menuItems = [
   { key: 'troubles', label: '题库管理', path: '#/troubles' },
-  { key: 'tests', label: '排故测验', path: '#/tests' },
+  { key: 'tests', label: '排故任务', path: '#/tests' },
   { key: 'clients', label: '客户机监控', path: '#/clients' },
   { key: 'statistics', label: '统计数据', path: '#/statistics' },
   { key: 'ai-analysis', label: 'AI 分析', path: '#/ai-analysis' }
