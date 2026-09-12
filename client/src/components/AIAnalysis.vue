@@ -2,7 +2,7 @@
 import { ref, watch, onUnmounted } from 'vue'
 import { Skeleton, message } from 'ant-design-vue'
 import { marked } from 'marked'
-import { useMockDataService } from '../useMockData'
+import { MOCK_CLIENT_ID } from '../useMockData'
 import type { Client } from '../types';
 
 const props = defineProps<{ client?: Client }>()
@@ -33,7 +33,7 @@ async function startAnalysis(clientId: string) {
     aiAnalysisContentMarkdown.value = ''
     aiAnalysisLoading.value = true
 
-    if (useMockDataService.value) {
+    if (clientId === MOCK_CLIENT_ID) {
         await new Promise(resolve => setTimeout(resolve, 3000))
         aiAnalysisContentMarkdown.value = `## 学员排故任务技能诊断报告
 

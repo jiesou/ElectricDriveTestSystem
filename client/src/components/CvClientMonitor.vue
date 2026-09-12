@@ -4,7 +4,7 @@ import { Card, Tag, Empty, Button, Divider, message } from 'ant-design-vue'
 import type { Client, CvClient } from '../types'
 import { CloseOutlined } from '@ant-design/icons-vue'
 import { apiJson } from '../api-client'
-import { useMockDataService } from '../useMockData'
+import { MOCK_CLIENT_ID } from '../useMockData'
 
 const props = defineProps<{ clients: Client[] }>()
 const displayCvClients = computed(() => props.clients.filter(c => c.cvClient))
@@ -51,7 +51,7 @@ async function clearSession(cvClient: CvClient) {
         <strong>IP:</strong> {{ client.cvClient?.ip }} <br />
         <strong>关联客户机IP:</strong> {{ client.ip }}
         <!-- 图像显示区域 -->
-        <div v-if="!useMockDataService"
+        <div v-if="client.id !== MOCK_CLIENT_ID"
           style="position: relative; width: 100%; background: #ffffff; border-radius: 4px; overflow: hidden; min-height: 60px; margin-bottom: 0px;">
           <!-- MJPEG 流会自动处理，加载第一帧后就会触发 load 事件 -->
           <img v-if="client.cvClient" :src="`/api/cv/stream/${client.cvClient.ip}`"

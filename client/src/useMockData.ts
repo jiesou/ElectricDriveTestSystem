@@ -10,8 +10,23 @@ import type {
 } from "./types";
 import { getSecondTimestamp } from "./types";
 
-// 是否启用模拟数据模式
+// 是否启用模拟数据模式（叠加模式：真实列表上叠加一个固定的 mock 机子）
 export const useMockDataService = ref(false);
+
+// Mock 机子的固定 id，用于合并去重和各处识别
+export const MOCK_CLIENT_ID = "45";
+
+// Mock 数据缓存为单例，避免每次轮询重新生成导致时间戳跳动和界面闪烁
+let cachedMockClients: Client[] | null = null;
+export function getMockClients(): Client[] {
+  if (!cachedMockClients) cachedMockClients = generateMockData();
+  return cachedMockClients;
+}
+
+// 在真实列表上叠加 mock 机子（同 id 的真机被 mock 覆盖）
+export function mergeMockClients(realClients: Client[]): Client[] {
+  return [...realClients.filter((c) => c.id !== MOCK_CLIENT_ID), ...getMockClients()];
+}
 
 // 生成模拟数据
 export function generateMockData(): Client[] {

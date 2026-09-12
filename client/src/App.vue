@@ -8,7 +8,7 @@ const TestManagement = defineAsyncComponent(() => import('./components/TestManag
 const ClientMonitoring = defineAsyncComponent(() => import('./components/ClientMonitoring.vue'))
 const AIAnalysisPage = defineAsyncComponent(() => import('./components/AIAnalysisPage.vue'))
 const Statistics = defineAsyncComponent(() => import('./components/Statistics.vue'))
-import { useMockDataService, generateMockData } from './useMockData'
+import { useMockDataService, mergeMockClients } from './useMockData'
 import type { Client } from './types'
 import { apiJson } from './api-client'
 
@@ -47,14 +47,10 @@ function handleMenuClick(key: TabKey) {
 }
 
 async function fetchClients() {
-  if (useMockDataService.value) {
-    clients.value = generateMockData()
-    return
-  }
   loadingClients.value = true
   try {
     const data = await apiJson<Client[]>('/api/clients')
-    clients.value = data
+    clients.value = useMockDataService.value ? mergeMockClients(data) : data
   } finally {
     loadingClients.value = false
   }
@@ -62,9 +58,7 @@ async function fetchClients() {
 
 function startRefresh() {
   stopRefresh()
-  refreshTimer = window.setInterval(() => {
-    if (!useMockDataService.value) fetchClients()
-  }, 3000)
+  refreshTimer = window.setInterval(fetchClients, 3000)
 }
 
 function stopRefresh() {
@@ -77,24 +71,12 @@ function stopRefresh() {
 function handleKeyPress(event: KeyboardEvent) {
   if (event.key === 'Home') {
     useMockDataService.value = !useMockDataService.value
-    if (useMockDataService.value) {
-      stopRefresh()
-      clients.value = generateMockData()
-    } else {
-      fetchClients()
-      startRefresh()
-    }
+    fetchClients()
   }
 }
 
-watch(useMockDataService, (enabled) => {
-  if (enabled) {
-    stopRefresh()
-    clients.value = generateMockData()
-  } else {
-    fetchClients()
-    startRefresh()
-  }
+watch(useMockDataService, () => {
+  fetchClients()
 })
 
 onMounted(() => {
