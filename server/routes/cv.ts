@@ -6,6 +6,7 @@ import {
   Client,
   DeskCleanLog,
   DeskCleanResult,
+  DeskCleanResultPushMessage,
   DeskCleanSession,
   EvaluateWiringSession,
   EvaluateWiringYoloPushMessage,
@@ -349,7 +350,7 @@ cvRouter.post("/upload_face", async (c) => {
  *
  * Body (FormData):
  *   image: File,
- *   result: str = '{"sleeves_num":0,"screwdriver_ready":true,"wire_stripper_ready":true,"multimeter_ready":true,"crimping_ready":true,"clean_progress":0.8}'
+ *   result: str = '{"clutter_count":3,"screwdriver_ready":true,"wire_stripper_ready":true,"multimeter_ready":true,"crimping_ready":true,"clean_progress":0.8}'
  */
 cvRouter.post("/upload_deskclean", async (c) => {
   const contentType = c.req.header("Content-Type") || "";
@@ -402,7 +403,7 @@ cvRouter.post("/upload_deskclean", async (c) => {
 
   session.finalResult = {
     image: imageUrl,
-    sleeves_num: Number(inputResultObj.sleeves_num) || 0,
+    clutter_count: Number(inputResultObj.clutter_count) || 0,
     screwdriver_ready: Boolean(inputResultObj.screwdriver_ready),
     wire_stripper_ready: Boolean(inputResultObj.wire_stripper_ready),
     multimeter_ready: Boolean(inputResultObj.multimeter_ready),
@@ -424,6 +425,22 @@ cvRouter.post("/upload_deskclean", async (c) => {
   }
   for (const client of clients) {
     clientManager.persistClient(client).catch(() => {});
+  }
+
+  // 推送工位清洁结果给相关客户端（ESP32 跳出工位清洁页轮播）
+  for (const client of clients) {
+    const responseMsg: DeskCleanResultPushMessage = {
+      type: "deskclean_result_push",
+      timestamp: getSecondTimestamp(),
+      result: {
+        clutter_count: session.finalResult.clutter_count ?? 0,
+        screwdriver_ready: session.finalResult.screwdriver_ready,
+        wire_stripper_ready: session.finalResult.wire_stripper_ready,
+        multimeter_ready: session.finalResult.multimeter_ready,
+        crimping_ready: session.finalResult.crimping_ready,
+      },
+    };
+    clientManager.sendWSMessage(client.socket, responseMsg);
   }
 
   return c.json({ success: true, data: session.finalResult });

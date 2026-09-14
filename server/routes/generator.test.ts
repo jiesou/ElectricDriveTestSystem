@@ -75,7 +75,7 @@ Deno.test("分析报告 - 格式化日志：工位清洁（85%进度）", () => 
     details: {
       deskCleanResult: {
         image: "",
-        sleeves_num: 0,
+        clutter_count: 0,
         screwdriver_ready: true,
         wire_stripper_ready: true,
         multimeter_ready: true,
@@ -95,7 +95,7 @@ Deno.test("分析报告 - 格式化日志：工位清洁（0%进度）", () => {
     details: {
       deskCleanResult: {
         image: "",
-        sleeves_num: 0,
+        clutter_count: 0,
         screwdriver_ready: false,
         wire_stripper_ready: false,
         multimeter_ready: false,

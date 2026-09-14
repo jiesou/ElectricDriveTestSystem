@@ -145,7 +145,7 @@ async function clearSession(cvClient: CvClient) {
                 <div><strong>剥线钳:</strong> {{ client.cvClient.session.finalResult.wire_stripper_ready ? '归位' : '未归位' }}</div>
                 <div><strong>万用表:</strong> {{ client.cvClient.session.finalResult.multimeter_ready ? '归位' : '未归位' }}</div>
                 <div><strong>斜口钳:</strong> {{ client.cvClient.session.finalResult.crimping_ready ? '归位' : '未归位' }}</div>
-                <div><strong>漏检号码管:</strong> {{ client.cvClient.session.finalResult.sleeves_num }} 个</div>
+                <div><strong>杂物:</strong> {{ client.cvClient.session.finalResult.clutter_count ?? 0 }} 个</div>
                 <div><strong>清洁进度:</strong> {{ (client.cvClient.session.finalResult.clean_progress * 100).toFixed(0) }}%</div>
                 <div style="font-size: 12px; color: #999;">时间戳: {{ new Date(client.cvClient.session.startTime * 1000).toLocaleString() }}</div>
               </div>

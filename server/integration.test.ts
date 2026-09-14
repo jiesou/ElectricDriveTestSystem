@@ -1,4 +1,4 @@
-import { assert, assertEquals, assertExists } from "@std/assert";
+  import { assert, assertEquals, assertExists } from "@std/assert";
 import { CvClientSimulator } from "./simulator/cvclient-simulator.ts";
 import { getSecondTimestamp } from "./utils/helpers.ts";
 import { calcWiringScore } from "./routes/cv.ts";
@@ -343,7 +343,7 @@ Deno.test("视觉机器视觉功能：拍照上传、评分推送、签到、清
     form.append(
       "result",
       JSON.stringify({
-        sleeves_num: 2,
+        clutter_count: 3,
         screwdriver_ready: true,
         wire_stripper_ready: true,
         multimeter_ready: false,
@@ -364,6 +364,16 @@ Deno.test("视觉机器视觉功能：拍照上传、评分推送、签到、清
       client.testSession!.logs.filter((l) => l.action === "desk_clean").length,
       1,
     );
+    // 客户机收到工位清洁结果推送（ESP32 据此跳出轮播页）
+    const push = await sim.waitForMessage(
+      (m: any) => m?.type === "deskclean_result_push",
+      3000,
+    );
+    assert(push);
+    const pushResult = (push as any).result;
+    assertEquals(pushResult.clutter_count, 3);
+    assertEquals(pushResult.multimeter_ready, false);
+    assertEquals(pushResult.crimping_ready, true);
     sim.disconnect();
   });
 

@@ -88,7 +88,7 @@ function generateMockLogs(startTime: number, score: number): TestLogType[] {
       details: {
         deskCleanResult: {
           image: '',
-          sleeves_num: Math.floor(Math.random() * 5),
+          clutter_count: Math.floor(Math.random() * 5),
           screwdriver_ready: Math.random() > 0.3,
           wire_stripper_ready: Math.random() > 0.3,
           multimeter_ready: Math.random() > 0.3,

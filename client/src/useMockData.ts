@@ -125,7 +125,7 @@ export function generateMockData(): Client[] {
       details: {
         deskCleanResult: {
           image: "",
-          sleeves_num: 0,
+          clutter_count: 3,
           screwdriver_ready: true,
           wire_stripper_ready: true,
           multimeter_ready: false,

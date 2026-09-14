@@ -144,12 +144,12 @@ export interface FaceSigninSession extends CvSession {
 // 工位清洁结果
 export interface DeskCleanFinalResult {
   image: string; // 截图数据（base64或URL）
-  sleeves_num: number;
+  clutter_count?: number; // 桌面杂物数量
   screwdriver_ready: boolean; // 螺丝刀
   wire_stripper_ready: boolean; // 剥线钳
   multimeter_ready: boolean; // 万用表
   crimping_ready: boolean; // 斜口钳
-  clean_progress: number; // 0-1, 0%-100%
+  clean_progress: number; // 桌面杂乱指数 0-1, 0%-100%, 越小越干净
 }
 
 // 工位清洁会话

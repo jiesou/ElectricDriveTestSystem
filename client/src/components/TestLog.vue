@@ -88,12 +88,12 @@ function formatTimestamp(timestamp: number): string {
                 log.details.trouble.from_wire }} - {{ log.details.trouble.to_wire }})</Tag>  - 判定 {{ log.details.isCorrect ? '答对' : '答错' }}
             </strong>
             <strong v-else-if="log.action == 'desk_clean'">
-              工位清洁: 进度 {{ (log.details.deskCleanResult.clean_progress * 100).toFixed(0) }}%，
+              工位清洁: 桌面杂乱指数 {{ (log.details.deskCleanResult.clean_progress * 100).toFixed(0) }}%，
               螺丝刀 {{ log.details.deskCleanResult.screwdriver_ready ? '归位' : '未归位' }}，
               剥线钳 {{ log.details.deskCleanResult.wire_stripper_ready ? '归位' : '未归位' }}，
               万用表 {{ log.details.deskCleanResult.multimeter_ready ? '归位' : '未归位' }}，
               斜口钳 {{ log.details.deskCleanResult.crimping_ready ? '归位' : '未归位' }}，
-              号码管 {{ log.details.deskCleanResult.sleeves_num }} 个
+              杂物 {{ log.details.deskCleanResult.clutter_count ?? 0 }} 个
             </strong>
             <strong v-else>未知操作</strong>
           </div>

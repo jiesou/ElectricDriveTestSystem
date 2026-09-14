@@ -145,12 +145,12 @@ export interface FaceSigninSession extends CvSession {
 // 工位清洁结果
 export interface DeskCleanResult {
   image: string; // 截图数据（base64或URL）
-  sleeves_num: number;
+  clutter_count?: number; // 桌面杂物数量
   screwdriver_ready: boolean; // 螺丝刀
   wire_stripper_ready: boolean; // 剥线钳
   multimeter_ready: boolean; // 万用表
   crimping_ready: boolean; // 斜口钳
-  clean_progress: number; // 0-1
+  clean_progress: number; // 桌面杂乱指数 0-1
 }
 
 // 工位清洁会话
@@ -319,6 +319,20 @@ export interface EvaluateWiringYoloPushMessage extends WSMessage {
 export interface FaceSigninResultPushMessage extends WSMessage {
   type: "face_signin_result_push";
   who: string;
+}
+
+// ==================== DeskClean 工位清洁相关 ====================
+
+// 服务器推送工位清洁结果给ESP32客户机（不含 image 与 clean_progress）
+export interface DeskCleanResultPushMessage extends WSMessage {
+  type: "deskclean_result_push";
+  result: {
+    clutter_count: number; // 桌面杂物数量
+    screwdriver_ready: boolean; // 螺丝刀已归位
+    wire_stripper_ready: boolean; // 剥线钳已归位
+    multimeter_ready: boolean; // 万用表已归位
+    crimping_ready: boolean; // 斜口钳已归位
+  };
 }
 
 // ==================== 默认数据和配置文件加载 ====================
