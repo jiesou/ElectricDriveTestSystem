@@ -344,11 +344,12 @@ Deno.test("视觉机器视觉功能：拍照上传、评分推送、签到、清
       "result",
       JSON.stringify({
         clutter_count: 3,
+        clutter_area_percent: 0.05,
+        clean_score: 85,
         screwdriver_ready: true,
         wire_stripper_ready: true,
         multimeter_ready: false,
         crimping_ready: true,
-        clean_progress: 0.85,
       }),
     );
     const res = await fetch(
@@ -359,7 +360,9 @@ Deno.test("视觉机器视觉功能：拍照上传、评分推送、签到、清
         body: form,
       },
     );
-    assertEquals((await res.json() as any).data.clean_progress, 0.85);
+    const body = await res.json() as any;
+    assertEquals(body.data.clutter_area_percent, 0.05);
+    assertEquals(body.data.clean_score, 85);
     assertEquals(
       client.testSession!.logs.filter((l) => l.action === "desk_clean").length,
       1,

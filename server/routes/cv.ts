@@ -350,7 +350,7 @@ cvRouter.post("/upload_face", async (c) => {
  *
  * Body (FormData):
  *   image: File,
- *   result: str = '{"clutter_count":3,"screwdriver_ready":true,"wire_stripper_ready":true,"multimeter_ready":true,"crimping_ready":true,"clean_progress":0.8}'
+ *   result: str = '{"clutter_count":3,"clutter_area_percent":0.05,"clean_score":85,"screwdriver_ready":true,"wire_stripper_ready":true,"multimeter_ready":true,"crimping_ready":true}'
  */
 cvRouter.post("/upload_deskclean", async (c) => {
   const contentType = c.req.header("Content-Type") || "";
@@ -404,11 +404,12 @@ cvRouter.post("/upload_deskclean", async (c) => {
   session.finalResult = {
     image: imageUrl,
     clutter_count: Number(inputResultObj.clutter_count) || 0,
+    clutter_area_percent: Number(inputResultObj.clutter_area_percent) || 0,
+    clean_score: Number(inputResultObj.clean_score) || 0,
     screwdriver_ready: Boolean(inputResultObj.screwdriver_ready),
     wire_stripper_ready: Boolean(inputResultObj.wire_stripper_ready),
     multimeter_ready: Boolean(inputResultObj.multimeter_ready),
     crimping_ready: Boolean(inputResultObj.crimping_ready),
-    clean_progress: Number(inputResultObj.clean_progress) || 0,
   };
 
   // 记录日志（工位清洁属于测验考点）

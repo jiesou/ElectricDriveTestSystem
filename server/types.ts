@@ -146,11 +146,12 @@ export interface FaceSigninSession extends CvSession {
 export interface DeskCleanResult {
   image: string; // 截图数据（base64或URL）
   clutter_count?: number; // 桌面杂物数量
+  clutter_area_percent?: number; // 杂物掩膜占桌面面积的比例 0-1，越高越乱
+  clean_score?: number; // 清洁得分 0-100，满分往下扣
   screwdriver_ready: boolean; // 螺丝刀
   wire_stripper_ready: boolean; // 剥线钳
   multimeter_ready: boolean; // 万用表
   crimping_ready: boolean; // 斜口钳
-  clean_progress: number; // 桌面杂乱指数 0-1
 }
 
 // 工位清洁会话
@@ -323,7 +324,7 @@ export interface FaceSigninResultPushMessage extends WSMessage {
 
 // ==================== DeskClean 工位清洁相关 ====================
 
-// 服务器推送工位清洁结果给ESP32客户机（不含 image 与 clean_progress）
+// 服务器推送工位清洁结果给ESP32客户机（不含 image、clutter_area_percent、clean_score）
 export interface DeskCleanResultPushMessage extends WSMessage {
   type: "deskclean_result_push";
   result: {

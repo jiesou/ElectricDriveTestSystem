@@ -89,11 +89,12 @@ function generateMockLogs(startTime: number, score: number): TestLogType[] {
         deskCleanResult: {
           image: '',
           clutter_count: Math.floor(Math.random() * 5),
+          clutter_area_percent: Math.random() * 0.3,
+          clean_score: 60 + Math.floor(Math.random() * 41),
           screwdriver_ready: Math.random() > 0.3,
           wire_stripper_ready: Math.random() > 0.3,
           multimeter_ready: Math.random() > 0.3,
-          crimping_ready: Math.random() > 0.3,
-          clean_progress: 0.5 + Math.random() * 0.5
+          crimping_ready: Math.random() > 0.3
         }
       }
     })

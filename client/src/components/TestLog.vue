@@ -88,7 +88,8 @@ function formatTimestamp(timestamp: number): string {
                 log.details.trouble.from_wire }} - {{ log.details.trouble.to_wire }})</Tag>  - 判定 {{ log.details.isCorrect ? '答对' : '答错' }}
             </strong>
             <strong v-else-if="log.action == 'desk_clean'">
-              工位清洁: 桌面杂乱指数 {{ (log.details.deskCleanResult.clean_progress * 100).toFixed(0) }}%，
+              工位清洁: 得分 {{ log.details.deskCleanResult.clean_score ?? 0 }}，
+              杂物面积占比 {{ ((log.details.deskCleanResult.clutter_area_percent ?? 0) * 100).toFixed(1) }}%，
               螺丝刀 {{ log.details.deskCleanResult.screwdriver_ready ? '归位' : '未归位' }}，
               剥线钳 {{ log.details.deskCleanResult.wire_stripper_ready ? '归位' : '未归位' }}，
               万用表 {{ log.details.deskCleanResult.multimeter_ready ? '归位' : '未归位' }}，

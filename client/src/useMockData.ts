@@ -126,11 +126,12 @@ export function generateMockData(): Client[] {
         deskCleanResult: {
           image: "",
           clutter_count: 3,
+          clutter_area_percent: 0.05,
+          clean_score: 85,
           screwdriver_ready: true,
           wire_stripper_ready: true,
           multimeter_ready: false,
           crimping_ready: true,
-          clean_progress: 0.85,
         },
       },
     },

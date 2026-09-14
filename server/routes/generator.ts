@@ -44,9 +44,7 @@ export function formatLogEntry(log: TestLog, index: number): string {
       detail = `排故任务完成 - 达成率: ${log.details.score}%`;
       break;
     case "desk_clean":
-      detail = `工位清洁 - 桌面干净程度: ${
-        (log.details.deskCleanResult.clean_progress * 100).toFixed(0)
-      }%`;
+      detail = `工位清洁 - 得分: ${log.details.deskCleanResult.clean_score ?? 0}`;
       break;
     case "connect":
       detail = "连接服务器";

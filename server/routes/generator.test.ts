@@ -68,7 +68,7 @@ Deno.test("分析报告 - 格式化日志：排故任务完成", () => {
   assert(result.includes("FINISH: 排故任务完成 - 达成率: 85%"));
 });
 
-Deno.test("分析报告 - 格式化日志：工位清洁（85%进度）", () => {
+Deno.test("分析报告 - 格式化日志：工位清洁（得分 85）", () => {
   const log: DeskCleanLog = {
     timestamp: 1000000000,
     action: "desk_clean",
@@ -76,19 +76,20 @@ Deno.test("分析报告 - 格式化日志：工位清洁（85%进度）", () => 
       deskCleanResult: {
         image: "",
         clutter_count: 0,
+        clutter_area_percent: 0.02,
+        clean_score: 85,
         screwdriver_ready: true,
         wire_stripper_ready: true,
         multimeter_ready: true,
         crimping_ready: true,
-        clean_progress: 0.85,
       },
     },
   };
   const result = formatLogEntry(log, 0);
-  assert(result.includes("DESK_CLEAN: 工位清洁 - 桌面干净程度: 85%"));
+  assert(result.includes("DESK_CLEAN: 工位清洁 - 得分: 85"));
 });
 
-Deno.test("分析报告 - 格式化日志：工位清洁（0%进度）", () => {
+Deno.test("分析报告 - 格式化日志：工位清洁（得分 0）", () => {
   const log: DeskCleanLog = {
     timestamp: 1000000000,
     action: "desk_clean",
@@ -96,16 +97,17 @@ Deno.test("分析报告 - 格式化日志：工位清洁（0%进度）", () => {
       deskCleanResult: {
         image: "",
         clutter_count: 0,
+        clutter_area_percent: 0,
+        clean_score: 0,
         screwdriver_ready: false,
         wire_stripper_ready: false,
         multimeter_ready: false,
         crimping_ready: false,
-        clean_progress: 0,
       },
     },
   };
   const result = formatLogEntry(log, 0);
-  assert(result.includes("DESK_CLEAN: 工位清洁 - 桌面干净程度: 0%"));
+  assert(result.includes("DESK_CLEAN: 工位清洁 - 得分: 0"));
 });
 
 Deno.test("分析报告 - 格式化日志：连接服务器", () => {
